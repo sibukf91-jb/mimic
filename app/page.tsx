@@ -194,7 +194,6 @@ export default function Home() {
   }, [songList, selectedGenre, searchQuery]);
 
   // ================= 2. 일정 캘린더 & 동적 요약 데이터 =================
-  // 심볼 설정 (연차, 반차, 헤어, 생일, 약속)
   const SYMBOL_CONFIG = {
     leave: { label: "연차", icon: "🌴", badge: "연차" },
     half_leave: { label: "반차", icon: "🌓", badge: "반차" },
@@ -203,7 +202,6 @@ export default function Home() {
     appointment: { label: "약속", icon: "📌", badge: "약속" },
   };
 
-  // 파스텔 톤 5가지 색상
   const COLOR_CONFIG = {
     pink: { label: "핑크", class: "bg-pink-100 text-pink-900 border-pink-300", chip: "bg-pink-300" },
     blue: { label: "파랑", class: "bg-blue-100 text-blue-900 border-blue-300", chip: "bg-blue-300" },
@@ -241,6 +239,22 @@ export default function Home() {
   const [editPopupTitle, setEditPopupTitle] = useState("");
   const [editPopupSymbol, setEditPopupSymbol] = useState("appointment");
   const [editPopupColor, setEditPopupColor] = useState("pink");
+
+  // ESC 키 눌렀을 때 팝업 모달 닫기
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setModalDate(null);
+        setPopupEditingId(null);
+      }
+    };
+    if (modalDate) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [modalDate]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -301,7 +315,6 @@ export default function Home() {
     return cells;
   }, [calYear, calMonth]);
 
-  // 일정 추가
   const handleAddPopupSchedule = (e: React.FormEvent) => {
     e.preventDefault();
     if (!modalDate || !newSchedTitle.trim()) return;
@@ -318,7 +331,6 @@ export default function Home() {
     setNewSchedTitle("");
   };
 
-  // 팝업 내 인라인 수정 시작
   const startPopupEdit = (item: any) => {
     setPopupEditingId(item.id);
     setEditPopupTitle(item.title);
@@ -326,7 +338,6 @@ export default function Home() {
     setEditPopupColor(item.color || "pink");
   };
 
-  // 팝업 내 인라인 수정 완료 저장
   const savePopupEdit = (id: number) => {
     if (!editPopupTitle.trim()) return;
     setScheduleList((prev) =>
@@ -344,22 +355,20 @@ export default function Home() {
     setPopupEditingId(null);
   };
 
-  // 일정 삭제
   const handleDeleteSchedule = (id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setScheduleList((prev) => prev.filter((item) => item.id !== id));
     if (popupEditingId === id) setPopupEditingId(null);
   };
 
-  // ================= 4. 요약칸 동적 연동 계산 로직 =================
+  // ================= 4. 요약칸 동적 계산 로직 =================
   const TODAY_STR = "2026-09-20";
   const todayDateObj = new Date(TODAY_STR);
 
-  // A. 연차 / 반차 계산 (1월 1일 기준 기본 16개에서 달력의 연차/반차 사용량 차감)
   const leaveSummary = useMemo(() => {
     const currentYearStr = String(calYear);
     const leaveItems = scheduleList.filter((s) => s.date.startsWith(currentYearStr) && (s.symbol === "leave" || s.symbol === "half_leave"));
-    if (leaveItems.length === 0) return null; // 등록된 연차/반차가 없으면 요약칸에 미표시
+    if (leaveItems.length === 0) return null;
 
     let used = 0;
     leaveItems.forEach((s) => {
@@ -376,7 +385,6 @@ export default function Home() {
     };
   }, [scheduleList, calYear]);
 
-  // B. 생일 D-Day 계산 (달력에 실제로 등록된 생일 심볼만 표시)
   const birthdaySummary = useMemo(() => {
     const birthdays = scheduleList
       .filter((s) => s.symbol === "birthday")
@@ -384,10 +392,8 @@ export default function Home() {
 
     if (birthdays.length === 0) return null;
 
-    // 가장 가까운 다음 생일 찾기 (오늘 이후 포함)
     let nextBday = birthdays.find((s) => s.date >= TODAY_STR);
     if (!nextBday) {
-      // 모두 과거인 경우 가장 마지막 등록된 생일
       nextBday = birthdays[birthdays.length - 1];
     }
 
@@ -402,7 +408,6 @@ export default function Home() {
     };
   }, [scheduleList]);
 
-  // C. 헤어(이발) 경과일 또는 다음 예약 D-Day 계산
   const hairSummary = useMemo(() => {
     const hairList = scheduleList
       .filter((s) => s.symbol === "hair")
@@ -410,9 +415,7 @@ export default function Home() {
 
     if (hairList.length === 0) return null;
 
-    // 미래 예약이 있는지 확인
     const nextHair = hairList.find((s) => s.date > TODAY_STR);
-    // 과거 최근 이발 확인
     const pastHairs = hairList.filter((s) => s.date <= TODAY_STR);
     const lastHair = pastHairs.length > 0 ? pastHairs[pastHairs.length - 1] : null;
 
@@ -440,7 +443,6 @@ export default function Home() {
     return null;
   }, [scheduleList]);
 
-  // D. 다가오는 일반 약속 D-Day 목록 (선택적)
   const upcomingAppointments = useMemo(() => {
     return scheduleList
       .filter((s) => s.symbol === "appointment" && s.date >= TODAY_STR)
@@ -902,34 +904,34 @@ export default function Home() {
         {/* [2] 중앙 내용 영역 (배너 세로 높이 h-[760px]와 완벽 일치) */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
-          {/* ==================== A. [일정] 탭 화면 ==================== */}
+          {/* ==================== A. [일정] 탭 화면 (파스텔톤 짙은 핑크 테두리 적용) ==================== */}
           {currentTab === "schedule" && (
             <div className="h-full flex flex-col gap-3">
               
-              {/* [박스 1] 상단 헤더 박스 */}
-              <div className="border-2 border-indigo-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
-                <div className="flex-1 flex items-center justify-between pr-6 border-r border-indigo-200">
+              {/* [박스 1] 상단 헤더 박스 (파스텔톤 짙은 핑크 테두리) */}
+              <div className="border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
+                <div className="flex-1 flex items-center justify-between pr-6 border-r border-pink-200">
                   <button
                     onClick={prevMonth}
-                    className="px-4 py-1.5 rounded-xl border border-indigo-400 text-indigo-700 hover:bg-indigo-50 font-bold text-xs transition"
+                    className="px-4 py-1.5 rounded-xl border border-pink-400 text-pink-700 hover:bg-pink-50 font-bold text-xs transition"
                   >
                     &lt; 이전달
                   </button>
 
-                  <h2 className="text-lg font-black text-indigo-950 tracking-tight flex items-center gap-2">
+                  <h2 className="text-lg font-black text-pink-950 tracking-tight flex items-center gap-2">
                     <span>🗓️</span>
                     <span>{calYear}년 {calMonth}월 일정표</span>
                   </h2>
 
                   <button
                     onClick={nextMonth}
-                    className="px-4 py-1.5 rounded-xl border border-indigo-400 text-indigo-700 hover:bg-indigo-50 font-bold text-xs transition"
+                    className="px-4 py-1.5 rounded-xl border border-pink-400 text-pink-700 hover:bg-pink-50 font-bold text-xs transition"
                   >
                     다음달 &gt;
                   </button>
                 </div>
 
-                <div className="w-[280px] pl-6 flex items-center gap-1.5 text-sm font-extrabold text-indigo-900">
+                <div className="w-[280px] pl-6 flex items-center gap-1.5 text-sm font-extrabold text-pink-900">
                   <span>📌</span>
                   <span>일정 요약</span>
                 </div>
@@ -938,10 +940,10 @@ export default function Home() {
               {/* 하단 2분할 영역 (달력 박스 + 요약 박스) */}
               <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 items-stretch">
                 
-                {/* [박스 2] 좌측 메인 달력 박스 */}
-                <div className="flex-1 h-full border-2 border-indigo-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between overflow-hidden">
+                {/* [박스 2] 좌측 메인 달력 박스 (파스텔톤 짙은 핑크 테두리) */}
+                <div className="flex-1 h-full border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between overflow-hidden">
                   {/* 요일 헤더 */}
-                  <div className="grid grid-cols-7 text-center font-bold text-xs pb-2 border-b border-indigo-100 text-neutral-700 shrink-0">
+                  <div className="grid grid-cols-7 text-center font-bold text-xs pb-2 border-b border-pink-100 text-neutral-700 shrink-0">
                     <span className="text-rose-600 font-extrabold">일</span>
                     <span>월</span>
                     <span>화</span>
@@ -951,7 +953,7 @@ export default function Home() {
                     <span className="text-blue-600 font-extrabold">토</span>
                   </div>
 
-                  {/* 5개 행 달력 그리드 */}
+                  {/* 달력 그리드 */}
                   <div className="flex-1 grid grid-cols-7 grid-rows-5 gap-2 pt-2 min-h-0">
                     {calendarGrid.map((cell, idx) => {
                       if (!cell.day) {
@@ -972,7 +974,7 @@ export default function Home() {
                           className={`h-full border rounded-xl p-1.5 flex flex-col justify-between transition group relative cursor-pointer min-h-0 ${
                             isToday
                               ? "border-amber-400 bg-amber-50/70"
-                              : "border-indigo-100 bg-white hover:border-indigo-300 hover:bg-indigo-50/20"
+                              : "border-pink-200/90 bg-white hover:border-pink-400 hover:bg-pink-50/20"
                           }`}
                         >
                           {/* 날짜 번호 및 공휴일 */}
@@ -1023,10 +1025,10 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* [박스 3] 우측 일정 요약 박스 (동적 조건부 카드 표시) */}
-                <div className="w-full lg:w-[280px] h-full shrink-0 border-2 border-indigo-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-start gap-3.5 overflow-y-auto">
+                {/* [박스 3] 우측 일정 요약 박스 (파스텔톤 짙은 핑크 테두리) */}
+                <div className="w-full lg:w-[280px] h-full shrink-0 border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-start gap-3.5 overflow-y-auto">
                   
-                  {/* A. 남은 연차 카드 (연차/반차 심볼이 있을 때만 표시) */}
+                  {/* A. 남은 연차 카드 */}
                   {leaveSummary && (
                     <div className="border border-blue-200 bg-blue-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
                       <div className="flex items-center justify-between text-xs font-bold text-blue-900">
@@ -1042,7 +1044,7 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* B. 생일 D-Day 카드 (달력에 생일 심볼이 있을 때만 표시) */}
+                  {/* B. 생일 D-Day 카드 */}
                   {birthdaySummary && (
                     <div className="border border-rose-200 bg-rose-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900">
@@ -1058,7 +1060,7 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* C. 헤어(이발) 경과일/D-Day 카드 (헤어 심볼이 있을 때만 표시) */}
+                  {/* C. 헤어(이발) 경과일/D-Day 카드 */}
                   {hairSummary && (
                     <div className="border border-purple-200 bg-purple-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900">
@@ -1090,10 +1092,10 @@ export default function Home() {
                   {/* 등록된 요약 심볼이 아무것도 없을 때 */}
                   {!hasAnySummary && (
                     <div className="h-full flex flex-col items-center justify-center text-center p-6 text-neutral-400">
-                      <CalendarDays className="w-8 h-8 mb-2 text-indigo-300" />
+                      <CalendarDays className="w-8 h-8 mb-2 text-pink-300" />
                       <span className="text-xs font-bold text-neutral-500 mb-1">일정 요약 없음</span>
                       <p className="text-[11px] text-neutral-400 leading-relaxed">
-                        달력에 <span className="font-semibold text-indigo-600">연차, 반차, 헤어, 생일</span> 일정을 등록하면 이곳에 자동으로 요약 카드가 생성됩니다.
+                        달력에 <span className="font-semibold text-pink-600">연차, 반차, 헤어, 생일</span> 일정을 등록하면 이곳에 자동으로 요약 카드가 생성됩니다.
                       </p>
                     </div>
                   )}
@@ -1102,26 +1104,37 @@ export default function Home() {
 
               </div>
 
-              {/* [일정 조회/추가/수정/삭제 팝업 모달] */}
+              {/* [일정 조회/추가/수정/삭제 팝업 모달 - ESC 닫기 연동] */}
               {modalDate && (
-                <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-                  <div className="bg-white rounded-3xl p-6 border border-indigo-200 shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
-                    
+                <div 
+                  className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+                  onClick={() => {
+                    setModalDate(null);
+                    setPopupEditingId(null);
+                  }}
+                >
+                  <div 
+                    className="bg-white rounded-3xl p-6 border border-pink-300 shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     {/* 모달 헤더 */}
                     <div className="flex items-center justify-between pb-3 border-b border-neutral-200 shrink-0">
-                      <h3 className="text-base font-black text-indigo-950 flex items-center gap-2">
-                        <CalendarIcon className="w-5 h-5 text-indigo-600" />
+                      <h3 className="text-base font-black text-neutral-900 flex items-center gap-2">
+                        <CalendarIcon className="w-5 h-5 text-pink-500" />
                         <span>{modalDate} 일정 관리</span>
                       </h3>
-                      <button
-                        onClick={() => {
-                          setModalDate(null);
-                          setPopupEditingId(null);
-                        }}
-                        className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-neutral-400 font-medium bg-neutral-100 px-2 py-0.5 rounded-md">ESC로 닫기</span>
+                        <button
+                          onClick={() => {
+                            setModalDate(null);
+                            setPopupEditingId(null);
+                          }}
+                          className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* 모달 본문 1: 기존 등록된 일정 목록 (수정 및 삭제 가능) */}
@@ -1137,12 +1150,12 @@ export default function Home() {
 
                         if (isEditingThis) {
                           return (
-                            <div key={`pop-edit-${item.id}`} className="p-3 rounded-2xl border-2 border-indigo-500 bg-indigo-50/50 space-y-2">
+                            <div key={`pop-edit-${item.id}`} className="p-3 rounded-2xl border-2 border-pink-400 bg-pink-50/50 space-y-2">
                               <input
                                 type="text"
                                 value={editPopupTitle}
                                 onChange={(e) => setEditPopupTitle(e.target.value)}
-                                className="w-full border border-indigo-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-neutral-900 bg-white"
+                                className="w-full border border-pink-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-neutral-900 bg-white focus:outline-none focus:border-pink-500"
                               />
 
                               {/* 심볼 변경 */}
@@ -1154,7 +1167,7 @@ export default function Home() {
                                     onClick={() => setEditPopupSymbol(key)}
                                     className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition ${
                                       editPopupSymbol === key
-                                        ? "border-indigo-600 bg-indigo-600 text-white"
+                                        ? "border-pink-500 bg-pink-500 text-white"
                                         : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
                                     }`}
                                   >
@@ -1172,7 +1185,7 @@ export default function Home() {
                                     type="button"
                                     onClick={() => setEditPopupColor(key)}
                                     className={`w-5 h-5 rounded-full ${val.chip} border-2 transition ${
-                                      editPopupColor === key ? "border-indigo-800 scale-110" : "border-white"
+                                      editPopupColor === key ? "border-pink-600 scale-110" : "border-white"
                                     }`}
                                   />
                                 ))}
@@ -1182,7 +1195,7 @@ export default function Home() {
                                 <button
                                   type="button"
                                   onClick={() => savePopupEdit(item.id)}
-                                  className="px-3 py-1 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700"
+                                  className="px-3 py-1 bg-pink-500 text-white text-xs font-bold rounded-lg hover:bg-pink-600"
                                 >
                                   저장
                                 </button>
@@ -1246,7 +1259,7 @@ export default function Home() {
                           value={newSchedTitle}
                           onChange={(e) => setNewSchedTitle(e.target.value)}
                           placeholder="일정 제목을 입력하세요 (예: 치과, 생일파티 등)"
-                          className="w-full border border-indigo-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 font-medium"
+                          className="w-full border border-pink-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-pink-500 font-medium"
                         />
                       </div>
 
@@ -1261,7 +1274,7 @@ export default function Home() {
                               onClick={() => setNewSchedSymbol(key)}
                               className={`py-1.5 rounded-xl text-[11px] font-bold border flex flex-col items-center gap-0.5 transition ${
                                 newSchedSymbol === key
-                                  ? "border-indigo-600 bg-indigo-50 text-indigo-950 font-black shadow-2xs"
+                                  ? "border-pink-500 bg-pink-50 text-pink-900 font-black shadow-2xs"
                                   : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
                               }`}
                             >
@@ -1287,9 +1300,9 @@ export default function Home() {
                                 className="hidden"
                               />
                               <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${
-                                newSchedColor === key ? "border-indigo-800 scale-110 shadow-xs" : "border-transparent opacity-70"
+                                newSchedColor === key ? "border-pink-600 scale-110 shadow-xs" : "border-transparent opacity-70"
                               }`}>
-                                {newSchedColor === key && <Check className="w-3 h-3 text-indigo-950 stroke-[3]" />}
+                                {newSchedColor === key && <Check className="w-3 h-3 text-pink-950 stroke-[3]" />}
                               </span>
                               <span className="text-[11px] font-semibold text-neutral-700">{val.label}</span>
                             </label>
@@ -1306,11 +1319,11 @@ export default function Home() {
                           }}
                           className="flex-1 py-2 rounded-xl border border-neutral-300 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 transition"
                         >
-                          닫기
+                          닫기 (ESC)
                         </button>
                         <button
                           type="submit"
-                          className="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition"
+                          className="flex-1 py-2 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold shadow-sm transition"
                         >
                           일정 추가
                         </button>
