@@ -60,7 +60,7 @@ export default function Home() {
     }
   }, []);
 
-  // 비밀번호 등록 처리 (최최초 또는 설정에서 변경 시)
+  // 비밀번호 등록 처리
   const handleRegisterPassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPasswordInput.trim()) {
@@ -82,7 +82,7 @@ export default function Home() {
     setConfirmPasswordInput("");
   };
 
-  // 기존 비밀번호로 입장 처리
+  // 등록된 비밀번호로 로그인
   const handleUnlock = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (pin === storedPassword) {
@@ -516,7 +516,6 @@ export default function Home() {
           </p>
 
           {isSettingNewPassword ? (
-            // 최초 비밀번호 등록 폼
             <form onSubmit={handleRegisterPassword} className="w-full space-y-3">
               <div className="relative">
                 <input
@@ -553,7 +552,6 @@ export default function Home() {
               </button>
             </form>
           ) : (
-            // 기존 등록된 비밀번호 로그인 폼
             <form onSubmit={handleUnlock} className="w-full space-y-4">
               <div className="relative">
                 <input
@@ -579,7 +577,6 @@ export default function Home() {
                 <ArrowRight className="w-4 h-4" />
               </button>
               
-              {/* 비밀번호 재설정(초기화) 버튼 */}
               <button
                 type="button"
                 onClick={() => {
@@ -675,12 +672,22 @@ export default function Home() {
       {/* 본문 3단 레이아웃 */}
       <main className="max-w-[1720px] mx-auto w-full px-6 py-6 flex flex-col lg:flex-row gap-5 items-start flex-1 relative z-10">
         
-        {/* [1] 좌측 배너 */}
+        {/* [1] 좌측 배너 (노래책 탭일 때는 첨부 이미지, 그 외 탭은 기본 배너) */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px]">
-          <div className={`border-2 border-dashed ${themeClasses.borderDashed} rounded-2xl h-full flex flex-col items-center justify-center p-4 text-center ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm transition-colors duration-200`}>
-            <span className="text-xl mb-1">🖼️</span>
-            <span className={`text-xs font-semibold ${themeClasses.textSecondary}`}>좌측 배너 영역</span>
-          </div>
+          {currentTab === "songs" ? (
+            <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-emerald-400/90 shadow-sm relative bg-white">
+              <img
+                src="/song-banner.jpg"
+                alt="노래책 배너"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            <div className={`border-2 border-dashed ${themeClasses.borderDashed} rounded-2xl h-full flex flex-col items-center justify-center p-4 text-center ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm transition-colors duration-200`}>
+              <span className="text-xl mb-1">🖼️</span>
+              <span className={`text-xs font-semibold ${themeClasses.textSecondary}`}>좌측 배너 영역</span>
+            </div>
+          )}
         </aside>
 
         {/* [2] 중앙 내용 영역 (컴포넌트 연동) */}
