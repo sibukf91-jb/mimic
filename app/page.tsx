@@ -51,11 +51,10 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("ledger"); // 'ledger', 'schedule', 'songs' 등
+  const [currentTab, setCurrentTab] = useState("ledger"); // 'ledger', 'schedule', 'songs'
 
-  // ================= 1. 테마 색상 동적 매핑 (탭별 테마 연동) =================
+  // ================= 1. 테마 색상 동적 매핑 =================
   const themeClasses = useMemo(() => {
-    // 1. 가계부 탭 (파스텔톤 짙은 하늘색)
     if (currentTab === "ledger") {
       return {
         borderDashed: "border-sky-400/80",
@@ -75,7 +74,6 @@ export default function Home() {
         navActive: "bg-sky-100/90 text-sky-900 border-sky-300 shadow-sm",
       };
     }
-    // 2. 일정 탭 (파스텔톤 짙은 핑크색)
     if (currentTab === "schedule") {
       return {
         borderDashed: "border-pink-400/80",
@@ -95,7 +93,6 @@ export default function Home() {
         navActive: "bg-pink-100/90 text-pink-900 border-pink-300 shadow-sm",
       };
     }
-    // 3. 노래책 탭 등 기본 (에메랄드)
     return {
       borderDashed: "border-emerald-400/90",
       borderSolid: "border-emerald-400/90",
@@ -293,7 +290,7 @@ export default function Home() {
   const [isScheduleLoaded, setIsScheduleLoaded] = useState(false);
 
   const [calYear, setCalYear] = useState(2026);
-  const [calMonth, setCalMonth] = useState(9); // 1~12
+  const [calMonth, setCalMonth] = useState(9);
 
   const [modalDate, setModalDate] = useState<string | null>(null);
   const [newSchedTitle, setNewSchedTitle] = useState("");
@@ -425,7 +422,6 @@ export default function Home() {
     if (popupEditingId === id) setPopupEditingId(null);
   };
 
-  // 일정 요약 계산 로직
   const TODAY_STR = "2026-09-20";
   const todayDateObj = new Date(TODAY_STR);
 
@@ -516,28 +512,68 @@ export default function Home() {
 
   const hasAnySummary = leaveSummary || birthdaySummary || hairSummary || upcomingAppointments.length > 0;
 
-  // ================= 4. 가계부 데이터 (파스텔톤 짙은 하늘색 테마) =================
-  const defaultLedgerItems = [
-    { id: 1, date: "2026-09-05", type: "expense", category: "식비", title: "장보기 (이마트)", amount: 54000 },
-    { id: 2, date: "2026-09-10", type: "income", category: "급여", title: "9월 기본급", amount: 3200000 },
-    { id: 3, date: "2026-09-15", type: "expense", category: "통신", title: "휴대폰 요금", amount: 65000 },
-    { id: 4, date: "2026-09-18", type: "expense", category: "여가", title: "영화 관람 및 식사", amount: 38000 },
+  // ================= 4. 가계부 캘린더 데이터 (일정과 동일한 달력형 구조) =================
+  const LEDGER_COLOR_CONFIG = {
+    blue: { label: "파랑", class: "bg-blue-100 text-blue-900 border-blue-300", chip: "bg-blue-300" },
+    pink: { label: "핑크", class: "bg-pink-100 text-pink-900 border-pink-300", chip: "bg-pink-300" },
+    green: { label: "초록", class: "bg-emerald-100 text-emerald-900 border-emerald-300", chip: "bg-emerald-300" },
+    yellow: { label: "노랑", class: "bg-amber-100 text-amber-900 border-amber-300", chip: "bg-amber-300" },
+    purple: { label: "보라", class: "bg-purple-100 text-purple-900 border-purple-300", chip: "bg-purple-300" },
+  };
+
+  const defaultLedgerEntries = [
+    { id: 1, date: "2026-09-05", type: "expense", title: "장보기", amount: 54000, color: "pink" },
+    { id: 2, date: "2026-09-10", type: "income", title: "월급", amount: 3200000, color: "blue" },
+    { id: 3, date: "2026-09-15", type: "expense", title: "통신비", amount: 65000, color: "yellow" },
+    { id: 4, date: "2026-09-18", type: "expense", title: "외식비", amount: 38000, color: "purple" },
   ];
 
-  const [ledgerList, setLedgerList] = useState<any[]>([]);
+  const [ledgerEntries, setLedgerEntries] = useState<any[]>([]);
   const [isLedgerLoaded, setIsLedgerLoaded] = useState(false);
+
+  const [ledgerYear, setLedgerYear] = useState(2026);
+  const [ledgerMonth, setLedgerMonth] = useState(9);
+
+  // 가계부 팝업 모달 상태
+  const [ledgerModalDate, setLedgerModalDate] = useState<string | null>(null);
+  const [newLedgerTitle, setNewLedgerTitle] = useState("");
+  const [newLedgerAmount, setNewLedgerAmount] = useState("");
+  const [newLedgerType, setNewLedgerType] = useState<"expense" | "income">("expense");
+  const [newLedgerColor, setNewLedgerColor] = useState("pink");
+
+  const [ledgerEditingId, setLedgerEditingId] = useState<number | null>(null);
+  const [editLedgerTitle, setEditLedgerTitle] = useState("");
+  const [editLedgerAmount, setEditLedgerAmount] = useState("");
+  const [editLedgerType, setEditLedgerType] = useState<"expense" | "income">("expense");
+  const [editLedgerColor, setEditLedgerColor] = useState("pink");
+
+  // ESC 키로 가계부 팝업 닫기
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setLedgerModalDate(null);
+        setLedgerEditingId(null);
+      }
+    };
+    if (ledgerModalDate) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [ledgerModalDate]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("jb_bookmark_ledger_list");
+      const saved = localStorage.getItem("jb_bookmark_calendar_ledgers");
       if (saved) {
         try {
-          setLedgerList(JSON.parse(saved));
+          setLedgerEntries(JSON.parse(saved));
         } catch (e) {
-          setLedgerList(defaultLedgerItems);
+          setLedgerEntries(defaultLedgerEntries);
         }
       } else {
-        setLedgerList(defaultLedgerItems);
+        setLedgerEntries(defaultLedgerEntries);
       }
       setIsLedgerLoaded(true);
     }
@@ -545,13 +581,9 @@ export default function Home() {
 
   useEffect(() => {
     if (isLedgerLoaded && typeof window !== "undefined") {
-      localStorage.setItem("jb_bookmark_ledger_list", JSON.stringify(ledgerList));
+      localStorage.setItem("jb_bookmark_calendar_ledgers", JSON.stringify(ledgerEntries));
     }
-  }, [ledgerList, isLedgerLoaded]);
-
-  // 가계부 연월 필터
-  const [ledgerYear, setLedgerYear] = useState(2026);
-  const [ledgerMonth, setLedgerMonth] = useState(9);
+  }, [ledgerEntries, isLedgerLoaded]);
 
   const prevLedgerMonth = () => {
     if (ledgerMonth === 1) {
@@ -571,28 +603,99 @@ export default function Home() {
     }
   };
 
-  // 해당 월의 가계부 필터 및 집계
-  const currentMonthLedger = useMemo(() => {
-    const monthStr = `${ledgerYear}-${String(ledgerMonth).padStart(2, "0")}`;
-    return ledgerList
-      .filter((item) => item.date.startsWith(monthStr))
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [ledgerList, ledgerYear, ledgerMonth]);
+  // 가계부 캘린더 그리드 생성
+  const ledgerCalendarGrid = useMemo(() => {
+    const firstDayIndex = new Date(ledgerYear, ledgerMonth - 1, 1).getDay();
+    const lastDate = new Date(ledgerYear, ledgerMonth, 0).getDate();
 
-  const ledgerSummary = useMemo(() => {
+    const cells = [];
+    for (let i = 0; i < firstDayIndex; i++) {
+      cells.push({ day: null, dateStr: "" });
+    }
+    for (let d = 1; d <= lastDate; d++) {
+      const monthStr = String(ledgerMonth).padStart(2, "0");
+      const dayStr = String(d).padStart(2, "0");
+      cells.push({ day: d, dateStr: `${ledgerYear}-${monthStr}-${dayStr}` });
+    }
+    while (cells.length % 7 !== 0) {
+      cells.push({ day: null, dateStr: "" });
+    }
+    return cells;
+  }, [ledgerYear, ledgerMonth]);
+
+  // 가계부 항목 추가
+  const handleAddLedgerEntry = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ledgerModalDate || !newLedgerTitle.trim() || !newLedgerAmount) return;
+
+    const newEntry = {
+      id: Date.now(),
+      date: ledgerModalDate,
+      title: newLedgerTitle.trim(),
+      amount: Number(newLedgerAmount),
+      type: newLedgerType,
+      color: newLedgerColor
+    };
+
+    setLedgerEntries((prev) => [...prev, newEntry]);
+    setNewLedgerTitle("");
+    setNewLedgerAmount("");
+  };
+
+  // 가계부 항목 수정 시작
+  const startLedgerEdit = (item: any) => {
+    setLedgerEditingId(item.id);
+    setEditLedgerTitle(item.title);
+    setEditLedgerAmount(String(item.amount));
+    setEditLedgerType(item.type);
+    setEditLedgerColor(item.color || "pink");
+  };
+
+  // 가계부 항목 수정 저장
+  const saveLedgerEdit = (id: number) => {
+    if (!editLedgerTitle.trim() || !editLedgerAmount) return;
+    setLedgerEntries((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              title: editLedgerTitle.trim(),
+              amount: Number(editLedgerAmount),
+              type: editLedgerType,
+              color: editLedgerColor
+            }
+          : item
+      )
+    );
+    setLedgerEditingId(null);
+  };
+
+  // 가계부 항목 삭제
+  const handleDeleteLedgerEntry = (id: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setLedgerEntries((prev) => prev.filter((item) => item.id !== id));
+    if (ledgerEditingId === id) setLedgerEditingId(null);
+  };
+
+  // 당월 가계부 재정 요약 집계
+  const currentMonthLedgerSummary = useMemo(() => {
+    const prefix = `${ledgerYear}-${String(ledgerMonth).padStart(2, "0")}`;
+    const monthlyList = ledgerEntries.filter((item) => item.date.startsWith(prefix));
+
     let income = 0;
     let expense = 0;
-    currentMonthLedger.forEach((item) => {
-      if (item.type === "income") income += Number(item.amount);
-      else expense += Number(item.amount);
+    monthlyList.forEach((item) => {
+      if (item.type === "income") income += Number(item.amount || 0);
+      else expense += Number(item.amount || 0);
     });
+
     return {
       income,
       expense,
       balance: income - expense,
-      count: currentMonthLedger.length
+      count: monthlyList.length
     };
-  }, [currentMonthLedger]);
+  }, [ledgerEntries, ledgerYear, ledgerMonth]);
 
   // ================= 5. 플레이리스트 재생, 게이지 & 볼륨 =================
   const getYouTubeId = (url: string) => {
@@ -814,6 +917,7 @@ export default function Home() {
   const [timerMinutes, setTimerMinutes] = useState(4);
   const [timeLeft, setTimeLeft] = useState(4 * 60);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [isAlarmRinging, setIsAlarmRinging] = useState(false);
   const alarmIntervalRef = useRef<any>(null);
 
   useEffect(() => {
@@ -848,25 +952,49 @@ export default function Home() {
       interval = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     } else if (timeLeft === 0 && isTimerRunning) {
       setIsTimerRunning(false);
+      setIsAlarmRinging(true);
       playBeep();
       alarmIntervalRef.current = setInterval(() => playBeep(), 800);
     }
     return () => clearInterval(interval);
   }, [isTimerRunning, timeLeft]);
 
-  const resetTimer = () => {
+  const stopAlarm = () => {
+    setIsAlarmRinging(false);
     if (alarmIntervalRef.current) {
       clearInterval(alarmIntervalRef.current);
       alarmIntervalRef.current = null;
     }
+  };
+
+  const addMinute = () => {
+    if (isTimerRunning) return;
+    setTimerMinutes((prev) => {
+      const next = prev + 1;
+      setTimeLeft(next * 60);
+      return next;
+    });
+  };
+
+  const subtractMinute = () => {
+    if (isTimerRunning) return;
+    setTimerMinutes((prev) => {
+      if (prev <= 1) return 1;
+      const next = prev - 1;
+      setTimeLeft(next * 60);
+      return next;
+    });
+  };
+
+  const resetTimer = () => {
+    stopAlarm();
     setIsTimerRunning(false);
     setTimeLeft(timerMinutes * 60);
   };
 
   const toggleTimer = () => {
-    if (alarmIntervalRef.current) {
-      clearInterval(alarmIntervalRef.current);
-      alarmIntervalRef.current = null;
+    if (isAlarmRinging) {
+      stopAlarm();
       return;
     }
     if (timeLeft <= 0) setTimeLeft(timerMinutes * 60);
@@ -946,7 +1074,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-neutral-100/60 text-neutral-800 flex flex-col font-sans relative">
-      {/* 배경 은은한 격자 무늬 */}
       <div 
         className="fixed inset-0 pointer-events-none z-0"
         style={{
@@ -1017,10 +1144,10 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* [2] 중앙 내용 영역 (배너 세로 높이 h-[760px]와 일치) */}
+        {/* [2] 중앙 내용 영역 (세로 높이 h-[760px] 고정) */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
-          {/* ==================== A. [가계부] 탭 화면 (파스텔톤 짙은 하늘색 테마) ==================== */}
+          {/* ==================== A. [가계부] 탭 화면 (일정과 동일한 달력형 구조 + 파스텔 하늘색) ==================== */}
           {currentTab === "ledger" && (
             <div className="h-full flex flex-col gap-3">
               
@@ -1053,62 +1180,105 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 하단 2분할 영역 (내역 목록 박스 + 요약 박스) */}
+              {/* 하단 2분할 영역 (달력 박스 + 요약 박스) */}
               <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 items-stretch">
                 
-                {/* [박스 2] 좌측 메인 내역 박스 (파스텔 짙은 하늘색 테두리) */}
+                {/* [박스 2] 좌측 메인 가계부 달력 박스 (파스텔 짙은 하늘색 테두리) */}
                 <div className="flex-1 h-full border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between overflow-hidden">
-                  <div className="flex items-center justify-between pb-2 border-b border-sky-100 text-xs font-bold text-neutral-600 shrink-0">
-                    <div className="grid grid-cols-12 w-full text-center">
-                      <span className="col-span-2 text-sky-900 font-extrabold">일자</span>
-                      <span className="col-span-2 text-sky-900 font-extrabold">구분 / 분류</span>
-                      <span className="col-span-5 text-sky-900 font-extrabold">항목 및 내용</span>
-                      <span className="col-span-3 text-sky-900 font-extrabold">금액</span>
-                    </div>
+                  {/* 요일 헤더 */}
+                  <div className="grid grid-cols-7 text-center font-bold text-xs pb-2 border-b border-sky-100 text-neutral-700 shrink-0">
+                    <span className="text-rose-600 font-extrabold">일</span>
+                    <span>월</span>
+                    <span>화</span>
+                    <span>수</span>
+                    <span>목</span>
+                    <span>금</span>
+                    <span className="text-blue-600 font-extrabold">토</span>
                   </div>
 
-                  {/* 내역 리스트 목록 */}
-                  <div className="flex-1 overflow-y-auto space-y-2 pt-2 min-h-0 pr-1">
-                    {currentMonthLedger.map((item) => {
-                      const isIncome = item.type === "income";
+                  {/* 달력 그리드 */}
+                  <div className="flex-1 grid grid-cols-7 grid-rows-5 gap-2 pt-2 min-h-0">
+                    {ledgerCalendarGrid.map((cell, idx) => {
+                      if (!cell.day) {
+                        return <div key={`empty-ledger-${idx}`} className="h-full rounded-xl" />;
+                      }
+
+                      const dayOfWeek = idx % 7;
+                      const isSunday = dayOfWeek === 0;
+                      const isSaturday = dayOfWeek === 6;
+                      const isToday = cell.dateStr === TODAY_STR;
+                      const holidayName = holidays[cell.dateStr];
+                      const dayEntries = ledgerEntries.filter((s) => s.date === cell.dateStr);
+
+                      // 당일 수입/지출 합계 요약
+                      let dayIncome = 0;
+                      let dayExpense = 0;
+                      dayEntries.forEach(e => {
+                        if (e.type === "income") dayIncome += Number(e.amount || 0);
+                        else dayExpense += Number(e.amount || 0);
+                      });
+
                       return (
                         <div
-                          key={item.id}
-                          className={`grid grid-cols-12 items-center p-3 rounded-xl border transition shadow-2xs text-xs ${
-                            isIncome
-                              ? "bg-sky-50/60 border-sky-200"
-                              : "bg-white border-sky-100 hover:border-sky-300"
+                          key={cell.dateStr}
+                          onClick={() => setLedgerModalDate(cell.dateStr)}
+                          className={`h-full border rounded-xl p-1.5 flex flex-col justify-between transition group relative cursor-pointer min-h-0 ${
+                            isToday
+                              ? "border-amber-400 bg-amber-50/70"
+                              : "border-sky-200/90 bg-white hover:border-sky-400 hover:bg-sky-50/20"
                           }`}
                         >
-                          <span className="col-span-2 text-center text-neutral-500 font-mono text-[11px]">
-                            {item.date}
-                          </span>
-                          <span className="col-span-2 flex items-center justify-center gap-1">
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
-                              isIncome ? "bg-blue-100 text-blue-800 border-blue-200" : "bg-neutral-100 text-neutral-700 border-neutral-200"
-                            }`}>
-                              {item.category}
+                          <div className="flex items-center justify-between text-[11px] font-bold leading-tight">
+                            <span className={isSunday || holidayName ? "text-rose-600" : isSaturday ? "text-blue-600" : "text-neutral-800"}>
+                              {cell.day}
                             </span>
-                          </span>
-                          <span className="col-span-5 px-2 font-bold text-neutral-800 truncate">
-                            {item.title}
-                          </span>
-                          <span className={`col-span-3 text-right pr-2 font-black text-sm font-mono ${
-                            isIncome ? "text-blue-600" : "text-rose-500"
-                          }`}>
-                            {isIncome ? "+" : "-"}{Number(item.amount).toLocaleString()}원
-                          </span>
+                            {holidayName ? (
+                              <span className="text-[9px] font-bold text-rose-500 truncate max-w-[55px]">
+                                {holidayName}
+                              </span>
+                            ) : (dayIncome > 0 || dayExpense > 0) ? (
+                              <span className="text-[9px] font-mono font-bold text-sky-800">
+                                {dayExpense > 0 && <span className="text-rose-500 mr-1">-{dayExpense.toLocaleString()}</span>}
+                                {dayIncome > 0 && <span className="text-blue-600">+{dayIncome.toLocaleString()}</span>}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {/* 당일 내역 태그 뱃지 리스트 */}
+                          <div className="flex-1 overflow-y-auto space-y-1 my-0.5 pr-0.5 scrollbar-none">
+                            {dayEntries.map((item) => {
+                              const isIncome = item.type === "income";
+                              const colorObj = LEDGER_COLOR_CONFIG[item.color] || LEDGER_COLOR_CONFIG.pink;
+
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={`flex items-center justify-between px-1.5 py-0.5 rounded border text-[10px] font-semibold leading-none shadow-2xs ${colorObj.class}`}
+                                >
+                                  <span className="truncate flex items-center gap-1">
+                                    <span className="font-bold">{item.title}</span>
+                                    <span className="font-mono text-[9px] opacity-80">
+                                      {isIncome ? "+" : "-"}{Number(item.amount).toLocaleString()}
+                                    </span>
+                                  </span>
+                                  <button
+                                    onClick={(e) => handleDeleteLedgerEntry(item.id, e)}
+                                    title="삭제"
+                                    className="text-neutral-400 hover:text-rose-500 ml-1 shrink-0"
+                                  >
+                                    <X className="w-2.5 h-2.5" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="text-[9px] text-neutral-400 text-right opacity-0 group-hover:opacity-100 transition leading-none">
+                            +추가
+                          </div>
                         </div>
                       );
                     })}
-
-                    {currentMonthLedger.length === 0 && (
-                      <div className="h-full flex flex-col items-center justify-center text-center p-6 text-neutral-400">
-                        <Wallet className="w-8 h-8 mb-2 text-sky-300" />
-                        <span className="text-xs font-bold text-neutral-500 mb-1">등록된 가계부 내역이 없습니다.</span>
-                        <p className="text-[11px] text-neutral-400">세부 기능 및 추가 버튼이 곧 구성될 예정입니다.</p>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -1121,8 +1291,8 @@ export default function Home() {
                       <span className="flex items-center gap-1"><ArrowDownLeft className="w-3.5 h-3.5 text-blue-600" /> 이번 달 총 수입</span>
                       <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full font-bold">수입</span>
                     </div>
-                    <div className="text-2xl font-black text-blue-600 tracking-tight my-2">
-                      +{ledgerSummary.income.toLocaleString()}원
+                    <div className="text-3xl font-black text-blue-600 tracking-tight my-2">
+                      +{currentMonthLedgerSummary.income.toLocaleString()}원
                     </div>
                     <div className="text-[11px] text-neutral-500 font-medium">
                       {ledgerYear}년 {ledgerMonth}월 기준
@@ -1135,24 +1305,24 @@ export default function Home() {
                       <span className="flex items-center gap-1"><ArrowUpRight className="w-3.5 h-3.5 text-rose-600" /> 이번 달 총 지출</span>
                       <span className="text-[10px] text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded-full font-bold">지출</span>
                     </div>
-                    <div className="text-2xl font-black text-rose-600 tracking-tight my-2">
-                      -{ledgerSummary.expense.toLocaleString()}원
+                    <div className="text-3xl font-black text-rose-600 tracking-tight my-2">
+                      -{currentMonthLedgerSummary.expense.toLocaleString()}원
                     </div>
                     <div className="text-[11px] text-neutral-500 font-medium">
-                      총 {currentMonthLedger.filter(i => i.type === 'expense').length}건 결제
+                      총 {currentMonthLedgerSummary.count}건 등록
                     </div>
                   </div>
 
-                  {/* 카드 3: 당월 잔액 / 손익 */}
+                  {/* 카드 3: 당월 정산 잔액 */}
                   <div className="border border-sky-200 bg-sky-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
                     <div className="flex items-center justify-between text-xs font-bold text-sky-900">
                       <span className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5 text-sky-600" /> 당월 정산 잔액</span>
                       <span className="text-[10px] text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded-full font-bold">잔액</span>
                     </div>
-                    <div className={`text-2xl font-black tracking-tight my-2 ${
-                      ledgerSummary.balance >= 0 ? "text-sky-700" : "text-rose-600"
+                    <div className={`text-3xl font-black tracking-tight my-2 ${
+                      currentMonthLedgerSummary.balance >= 0 ? "text-sky-700" : "text-rose-600"
                     }`}>
-                      {ledgerSummary.balance >= 0 ? "+" : ""}{ledgerSummary.balance.toLocaleString()}원
+                      {currentMonthLedgerSummary.balance >= 0 ? "+" : ""}{currentMonthLedgerSummary.balance.toLocaleString()}원
                     </div>
                     <div className="text-[11px] text-neutral-500 font-medium">
                       수입 대비 잔여금
@@ -1163,14 +1333,245 @@ export default function Home() {
 
               </div>
 
+              {/* [가계부 조회/추가/수정/삭제 팝업 모달 - ESC 닫기 연동] */}
+              {ledgerModalDate && (
+                <div 
+                  className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+                  onClick={() => {
+                    setLedgerModalDate(null);
+                    setLedgerEditingId(null);
+                  }}
+                >
+                  <div 
+                    className="bg-white rounded-3xl p-6 border border-sky-300 shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between pb-3 border-b border-neutral-200 shrink-0">
+                      <h3 className="text-base font-black text-neutral-900 flex items-center gap-2">
+                        <Wallet className="w-5 h-5 text-sky-500" />
+                        <span>{ledgerModalDate} 가계부 관리</span>
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-neutral-400 font-medium bg-neutral-100 px-2 py-0.5 rounded-md">ESC로 닫기</span>
+                        <button
+                          onClick={() => {
+                            setLedgerModalDate(null);
+                            setLedgerEditingId(null);
+                          }}
+                          className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 등록된 내역 리스트 */}
+                    <div className="my-3 overflow-y-auto space-y-2 max-h-[220px] pr-1">
+                      <div className="text-[11px] font-bold text-neutral-500 mb-1">
+                        등록된 내역 ({ledgerEntries.filter((s) => s.date === ledgerModalDate).length}건)
+                      </div>
+
+                      {ledgerEntries.filter((s) => s.date === ledgerModalDate).map((item) => {
+                        const isEditingThis = ledgerEditingId === item.id;
+                        const isIncome = item.type === "income";
+                        const colorObj = LEDGER_COLOR_CONFIG[item.color] || LEDGER_COLOR_CONFIG.pink;
+
+                        if (isEditingThis) {
+                          return (
+                            <div key={`pop-ledger-edit-${item.id}`} className="p-3 rounded-2xl border-2 border-sky-400 bg-sky-50/50 space-y-2">
+                              <div className="flex gap-2">
+                                <select
+                                  value={editLedgerType}
+                                  onChange={(e) => setEditLedgerType(e.target.value as "expense" | "income")}
+                                  className="border border-sky-300 rounded-lg px-2 py-1 text-xs font-bold bg-white"
+                                >
+                                  <option value="expense">지출 (-)</option>
+                                  <option value="income">수입 (+)</option>
+                                </select>
+                                <input
+                                  type="text"
+                                  value={editLedgerTitle}
+                                  onChange={(e) => setEditLedgerTitle(e.target.value)}
+                                  placeholder="내역 이름"
+                                  className="flex-1 border border-sky-300 rounded-lg px-2.5 py-1 text-xs font-bold text-neutral-900 bg-white"
+                                />
+                              </div>
+
+                              <input
+                                type="number"
+                                value={editLedgerAmount}
+                                onChange={(e) => setEditLedgerAmount(e.target.value)}
+                                placeholder="금액 (원)"
+                                className="w-full border border-sky-300 rounded-lg px-2.5 py-1 text-xs font-bold text-neutral-900 bg-white"
+                              />
+
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-neutral-600">색상:</span>
+                                {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => setEditLedgerColor(key)}
+                                    className={`w-5 h-5 rounded-full ${val.chip} border-2 transition ${
+                                      editLedgerColor === key ? "border-sky-800 scale-110" : "border-white"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+
+                              <div className="flex justify-end gap-1.5 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => saveLedgerEdit(item.id)}
+                                  className="px-3 py-1 bg-sky-500 text-white text-xs font-bold rounded-lg hover:bg-sky-600"
+                                >
+                                  저장
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setLedgerEditingId(null)}
+                                  className="px-3 py-1 bg-white border border-neutral-300 text-neutral-600 text-xs rounded-lg hover:bg-neutral-50"
+                                >
+                                  취소
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={`flex items-center justify-between p-2 rounded-xl border text-xs font-semibold ${colorObj.class}`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0 pr-2">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                                isIncome ? "bg-blue-200 text-blue-900" : "bg-rose-200 text-rose-900"
+                              }`}>
+                                {isIncome ? "수입" : "지출"}
+                              </span>
+                              <span className="truncate">{item.title}</span>
+                              <span className="font-mono font-bold">
+                                {isIncome ? "+" : "-"}{Number(item.amount).toLocaleString()}원
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => startLedgerEdit(item)}
+                                title="수정"
+                                className="p-1 rounded-md hover:bg-black/10 text-neutral-600"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteLedgerEntry(item.id)}
+                                title="삭제"
+                                className="p-1 rounded-md hover:bg-rose-100 text-neutral-600 hover:text-rose-600"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {ledgerEntries.filter((s) => s.date === ledgerModalDate).length === 0 && (
+                        <div className="text-center py-4 text-neutral-400 text-xs">
+                          등록된 가계부 내역이 없습니다.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 새 내역 추가 폼 */}
+                    <form onSubmit={handleAddLedgerEntry} className="pt-3 border-t border-neutral-200 shrink-0 space-y-3">
+                      <div className="text-xs font-bold text-neutral-800">새 내역 추가</div>
+
+                      <div className="flex gap-2">
+                        <select
+                          value={newLedgerType}
+                          onChange={(e) => setNewLedgerType(e.target.value as "expense" | "income")}
+                          className="border border-sky-300 rounded-xl px-2.5 py-2 text-xs font-bold bg-white focus:outline-none focus:border-sky-500 cursor-pointer"
+                        >
+                          <option value="expense">지출 (-)</option>
+                          <option value="income">수입 (+)</option>
+                        </select>
+                        <input
+                          type="text"
+                          required
+                          value={newLedgerTitle}
+                          onChange={(e) => setNewLedgerTitle(e.target.value)}
+                          placeholder="항목 내용 (예: 식비, 마트, 용돈)"
+                          className="flex-1 border border-sky-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500 font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <input
+                          type="number"
+                          required
+                          min="0"
+                          value={newLedgerAmount}
+                          onChange={(e) => setNewLedgerAmount(e.target.value)}
+                          placeholder="금액을 입력하세요 (예: 15000)"
+                          className="w-full border border-sky-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500 font-medium"
+                        />
+                      </div>
+
+                      {/* 태그 색상 선택 */}
+                      <div>
+                        <div className="text-[11px] font-bold text-neutral-600 mb-1">파스텔 태그 색상</div>
+                        <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
+                          {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
+                            <label key={key} className="flex items-center gap-1.5 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="ledgerTagColor"
+                                value={key}
+                                checked={newLedgerColor === key}
+                                onChange={() => setNewLedgerColor(key)}
+                                className="hidden"
+                              />
+                              <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${
+                                newLedgerColor === key ? "border-sky-800 scale-110 shadow-xs" : "border-transparent opacity-70"
+                              }`}>
+                                {newLedgerColor === key && <Check className="w-3 h-3 text-sky-950 stroke-[3]" />}
+                              </span>
+                              <span className="text-[11px] font-semibold text-neutral-700">{val.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLedgerModalDate(null);
+                            setLedgerEditingId(null);
+                          }}
+                          className="flex-1 py-2 rounded-xl border border-neutral-300 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 transition"
+                        >
+                          닫기 (ESC)
+                        </button>
+                        <button
+                          type="submit"
+                          className="flex-1 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-sm transition"
+                        >
+                          내역 추가
+                        </button>
+                      </div>
+                    </form>
+
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
 
           {/* ==================== B. [일정] 탭 화면 ==================== */}
           {currentTab === "schedule" && (
             <div className="h-full flex flex-col gap-3">
-              
-              {/* 상단 헤더 박스 */}
               <div className="border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
                 <div className="flex-1 flex items-center justify-between pr-6 border-r border-pink-200">
                   <button
@@ -1199,7 +1600,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 하단 2분할 영역 */}
               <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 items-stretch">
                 <div className="flex-1 h-full border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between overflow-hidden">
                   <div className="grid grid-cols-7 text-center font-bold text-xs pb-2 border-b border-pink-100 text-neutral-700 shrink-0">
@@ -1351,7 +1751,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 팝업 모달 */}
               {modalDate && (
                 <div 
                   className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -1573,7 +1972,6 @@ export default function Home() {
                   </div>
                 </div>
               )}
-
             </div>
           )}
 
@@ -1874,7 +2272,9 @@ export default function Home() {
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px] flex flex-col gap-3">
           
           {/* 1. 시계 & 타이머 */}
-          <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col items-center text-center shrink-0 transition-colors duration-200`}>
+          <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col items-center text-center shrink-0 transition-colors duration-200 ${
+            isAlarmRinging ? "border-rose-500 bg-rose-50/80 animate-pulse" : ""
+          }`}>
             <div className={`flex items-center gap-1 text-[10px] font-semibold ${themeClasses.textSecondary} mb-0.5`}>
               <Clock className="w-3 h-3" />
               <span>{dateString}</span>
@@ -1886,12 +2286,18 @@ export default function Home() {
             <div className={`w-full pt-2 border-t ${themeClasses.borderSubtle} flex flex-col items-center`}>
               <div className="flex items-center justify-between w-full mb-1 px-1">
                 <span className="text-[10px] font-bold text-neutral-600 flex items-center gap-1">
-                  타이머
+                  {isAlarmRinging ? (
+                    <span className="text-rose-600 flex items-center gap-0.5 animate-bounce">
+                      <Bell className="w-3 h-3" /> 종료!
+                    </span>
+                  ) : (
+                    <span>타이머</span>
+                  )}
                 </span>
                 
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={() => !isTimerRunning && setTimerMinutes((p) => Math.max(1, p - 1))}
+                    onClick={subtractMinute}
                     disabled={isTimerRunning}
                     title="1분 감소"
                     className={`p-0.5 rounded ${themeClasses.accentBtnSub} disabled:opacity-30 transition`}
@@ -1902,7 +2308,7 @@ export default function Home() {
                     {timerMinutes}분
                   </span>
                   <button
-                    onClick={() => !isTimerRunning && setTimerMinutes((p) => p + 1)}
+                    onClick={addMinute}
                     disabled={isTimerRunning}
                     title="1분 증가"
                     className={`p-0.5 rounded ${themeClasses.accentBtnSub} disabled:opacity-30 transition`}
@@ -1912,29 +2318,49 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className={`text-xl font-black my-1 font-mono tracking-wider ${themeClasses.textPrimary}`}>
+              <div className={`text-xl font-black my-1 font-mono tracking-wider ${
+                isAlarmRinging ? "text-rose-600 animate-bounce" : themeClasses.textPrimary
+              }`}>
                 {timerMin}:{timerSec}
               </div>
 
               <div className="flex items-center gap-1.5 w-full mt-1">
-                <button
-                  onClick={toggleTimer}
-                  className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition shadow-sm ${
-                    isTimerRunning
-                      ? "bg-amber-500 hover:bg-amber-600 text-white"
-                      : themeClasses.accentBtn
-                  }`}
-                >
-                  {isTimerRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                  <span>{isTimerRunning ? "정지" : "시작"}</span>
-                </button>
-                <button
-                  onClick={resetTimer}
-                  title="타이머 초기화"
-                  className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60 ${themeClasses.textSecondary} transition`}
-                >
-                  <RotateCcw className="w-3 h-3" />
-                </button>
+                {isAlarmRinging ? (
+                  <button
+                    onClick={stopAlarm}
+                    className="flex-1 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-sm transition"
+                  >
+                    <BellOff className="w-3 h-3" /> 알람 끄기
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={toggleTimer}
+                      className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition shadow-sm ${
+                        isTimerRunning
+                          ? "bg-amber-500 hover:bg-amber-600 text-white"
+                          : themeClasses.accentBtn
+                      }`}
+                    >
+                      {isTimerRunning ? (
+                        <>
+                          <Pause className="w-3 h-3" /> 정지
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-3 h-3" /> 시작
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={resetTimer}
+                      title="타이머 초기화"
+                      className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60 ${themeClasses.textSecondary} transition`}
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -2052,7 +2478,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 플레이리스트 목록 */}
             <div className="overflow-y-auto space-y-1 pr-1 max-h-[140px]">
               {likedSongs.map((song, idx) => {
                 const isSelected = currentPlayingIndex === idx;
