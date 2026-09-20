@@ -48,7 +48,9 @@ import {
   Globe,
   User,
   Key,
-  Copy
+  Copy,
+  Bookmark,
+  BookOpen
 } from "lucide-react";
 
 export default function Home() {
@@ -57,10 +59,31 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("songs"); // 기본 탭: 노래책
+  const [currentTab, setCurrentTab] = useState("bookmarks"); // 'bookmarks', 'songs', 'favorites', 'schedule', 'ledger'
 
   // ================= 1. 테마 색상 동적 매핑 =================
   const themeClasses = useMemo(() => {
+    // 1. 책갈피 탭 (파스텔톤 짙은 노랑색)
+    if (currentTab === "bookmarks") {
+      return {
+        borderDashed: "border-amber-400/90",
+        borderSolid: "border-amber-400/90",
+        borderSubtle: "border-amber-200/90",
+        bgLight: "bg-amber-50/40",
+        bgHeader: "bg-amber-100/70",
+        textPrimary: "text-amber-950",
+        textSecondary: "text-amber-800",
+        accentBtn: "bg-amber-500 hover:bg-amber-600 text-white",
+        accentBtnSub: "bg-amber-100 hover:bg-amber-200 text-amber-800",
+        accentActive: "border-amber-500 bg-amber-100 text-amber-900 font-bold",
+        rangeAccent: "accent-amber-500",
+        rangeBg: "bg-amber-100",
+        activeTrack: "bg-amber-100/90 border-amber-400",
+        playIcon: "text-amber-600 fill-amber-600",
+        navActive: "bg-amber-100/90 text-amber-900 border-amber-300 shadow-sm",
+      };
+    }
+    // 2. 즐겨찾기 탭 (파스텔톤 짙은 보라색)
     if (currentTab === "favorites") {
       return {
         borderDashed: "border-purple-400/80",
@@ -80,6 +103,7 @@ export default function Home() {
         navActive: "bg-purple-100/90 text-purple-900 border-purple-300 shadow-sm",
       };
     }
+    // 3. 가계부 탭 (파스텔톤 짙은 하늘색)
     if (currentTab === "ledger") {
       return {
         borderDashed: "border-sky-400/80",
@@ -99,6 +123,7 @@ export default function Home() {
         navActive: "bg-sky-100/90 text-sky-900 border-sky-300 shadow-sm",
       };
     }
+    // 4. 일정 탭 (파스텔톤 짙은 핑크색)
     if (currentTab === "schedule") {
       return {
         borderDashed: "border-pink-400/80",
@@ -118,6 +143,7 @@ export default function Home() {
         navActive: "bg-pink-100/90 text-pink-900 border-pink-300 shadow-sm",
       };
     }
+    // 5. 노래책 탭 등 기본 (에메랄드)
     return {
       borderDashed: "border-emerald-400/90",
       borderSolid: "border-emerald-400/90",
@@ -145,7 +171,152 @@ export default function Home() {
   const TODAY_STR = "2026-09-20";
   const todayDateObj = new Date(TODAY_STR);
 
-  // ================= 2. 노래책 탭 데이터 & 장르별 자동 심볼 =================
+  // ================= 2. 책갈피 탭 데이터 (신규: 파스텔톤 짙은 노랑) =================
+  const getBookmarkCategoryIcon = (category: string) => {
+    const c = (category || "").trim().toLowerCase();
+    if (c.includes("독서") || c.includes("책") || c.includes("도서")) return "📚";
+    if (c.includes("기사") || c.includes("뉴스") || c.includes("칼럼") || c.includes("아티클")) return "📰";
+    if (c.includes("개발") || c.includes("코딩") || c.includes("기술")) return "💻";
+    if (c.includes("공부") || c.includes("학습") || c.includes("강의")) return "✏️";
+    if (c.includes("아이디어") || c.includes("영감") || c.includes("레퍼런스")) return "💡";
+    if (c.includes("시") || c.includes("문학") || c.includes("에세이")) return "✍️";
+    return "🔖";
+  };
+
+  const defaultBookmarks = [
+    { id: 1, category: "독서", author: "무라카미 하루키", title: "상실의 시대", url: "", memo: "어떤 진리로도 사랑하는 것을 잃은 슬픔을 치유할 수는 없다." },
+    { id: 2, category: "칼럼", author: "롱블랙", title: "감각을 깨우는 기록의 힘", url: "https://www.longblack.co", memo: "생각을 문장으로 남길 때 비로소 내 것이 된다." },
+    { id: 3, category: "개발", author: "Dan Abramov", title: "Overreacted", url: "https://overreacted.io", memo: "리액트의 동작 철학을 다룬 명문 아티클" },
+    { id: 4, category: "에세이", author: "김영하", title: "여행의 이유", url: "", memo: "인간은 늘 길 위에서 새로운 자신을 발견한다." },
+  ];
+
+  const [bookmarkList, setBookmarkList] = useState<any[]>([]);
+  const [isBookmarkLoaded, setIsBookmarkLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("jb_bookmark_reading_list_v1");
+      setBookmarkList(saved ? JSON.parse(saved) : defaultBookmarks);
+      setIsBookmarkLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isBookmarkLoaded && typeof window !== "undefined") {
+      localStorage.setItem("jb_bookmark_reading_list_v1", JSON.stringify(bookmarkList));
+    }
+  }, [bookmarkList, isBookmarkLoaded]);
+
+  // 책갈피 등록 폼 상태
+  const [newBmarkCategory, setNewBmarkCategory] = useState("");
+  const [newBmarkAuthor, setNewBmarkAuthor] = useState("");
+  const [newBmarkTitle, setNewBmarkTitle] = useState("");
+  const [newBmarkUrl, setNewBmarkUrl] = useState("");
+  const [newBmarkMemo, setNewBmarkMemo] = useState("");
+  const [selectedBmarkCategory, setSelectedBmarkCategory] = useState("전체");
+  const [bmarkSearchQuery, setBmarkSearchQuery] = useState("");
+
+  // 책갈피 수정 상태
+  const [editingBmarkId, setEditingBmarkId] = useState<number | null>(null);
+  const [editBmarkCategory, setEditBmarkCategory] = useState("");
+  const [editBmarkAuthor, setEditBmarkAuthor] = useState("");
+  const [editBmarkTitle, setEditBmarkTitle] = useState("");
+  const [editBmarkUrl, setEditBmarkUrl] = useState("");
+  const [editBmarkMemo, setEditBmarkMemo] = useState("");
+
+  const existingBmarkCategories = useMemo(() => {
+    const set = new Set<string>();
+    (bookmarkList || []).forEach((b) => {
+      if (b.category && b.category.trim()) set.add(b.category.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [bookmarkList]);
+
+  const handleAddBookmark = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBmarkTitle.trim()) return;
+
+    let formattedUrl = newBmarkUrl.trim();
+    if (formattedUrl && !formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+      formattedUrl = "https://" + formattedUrl;
+    }
+
+    const newEntry = {
+      id: Date.now(),
+      category: newBmarkCategory.trim() || "기타",
+      author: newBmarkAuthor.trim() || "미상",
+      title: newBmarkTitle.trim(),
+      url: formattedUrl,
+      memo: newBmarkMemo.trim()
+    };
+
+    setBookmarkList([newEntry, ...bookmarkList]);
+    setNewBmarkCategory("");
+    setNewBmarkAuthor("");
+    setNewBmarkTitle("");
+    setNewBmarkUrl("");
+    setNewBmarkMemo("");
+  };
+
+  const startEditBookmark = (item: any) => {
+    setEditingBmarkId(item.id);
+    setEditBmarkCategory(item.category || "기타");
+    setEditBmarkAuthor(item.author || "");
+    setEditBmarkTitle(item.title || "");
+    setEditBmarkUrl(item.url || "");
+    setEditBmarkMemo(item.memo || "");
+  };
+
+  const cancelEditBookmark = () => setEditingBmarkId(null);
+
+  const saveEditBookmark = (id: number) => {
+    if (!editBmarkTitle.trim()) return;
+
+    let formattedUrl = editBmarkUrl.trim();
+    if (formattedUrl && !formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+      formattedUrl = "https://" + formattedUrl;
+    }
+
+    setBookmarkList((prev) =>
+      prev.map((b) =>
+        b.id === id
+          ? {
+              ...b,
+              category: editBmarkCategory.trim() || "기타",
+              author: editBmarkAuthor.trim() || "미상",
+              title: editBmarkTitle.trim(),
+              url: formattedUrl,
+              memo: editBmarkMemo.trim()
+            }
+          : b
+      )
+    );
+    setEditingBmarkId(null);
+  };
+
+  const handleDeleteBookmark = (id: number) => {
+    setBookmarkList((prev) => prev.filter((b) => b.id !== id));
+  };
+
+  const filteredBookmarks = useMemo(() => {
+    return (bookmarkList || [])
+      .filter((b) => {
+        const matchCategory = selectedBmarkCategory === "전체" || b.category === selectedBmarkCategory;
+        const matchSearch =
+          (b.title || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase()) ||
+          (b.author || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase()) ||
+          (b.category || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase()) ||
+          (b.memo || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase());
+        return matchCategory && matchSearch;
+      })
+      .sort((a, b) => {
+        const authorCompare = (a.author || "").localeCompare(b.author || "", "ko");
+        if (authorCompare !== 0) return authorCompare;
+        return (a.title || "").localeCompare(b.title || "", "ko");
+      });
+  }, [bookmarkList, selectedBmarkCategory, bmarkSearchQuery]);
+
+  // ================= 3. 노래책 탭 데이터 & 장르별 자동 심볼 =================
   const getGenreIcon = (genre: string) => {
     const g = (genre || "").trim().toLowerCase();
     if (g.includes("k-pop") || g.includes("kpop") || g.includes("가요")) return "🇰🇷";
@@ -316,7 +487,7 @@ export default function Home() {
       });
   }, [songList, selectedGenre, searchQuery]);
 
-  // ================= 3. 즐겨찾기 탭 데이터 =================
+  // ================= 4. 즐겨찾기 탭 데이터 =================
   const defaultFavorites = [
     { id: 1, category: "포털", name: "네이버", url: "https://www.naver.com", memo: "뉴스, 지도, 블로그", username: "my_naver_id", pwHint: "초록창12#$" },
     { id: 2, category: "검색", name: "구글", url: "https://www.google.com", memo: "검색 및 지메일", username: "user@gmail.com", pwHint: "구글영문+특수" },
@@ -469,7 +640,7 @@ export default function Home() {
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
   }, [favList, selectedFavCategory, favSearchQuery]);
 
-  // ================= 4. 일정 탭 데이터 =================
+  // ================= 5. 일정 탭 데이터 =================
   const SCHEDULE_SYMBOL_CONFIG = {
     leave: { label: "연차", icon: "🌴", badge: "연차" },
     half_leave: { label: "반차", icon: "🌓", badge: "반차" },
@@ -647,7 +818,7 @@ export default function Home() {
 
   const hasAnyScheduleSummary = leaveSummary || birthdaySummary || hairSummary || upcomingAppointments.length > 0;
 
-  // ================= 5. 가계부 탭 데이터 =================
+  // ================= 6. 가계부 탭 데이터 =================
   const LEDGER_SYMBOL_CONFIG = {
     taxi: { label: "택시", icon: "🚕", badge: "택시" },
     delivery: { label: "배달", icon: "🛵", badge: "배달" },
@@ -868,7 +1039,7 @@ export default function Home() {
     }
   };
 
-  // ================= 6. 플레이리스트 & 시계 =================
+  // ================= 7. 플레이리스트 & 시계 =================
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [repeatMode, setRepeatMode] = useState<"none" | "all" | "one">("all");
@@ -1063,6 +1234,7 @@ export default function Home() {
     return `${m}:${String(s).padStart(2, "0")}`;
   };
 
+  // 시계 & 타이머 상태
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [timerMinutes, setTimerMinutes] = useState(4);
   const [timeLeft, setTimeLeft] = useState(4 * 60);
@@ -1270,7 +1442,217 @@ export default function Home() {
         {/* [2] 중앙 내용 영역 (세로 높이 h-[760px] 고정) */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
-          {/* ==================== 1. [노래책] 탭 ==================== */}
+          {/* ==================== 1. [책갈피] 탭 화면 (신규: 파스텔톤 짙은 노랑) ==================== */}
+          {currentTab === "bookmarks" && (
+            <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
+              
+              {/* 등록 바 */}
+              <form onSubmit={handleAddBookmark} className="border-2 border-amber-400/90 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-amber-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="relative">
+                  <input
+                    type="text"
+                    list="bmark-category-suggestions"
+                    value={newBmarkCategory}
+                    onChange={(e) => setNewBmarkCategory(e.target.value)}
+                    placeholder="분류 (예: 독서)"
+                    className="w-24 border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs font-medium text-amber-950 focus:outline-none focus:border-amber-500 placeholder-neutral-400"
+                  />
+                  <datalist id="bmark-category-suggestions">
+                    {existingBmarkCategories.map((c) => (<option key={c} value={c} />))}
+                  </datalist>
+                </div>
+
+                <input
+                  type="text"
+                  value={newBmarkAuthor}
+                  onChange={(e) => setNewBmarkAuthor(e.target.value)}
+                  placeholder="저자 / 출처"
+                  className="w-32 border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  required
+                  value={newBmarkTitle}
+                  onChange={(e) => setNewBmarkTitle(e.target.value)}
+                  placeholder="도서 / 글 제목 *"
+                  className="w-44 border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-bold"
+                />
+
+                <input
+                  type="text"
+                  value={newBmarkUrl}
+                  onChange={(e) => setNewBmarkUrl(e.target.value)}
+                  placeholder="원문 링크 (선택)"
+                  className="flex-1 min-w-[140px] border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  value={newBmarkMemo}
+                  onChange={(e) => setNewBmarkMemo(e.target.value)}
+                  placeholder="인상 깊은 구절 및 메모"
+                  className="w-48 border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                />
+
+                <button
+                  type="submit"
+                  className="bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> 책갈피 추가
+                </button>
+              </form>
+
+              {/* 검색 및 분류 필터 */}
+              <div className="border-2 border-amber-400/90 rounded-2xl p-3 bg-amber-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    value={bmarkSearchQuery}
+                    onChange={(e) => setBmarkSearchQuery(e.target.value)}
+                    placeholder="제목, 저자/출처, 구절 메모, 분류를 검색해보세요..."
+                    className="w-full border border-amber-300 bg-white/90 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                  />
+                  <Search className="w-3.5 h-3.5 text-amber-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
+                  <span className="text-amber-950 font-semibold text-[11px] mr-1">분류:</span>
+                  <button
+                    onClick={() => setSelectedBmarkCategory("전체")}
+                    className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                      selectedBmarkCategory === "전체"
+                        ? "border-amber-500 bg-amber-200 text-amber-950 font-bold shadow-2xs"
+                        : "border-amber-300/80 bg-white/70 text-neutral-700 hover:bg-white"
+                    }`}
+                  >
+                    전체
+                  </button>
+                  {existingBmarkCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedBmarkCategory(cat)}
+                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium flex items-center gap-1 ${
+                        selectedBmarkCategory === cat
+                          ? "border-amber-500 bg-amber-200 text-amber-950 font-bold shadow-2xs"
+                          : "border-amber-300/80 bg-white/70 text-neutral-700 hover:bg-white"
+                      }`}
+                    >
+                      <span>{getBookmarkCategoryIcon(cat)}</span>
+                      <span>{cat}</span>
+                    </button>
+                  ))}
+                  <span className="ml-auto text-[11px] text-amber-800/80 font-medium">
+                    총 {filteredBookmarks.length}개의 기록
+                  </span>
+                </div>
+              </div>
+
+              {/* 헤더 박스 */}
+              <div className="border-2 border-amber-400/90 rounded-xl px-4 py-2.5 bg-amber-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-amber-950 items-center text-center">
+                  <span className="col-span-2">🏷️ 분류</span>
+                  <span className="col-span-3">✍️ 저자 / 출처</span>
+                  <span className="col-span-4">📖 제목 및 인상 깊은 글귀</span>
+                  <span className="col-span-1">🔗 원문</span>
+                  <span className="col-span-2">관리</span>
+                </div>
+              </div>
+
+              {/* 리스트 */}
+              <div className="flex flex-col gap-2">
+                {filteredBookmarks.map((bmark) => {
+                  const isEditing = editingBmarkId === bmark.id;
+                  const catIcon = getBookmarkCategoryIcon(bmark.category);
+
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={`edit-bmark-${bmark.id}`}
+                        className="p-3 rounded-2xl border-2 border-amber-400 bg-amber-50/90 shadow-md flex flex-wrap items-center gap-2"
+                      >
+                        <input type="text" value={editBmarkCategory} onChange={(e) => setEditBmarkCategory(e.target.value)} placeholder="분류" className="w-20 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-amber-950 focus:outline-none focus:border-amber-600" />
+                        <input type="text" value={editBmarkAuthor} onChange={(e) => setEditBmarkAuthor(e.target.value)} placeholder="저자/출처" className="w-28 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium" />
+                        <input type="text" required value={editBmarkTitle} onChange={(e) => setEditBmarkTitle(e.target.value)} placeholder="글/도서 제목" className="w-36 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-bold" />
+                        <input type="text" value={editBmarkUrl} onChange={(e) => setEditBmarkUrl(e.target.value)} placeholder="원문 링크" className="flex-1 min-w-[140px] border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium" />
+                        <input type="text" value={editBmarkMemo} onChange={(e) => setEditBmarkMemo(e.target.value)} placeholder="글귀/메모" className="w-48 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium" />
+                        <div className="flex items-center gap-1 shrink-0 ml-auto">
+                          <button onClick={() => saveEditBookmark(bmark.id)} title="저장" className="p-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"><Check className="w-3.5 h-3.5" /> 저장</button>
+                          <button onClick={cancelEditBookmark} title="취소" className="p-1.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-600 text-xs flex items-center gap-1 shadow-sm transition"><X className="w-3.5 h-3.5" /> 취소</button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={bmark.id}
+                      className="grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border-2 border-amber-400/90 bg-amber-50/40 hover:bg-amber-50/70 transition shadow-2xs"
+                    >
+                      {/* 1. 분류 */}
+                      <div className="col-span-2 flex justify-center">
+                        <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-bold text-center flex items-center gap-1 shadow-2xs">
+                          <span>{catIcon}</span>
+                          <span>{bmark.category}</span>
+                        </span>
+                      </div>
+
+                      {/* 2. 저자 / 출처 */}
+                      <div className="col-span-3 text-neutral-800 truncate font-bold text-[12px] text-center px-1">
+                        {bmark.author}
+                      </div>
+
+                      {/* 3. 제목 및 글귀 */}
+                      <div className="col-span-4 flex flex-col justify-center px-1 overflow-hidden">
+                        <div className="flex items-center gap-1 text-neutral-900 font-black text-[13px] truncate">
+                          <BookOpen className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <span className="truncate">{bmark.title}</span>
+                        </div>
+                        {bmark.memo && (
+                          <div className="text-[11px] text-neutral-500 font-normal italic truncate mt-0.5">
+                            "{bmark.memo}"
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 4. 원문 링크 바로가기 */}
+                      <div className="col-span-1 flex justify-center">
+                        {bmark.url ? (
+                          <a
+                            href={bmark.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-2xs transition active:scale-95"
+                            title="원문 바로가기"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>열기</span>
+                          </a>
+                        ) : (
+                          <span className="text-[10px] text-neutral-400 font-medium">-</span>
+                        )}
+                      </div>
+
+                      {/* 5. 관리 버튼 */}
+                      <div className="col-span-2 flex items-center justify-center gap-1.5">
+                        <button onClick={() => startEditBookmark(bmark)} title="수정" className="p-1.5 rounded-lg text-neutral-400 hover:text-amber-800 hover:bg-white transition"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleDeleteBookmark(bmark.id)} title="삭제" className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredBookmarks.length === 0 && (
+                  <div className="border-2 border-dashed border-amber-300 rounded-2xl p-12 text-center text-xs font-medium text-amber-800/70 bg-amber-50/20">
+                    등록되었거나 조건에 맞는 책갈피가 없습니다.
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+
+          {/* ==================== 2. [노래책] 탭 화면 ==================== */}
           {currentTab === "songs" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               <form onSubmit={handleAddSong} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
@@ -1591,7 +1973,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== 2. [즐겨찾기] 탭 ==================== */}
+          {/* ==================== 3. [즐겨찾기] 탭 화면 ==================== */}
           {currentTab === "favorites" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               <form onSubmit={handleAddFav} className="border-2 border-purple-400/80 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-purple-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
@@ -1789,7 +2171,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== 3. [일정] 탭 ==================== */}
+          {/* ==================== 4. [일정] 탭 화면 ==================== */}
           {currentTab === "schedule" && (
             <div className="h-full flex flex-col gap-3">
               <div className="border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
@@ -2045,7 +2427,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== D. [가계부] 탭 ==================== */}
+          {/* ==================== 5. [가계부] 탭 화면 ==================== */}
           {currentTab === "ledger" && (
             <div className="h-full flex flex-col gap-3">
               <div className="border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
@@ -2344,7 +2726,7 @@ export default function Home() {
                         <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
                           {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
                             <label key={key} className="flex items-center gap-1.5 cursor-pointer">
-                              <input type="radio" name="tagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
+                              <input type="radio" name="ledgerTagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
                               <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${newLedgerColor === key ? "border-sky-800 scale-110 shadow-xs" : "border-transparent opacity-70"}`}>
                                 {newLedgerColor === key && <Check className="w-3 h-3 text-sky-950 stroke-[3]" />}
                               </span>
@@ -2369,8 +2751,8 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== E. 그 외 미구현 탭 ==================== */}
-          {currentTab !== "songs" && currentTab !== "schedule" && currentTab !== "ledger" && currentTab !== "favorites" && (
+          {/* ==================== 6. 그 외 미구현 탭 ==================== */}
+          {currentTab !== "songs" && currentTab !== "schedule" && currentTab !== "ledger" && currentTab !== "favorites" && currentTab !== "bookmarks" && (
             <div className="h-full border border-dashed border-emerald-300 rounded-2xl p-20 flex flex-col items-center justify-center text-center bg-emerald-50/20 backdrop-blur-[2px]">
               <span className="text-3xl mb-2 block">🚧</span>
               <h3 className="text-sm font-bold text-emerald-900 mb-1">{menuItems.find((m) => m.id === currentTab)?.label} 준비 중</h3>
