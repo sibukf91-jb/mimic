@@ -47,7 +47,8 @@ import {
   Star,
   Globe,
   User,
-  Key
+  Key,
+  Copy
 } from "lucide-react";
 
 export default function Home() {
@@ -136,7 +137,7 @@ export default function Home() {
     };
   }, [currentTab]);
 
-  // ================= 2. 즐겨찾기 탭 기능 및 분류 심볼 매퍼 =================
+  // ================= 2. 즐겨찾기 탭 기능 =================
   const getCategoryIcon = (category: string) => {
     const cat = (category || "").toLowerCase();
     if (cat.includes("포털") || cat.includes("웹") || cat.includes("인터넷")) return "🌐";
@@ -162,6 +163,18 @@ export default function Home() {
 
   const [favList, setFavList] = useState<any[]>([]);
   const [isFavLoaded, setIsFavLoaded] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
+  // 아이디 자동 복사 함수
+  const handleCopyUsername = (id: number, username: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!username) return;
+    navigator.clipboard.writeText(username);
+    setCopiedId(id);
+    setTimeout(() => {
+      setCopiedId((prev) => (prev === id ? null : prev));
+    }, 1500);
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -870,14 +883,14 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* [2] 중앙 내용 영역 (세로 높이 h-[760px] 고정) */}
+        {/* [2] 중앙 내용 영역 */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
           {/* ==================== A. [즐겨찾기] 탭 화면 ==================== */}
           {currentTab === "favorites" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               
-              {/* 1단: 즐겨찾기 등록 바 (ID, PW힌트 추가) */}
+              {/* 1단: 즐겨찾기 등록 바 */}
               <form onSubmit={handleAddFav} className="border-2 border-amber-400/80 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-amber-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
                 <div className="relative">
                   <input
@@ -918,7 +931,7 @@ export default function Home() {
                   value={newFavMemo}
                   onChange={(e) => setNewFavMemo(e.target.value)}
                   placeholder="메모"
-                  className="w-28 border border-amber-200 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                  className="w-28 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
                 />
 
                 <input
@@ -926,7 +939,7 @@ export default function Home() {
                   value={newFavUsername}
                   onChange={(e) => setNewFavUsername(e.target.value)}
                   placeholder="아이디"
-                  className="w-24 border border-amber-200 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                  className="w-24 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
                 />
 
                 <input
@@ -934,7 +947,7 @@ export default function Home() {
                   value={newFavPwHint}
                   onChange={(e) => setNewFavPwHint(e.target.value)}
                   placeholder="비번 힌트"
-                  className="w-24 border border-amber-200 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                  className="w-24 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
                 />
 
                 <button
@@ -996,7 +1009,7 @@ export default function Home() {
                   <span className="col-span-3">🌐 사이트명</span>
                   <span className="col-span-1">바로가기</span>
                   <span className="col-span-2">📝 메모</span>
-                  <span className="col-span-2">🔐 계정 정보 (ID / 힌트)</span>
+                  <span className="col-span-2">🔐 계정 정보 (클릭시 ID복사 / 힌트)</span>
                   <span className="col-span-2">관리</span>
                 </div>
               </div>
@@ -1005,6 +1018,7 @@ export default function Home() {
               <div className="flex flex-col gap-2">
                 {filteredFavs.map((fav) => {
                   const isEditing = editingFavId === fav.id;
+                  const isCopied = copiedId === fav.id;
                   const catIcon = getCategoryIcon(fav.category);
 
                   if (isEditing) {
@@ -1082,7 +1096,7 @@ export default function Home() {
                       key={fav.id}
                       className="grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border-2 border-amber-400/80 bg-amber-50/40 hover:bg-amber-50/70 transition shadow-2xs"
                     >
-                      {/* 1. 분류 (자동 심볼 아이콘 부착) */}
+                      {/* 1. 분류 (자동 심볼 부착) */}
                       <div className="col-span-2 flex justify-center">
                         <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-bold text-center flex items-center gap-1 shadow-2xs">
                           <span>{catIcon}</span>
@@ -1095,7 +1109,7 @@ export default function Home() {
                         {fav.name}
                       </div>
 
-                      {/* 3. 바로가기 버튼 (URL 텍스트 숨김 및 깔끔한 버튼 대체) */}
+                      {/* 3. 바로가기 버튼 */}
                       <div className="col-span-1 flex justify-center">
                         <a
                           href={fav.url}
@@ -1114,13 +1128,31 @@ export default function Home() {
                         {fav.memo || <span className="text-neutral-300">-</span>}
                       </div>
 
-                      {/* 5. 아이디 & 비밀번호 힌트 (비번은 평소 블러처리, hover시 노출) */}
-                      <div className="col-span-2 flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden">
+                      {/* 5. 아이디(클릭시 자동복사) & 비번힌트 */}
+                      <div className="col-span-2 flex flex-col items-center justify-center gap-1 px-1 overflow-hidden">
                         {fav.username ? (
-                          <div className="flex items-center gap-1 text-[10px] font-mono text-neutral-700 bg-white/80 px-1.5 py-0.2 rounded border border-amber-200/80 truncate max-w-full">
-                            <User className="w-2.5 h-2.5 text-amber-700 shrink-0" />
-                            <span className="truncate">{fav.username}</span>
-                          </div>
+                          <button
+                            onClick={(e) => handleCopyUsername(fav.id, fav.username, e)}
+                            className={`flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border transition active:scale-95 max-w-full ${
+                              isCopied
+                                ? "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold"
+                                : "bg-white/90 hover:bg-amber-100/80 text-neutral-800 border-amber-200/80"
+                            }`}
+                            title="클릭하여 아이디 복사"
+                          >
+                            {isCopied ? (
+                              <>
+                                <Check className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span className="text-emerald-700 font-bold">복사됨!</span>
+                              </>
+                            ) : (
+                              <>
+                                <User className="w-2.5 h-2.5 text-amber-700 shrink-0" />
+                                <span className="truncate">{fav.username}</span>
+                                <Copy className="w-2.5 h-2.5 opacity-50 shrink-0 ml-0.5" />
+                              </>
+                            )}
+                          </button>
                         ) : null}
 
                         {fav.pwHint ? (
@@ -1176,10 +1208,7 @@ export default function Home() {
             <div className="h-full flex flex-col gap-3">
               <div className="border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
                 <div className="flex-1 flex items-center justify-between pr-6 border-r border-sky-200">
-                  <h2 className="text-lg font-black text-sky-950 tracking-tight flex items-center gap-2">
-                    <Wallet className="w-5 h-5 text-sky-600" />
-                    <span>가계부</span>
-                  </h2>
+                  <span className="font-bold text-xs text-sky-700">가계부 탭</span>
                 </div>
               </div>
             </div>
@@ -1190,10 +1219,7 @@ export default function Home() {
             <div className="h-full flex flex-col gap-3">
               <div className="border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
                 <div className="flex-1 flex items-center justify-between pr-6 border-r border-pink-200">
-                  <h2 className="text-lg font-black text-pink-950 tracking-tight flex items-center gap-2">
-                    <span>🗓️</span>
-                    <span>일정표</span>
-                  </h2>
+                  <span className="font-bold text-xs text-pink-700">일정 탭</span>
                 </div>
               </div>
             </div>
@@ -1209,34 +1235,16 @@ export default function Home() {
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="곡 제목 *"
-                  className="w-44 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
+                  className="w-44 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 font-medium"
                 />
                 <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1">
                   <Plus className="w-3.5 h-3.5" /> 곡 추가
                 </button>
               </form>
-
-              <div className="flex flex-col gap-2">
-                {filteredSongs.map((song) => (
-                  <div key={song.id} className="grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border bg-emerald-50/40 border-emerald-400">
-                    <span className="col-span-2 text-center font-bold">{song.genre}</span>
-                    <span className="col-span-4 text-center font-bold">{song.artist}</span>
-                    <span className="col-span-3 text-center font-bold">{song.title}</span>
-                    <div className="col-span-1 flex justify-center">
-                      {song.url ? (
-                        <button onClick={() => setVideoModalUrl(song.url)} className="px-2 py-1 rounded bg-emerald-600 text-white text-[10px] font-bold">재생</button>
-                      ) : "-"}
-                    </div>
-                    <div className="col-span-2 flex justify-center gap-1">
-                      <button onClick={() => handleDeleteSong(song.id)} className="p-1 text-neutral-400 hover:text-rose-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
 
-          {/* ==================== E. 그 외 탭 ==================== */}
+          {/* 그 외 탭 */}
           {currentTab !== "songs" && currentTab !== "schedule" && currentTab !== "ledger" && currentTab !== "favorites" && (
             <div className="h-full border border-dashed border-emerald-300 rounded-2xl p-20 flex flex-col items-center justify-center text-center bg-emerald-50/20 backdrop-blur-[2px]">
               <span className="text-3xl mb-2 block">🚧</span>
@@ -1266,11 +1274,23 @@ export default function Home() {
               <div className="flex items-center justify-between w-full mb-1 px-1">
                 <span className="text-[10px] font-bold text-neutral-600 flex items-center gap-1">타이머</span>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => !isTimerRunning && setTimerMinutes((p) => Math.max(1, p - 1))} disabled={isTimerRunning} className={`p-0.5 rounded ${themeClasses.accentBtnSub} disabled:opacity-30 transition`}>
+                  <button
+                    onClick={() => !isTimerRunning && setTimerMinutes((p) => Math.max(1, p - 1))}
+                    disabled={isTimerRunning}
+                    title="1분 감소"
+                    className={`p-0.5 rounded ${themeClasses.accentBtnSub} disabled:opacity-30 transition`}
+                  >
                     <Minus className="w-3 h-3" />
                   </button>
-                  <span className={`text-[10px] font-bold ${themeClasses.textPrimary} min-w-[24px] text-center`}>{timerMinutes}분</span>
-                  <button onClick={() => !isTimerRunning && setTimerMinutes((p) => p + 1)} disabled={isTimerRunning} className={`p-0.5 rounded ${themeClasses.accentBtnSub} disabled:opacity-30 transition`}>
+                  <span className={`text-[10px] font-bold ${themeClasses.textPrimary} min-w-[24px] text-center`}>
+                    {timerMinutes}분
+                  </span>
+                  <button
+                    onClick={() => !isTimerRunning && setTimerMinutes((p) => p + 1)}
+                    disabled={isTimerRunning}
+                    title="1분 증가"
+                    className={`p-0.5 rounded ${themeClasses.accentBtnSub} disabled:opacity-30 transition`}
+                  >
                     <Plus className="w-3 h-3" />
                   </button>
                 </div>
@@ -1281,11 +1301,20 @@ export default function Home() {
               </div>
 
               <div className="flex items-center gap-1.5 w-full mt-1">
-                <button onClick={toggleTimer} className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition shadow-sm ${isTimerRunning ? "bg-amber-500 hover:bg-amber-600 text-white" : themeClasses.accentBtn}`}>
+                <button
+                  onClick={toggleTimer}
+                  className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition shadow-sm ${
+                    isTimerRunning ? "bg-amber-500 hover:bg-amber-600 text-white" : themeClasses.accentBtn
+                  }`}
+                >
                   {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
                   <span>{isTimerRunning ? "정지" : "시작"}</span>
                 </button>
-                <button onClick={resetTimer} title="타이머 초기화" className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60 ${themeClasses.textSecondary} transition`}>
+                <button
+                  onClick={resetTimer}
+                  title="타이머 초기화"
+                  className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60 ${themeClasses.textSecondary} transition`}
+                >
                   <RotateCcw className="w-3 h-3" />
                 </button>
               </div>
@@ -1339,12 +1368,22 @@ export default function Home() {
                 </div>
 
                 <button onClick={cycleRepeatMode} title="반복 설정" className={`p-1 rounded-md transition flex items-center gap-0.5 text-[10px] font-bold ${repeatMode !== "none" ? themeClasses.accentActive + " px-1.5" : "text-neutral-400 hover:text-neutral-600"}`}>
-                  {repeatMode === "one" ? <><span>1</span></> : <><Repeat className="w-3.5 h-3.5" />{repeatMode === "all" && <span>ALL</span>}</>}
+                  {repeatMode === "one" ? (
+                    <>
+                      <Repeat1 className="w-3.5 h-3.5" />
+                      <span>1</span>
+                    </>
+                  ) : (
+                    <>
+                      <Repeat className="w-3.5 h-3.5" />
+                      {repeatMode === "all" && <span>ALL</span>}
+                    </>
+                  )}
                 </button>
               </div>
 
               <div className={`flex items-center gap-1.5 pt-1 border-t ${themeClasses.borderSubtle} px-0.5`}>
-                <button onClick={toggleMute} className={`${themeClasses.textSecondary} hover:text-neutral-950 p-0.5 transition shrink-0`}>
+                <button onClick={toggleMute} title={isMuted ? "음소거 해제" : "음소거"} className={`${themeClasses.textSecondary} hover:text-neutral-950 p-0.5 transition shrink-0`}>
                   {isMuted || volume === 0 ? <VolumeX className="w-3.5 h-3.5 text-neutral-400" /> : <Volume2 className="w-3.5 h-3.5" />}
                 </button>
                 <input type="range" min={0} max={100} value={isMuted ? 0 : volume} onChange={handleVolumeChange} className={`w-full h-1 ${themeClasses.rangeBg} rounded-lg appearance-none cursor-pointer ${themeClasses.rangeAccent}`} />
