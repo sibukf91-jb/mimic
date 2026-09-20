@@ -63,7 +63,6 @@ export default function Home() {
 
   // ================= 1. 테마 색상 동적 매핑 =================
   const themeClasses = useMemo(() => {
-    // 1. 책갈피 탭 (파스텔톤 짙은 노랑색)
     if (currentTab === "bookmarks") {
       return {
         borderDashed: "border-amber-400/90",
@@ -83,7 +82,6 @@ export default function Home() {
         navActive: "bg-amber-100/90 text-amber-900 border-amber-300 shadow-sm",
       };
     }
-    // 2. 즐겨찾기 탭 (파스텔톤 짙은 보라색)
     if (currentTab === "favorites") {
       return {
         borderDashed: "border-purple-400/80",
@@ -103,7 +101,6 @@ export default function Home() {
         navActive: "bg-purple-100/90 text-purple-900 border-purple-300 shadow-sm",
       };
     }
-    // 3. 가계부 탭 (파스텔톤 짙은 하늘색)
     if (currentTab === "ledger") {
       return {
         borderDashed: "border-sky-400/80",
@@ -123,7 +120,6 @@ export default function Home() {
         navActive: "bg-sky-100/90 text-sky-900 border-sky-300 shadow-sm",
       };
     }
-    // 4. 일정 탭 (파스텔톤 짙은 핑크색)
     if (currentTab === "schedule") {
       return {
         borderDashed: "border-pink-400/80",
@@ -143,7 +139,6 @@ export default function Home() {
         navActive: "bg-pink-100/90 text-pink-900 border-pink-300 shadow-sm",
       };
     }
-    // 5. 노래책 탭 등 기본 (에메랄드)
     return {
       borderDashed: "border-emerald-400/90",
       borderSolid: "border-emerald-400/90",
@@ -171,7 +166,7 @@ export default function Home() {
   const TODAY_STR = "2026-09-20";
   const todayDateObj = new Date(TODAY_STR);
 
-  // ================= 2. 책갈피 탭 데이터 (분류, 플랫폼, 제목, 정기업데이트 드롭다운, 공개일, 주간편성+회, 최종회차+회, 책갈피) =================
+  // ================= 2. 책갈피 탭 데이터 (분류, 플랫폼, 제목, 정기업데이트, 공개일, 주간편성+회, 최종회차+회, 책갈피) =================
   const calculateAutoFinalEpisode = (releaseDateStr: string) => {
     if (!releaseDateStr) return "1회";
     let targetDate: Date;
@@ -211,7 +206,7 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("jb_bookmark_reading_list_v4");
+      const saved = localStorage.getItem("jb_bookmark_reading_list_v5");
       setBookmarkList(saved ? JSON.parse(saved) : defaultBookmarks);
       setIsBookmarkLoaded(true);
     }
@@ -219,7 +214,7 @@ export default function Home() {
 
   useEffect(() => {
     if (isBookmarkLoaded && typeof window !== "undefined") {
-      localStorage.setItem("jb_bookmark_reading_list_v4", JSON.stringify(bookmarkList));
+      localStorage.setItem("jb_bookmark_reading_list_v5", JSON.stringify(bookmarkList));
     }
   }, [bookmarkList, isBookmarkLoaded]);
 
@@ -1459,8 +1454,8 @@ export default function Home() {
 
                 <input
                   type="text"
-                  value={newBmarkGenre}
-                  onChange={(e) => setNewBmarkGenre(e.target.value)}
+                  value={newBmarkPlatform}
+                  onChange={(e) => setNewBmarkPlatform(e.target.value)}
                   placeholder="플랫폼 (예: 네이버)"
                   className="w-24 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
                 />
@@ -1479,13 +1474,13 @@ export default function Home() {
                   onChange={(e) => setNewBmarkUpdate(e.target.value)}
                   className="w-28 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-bold text-amber-950 focus:outline-none focus:border-amber-500 cursor-pointer"
                 >
-                  <option value="월요일">매주 월요일</option>
-                  <option value="화요일">매주 화요일</option>
-                  <option value="수요일">매주 수요일</option>
-                  <option value="목요일">매주 목요일</option>
-                  <option value="금요일">매주 금요일</option>
-                  <option value="토요일">매주 토요일</option>
-                  <option value="일요일">매주 일요일</option>
+                  <option value="월요일">월요일</option>
+                  <option value="화요일">화요일</option>
+                  <option value="수요일">수요일</option>
+                  <option value="목요일">목요일</option>
+                  <option value="금요일">금요일</option>
+                  <option value="토요일">토요일</option>
+                  <option value="일요일">일요일</option>
                   <option value="완결">완결</option>
                 </select>
 
@@ -1588,7 +1583,7 @@ export default function Home() {
                   const finalEpNum = parseInt(String(bmark.finalEpisode).replace(/[^0-9]/g, "")) || 0;
                   const currentBmNum = Number(bmark.currentBookmark) || 0;
 
-                  // 배경색 결정 로직
+                  // 카드 배경색 판정 로직
                   let cardBgClass = "bg-amber-50/40 hover:bg-amber-50/70 border-amber-400/90 text-neutral-900";
                   if (bmark.isCompleted) {
                     cardBgClass = "bg-rose-100/70 hover:bg-rose-100 border-rose-300 text-neutral-900";
@@ -2377,7 +2372,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 일정 팝업 모달 */}
               {modalDate && (
                 <div 
                   className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -2816,7 +2810,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== 7. 그 외 미구현 탭 ==================== */}
+          {/* ==================== 6. 그 외 미구현 탭 ==================== */}
           {currentTab !== "songs" && currentTab !== "schedule" && currentTab !== "ledger" && currentTab !== "favorites" && currentTab !== "bookmarks" && (
             <div className="h-full border border-dashed border-emerald-300 rounded-2xl p-20 flex flex-col items-center justify-center text-center bg-emerald-50/20 backdrop-blur-[2px]">
               <span className="text-3xl mb-2 block">🚧</span>
