@@ -208,7 +208,7 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("jb_bookmark_reading_list_v6");
+      const saved = localStorage.getItem("jb_bookmark_reading_list_v7");
       setBookmarkList(saved ? JSON.parse(saved) : defaultBookmarks);
       setIsBookmarkLoaded(true);
     }
@@ -216,7 +216,7 @@ export default function Home() {
 
   useEffect(() => {
     if (isBookmarkLoaded && typeof window !== "undefined") {
-      localStorage.setItem("jb_bookmark_reading_list_v6", JSON.stringify(bookmarkList));
+      localStorage.setItem("jb_bookmark_reading_list_v7", JSON.stringify(bookmarkList));
     }
   }, [bookmarkList, isBookmarkLoaded]);
 
@@ -349,7 +349,6 @@ export default function Home() {
     );
   };
 
-  // 요일 순서 매핑 (월~일, 완결)
   const dayRankMap: Record<string, number> = {
     "월요일": 1,
     "화요일": 2,
@@ -1457,7 +1456,7 @@ export default function Home() {
           {currentTab === "bookmarks" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               
-              {/* 등록 바 (가로 비율 최적화 완료) */}
+              {/* 등록 바 */}
               <form onSubmit={handleAddBookmark} className="border-2 border-amber-400/90 rounded-2xl p-3 flex flex-wrap items-center gap-1.5 bg-amber-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
                 <input
                   type="text"
@@ -1511,22 +1510,28 @@ export default function Home() {
                   className="w-20 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
                 />
 
-                <input
-                  type="text"
-                  value={newBmarkSchedule}
-                  onChange={(e) => setNewBmarkSchedule(e.target.value)}
-                  placeholder="주간편성"
-                  className="w-18 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
-                />
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={newBmarkSchedule}
+                    onChange={(e) => setNewBmarkSchedule(e.target.value)}
+                    placeholder="편성"
+                    className="w-16 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                  />
+                  <span className="text-xs font-bold text-amber-950">회</span>
+                </div>
 
-                <input
-                  type="number"
-                  min="0"
-                  value={newBmarkBookmark}
-                  onChange={(e) => setNewBmarkBookmark(Number(e.target.value))}
-                  placeholder="회차"
-                  className="w-16 border border-amber-300 bg-white/90 rounded-lg px-1.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
-                />
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="0"
+                    value={newBmarkBookmark}
+                    onChange={(e) => setNewBmarkBookmark(Number(e.target.value))}
+                    placeholder="회차"
+                    className="w-14 border border-amber-300 bg-white/90 rounded-lg px-1.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                  />
+                  <span className="text-xs font-bold text-amber-950">회</span>
+                </div>
 
                 <button
                   type="submit"
@@ -1580,7 +1585,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 헤더 박스 (분류 클릭 시 1차 정기업데이트, 2차 가나다순 정렬 토글 기능 추가) */}
+              {/* 헤더 박스 */}
               <div className="border-2 border-amber-400/90 rounded-xl px-3 py-2.5 bg-amber-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
                 <div className="grid grid-cols-12 gap-1 text-[11px] font-extrabold text-amber-950 items-center text-center">
                   <span 
@@ -1623,30 +1628,45 @@ export default function Home() {
                     return (
                       <div
                         key={`edit-bmark-${bmark.id}`}
-                        className="p-3 rounded-2xl border-2 border-amber-400 bg-amber-50/90 shadow-md flex flex-wrap items-center gap-1.5"
+                        className="grid grid-cols-12 gap-1 items-center p-2.5 rounded-2xl border-2 border-amber-400 bg-amber-50/90 shadow-md text-center"
                       >
-                        {/* 수정할 때도 상단 제목 이름 아래와 정확히 일치하도록 배치 */}
-                        <input type="text" value={editBmarkCategory} onChange={(e) => setEditBmarkCategory(e.target.value)} placeholder="분류" className="w-16 border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs font-medium" />
-                        <input type="text" value={editBmarkPlatform} onChange={(e) => setEditBmarkPlatform(e.target.value)} placeholder="플랫폼" className="w-20 border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs font-medium" />
-                        <input type="text" required value={editBmarkTitle} onChange={(e) => setEditBmarkTitle(e.target.value)} placeholder="제목" className="w-28 border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs font-bold" />
-                        <select value={editBmarkUpdate} onChange={(e) => setEditBmarkUpdate(e.target.value)} className="w-24 border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs font-bold">
-                          <option value="월요일">월요일</option>
-                          <option value="화요일">화요일</option>
-                          <option value="수요일">수요일</option>
-                          <option value="목요일">목요일</option>
-                          <option value="금요일">금요일</option>
-                          <option value="토요일">토요일</option>
-                          <option value="일요일">일요일</option>
-                          <option value="완결">완결</option>
-                        </select>
-                        <input type="text" value={editBmarkRelease} onChange={(e) => setEditBmarkRelease(e.target.value)} placeholder="공개일" className="w-16 border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs" />
-                        <input type="text" value={editBmarkSchedule} onChange={(e) => setEditBmarkSchedule(e.target.value)} placeholder="주간편성" className="w-16 border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs" />
-                        <input type="text" value={editBmarkEpisode} onChange={(e) => setEditBmarkEpisode(e.target.value)} placeholder="최종회" className="w-16 border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs" />
-                        <input type="number" min="0" value={editBmarkBookmark} onChange={(e) => setEditBmarkBookmark(Number(e.target.value))} placeholder="회차" className="w-14 border border-amber-300 bg-white rounded-lg px-1 py-1 text-xs" />
-                        
-                        <div className="flex items-center gap-1 shrink-0 ml-auto">
-                          <button onClick={() => saveEditBookmark(bmark.id)} className="p-1.5 rounded-lg bg-amber-500 text-white font-bold text-xs flex items-center gap-0.5"><Check className="w-3.5 h-3.5" /> 저장</button>
-                          <button onClick={cancelEditBookmark} className="p-1.5 rounded-lg border border-neutral-300 bg-white text-neutral-600 text-xs"><X className="w-3.5 h-3.5" /> 취소</button>
+                        <div className="col-span-2 flex flex-col gap-1 px-1">
+                          <input type="text" value={editBmarkCategory} onChange={(e) => setEditBmarkCategory(e.target.value)} placeholder="분류" className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[11px] font-bold" />
+                          <input type="text" value={editBmarkPlatform} onChange={(e) => setEditBmarkPlatform(e.target.value)} placeholder="플랫폼" className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[10px]" />
+                        </div>
+                        <div className="col-span-3 px-1">
+                          <input type="text" required value={editBmarkTitle} onChange={(e) => setEditBmarkTitle(e.target.value)} placeholder="제목" className="w-full border border-amber-300 bg-white rounded px-2 py-1 text-[11px] font-bold" />
+                        </div>
+                        <div className="col-span-2 px-1">
+                          <select value={editBmarkUpdate} onChange={(e) => setEditBmarkUpdate(e.target.value)} className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[11px] font-bold">
+                            <option value="월요일">월요일</option>
+                            <option value="화요일">화요일</option>
+                            <option value="수요일">수요일</option>
+                            <option value="목요일">목요일</option>
+                            <option value="금요일">금요일</option>
+                            <option value="토요일">토요일</option>
+                            <option value="일요일">일요일</option>
+                            <option value="완결">완결</option>
+                          </select>
+                        </div>
+                        <div className="col-span-1 px-0.5">
+                          <input type="text" value={editBmarkRelease} onChange={(e) => setEditBmarkRelease(e.target.value)} placeholder="공개일" className="w-full border border-amber-300 bg-white rounded px-1 py-1 text-[11px]" />
+                        </div>
+                        <div className="col-span-1 flex items-center justify-center gap-0.5 px-0.5">
+                          <input type="text" value={editBmarkSchedule} onChange={(e) => setEditBmarkSchedule(e.target.value)} placeholder="편성" className="w-full border border-amber-300 bg-white rounded px-1 py-1 text-[11px]" />
+                          <span className="text-[10px] font-bold">회</span>
+                        </div>
+                        <div className="col-span-1 flex items-center justify-center gap-0.5 px-0.5">
+                          <input type="text" value={editBmarkEpisode} onChange={(e) => setEditBmarkEpisode(e.target.value)} placeholder="최종" className="w-full border border-amber-300 bg-white rounded px-1 py-1 text-[11px]" />
+                          <span className="text-[10px] font-bold">회</span>
+                        </div>
+                        <div className="col-span-1 flex items-center justify-center gap-0.5 px-0.5">
+                          <input type="number" min="0" value={editBmarkBookmark} onChange={(e) => setEditBmarkBookmark(Number(e.target.value))} placeholder="회" className="w-full border border-amber-300 bg-white rounded px-0.5 py-1 text-[11px]" />
+                          <span className="text-[10px] font-bold">회</span>
+                        </div>
+                        <div className="col-span-1 flex items-center justify-center gap-1">
+                          <button onClick={() => saveEditBookmark(bmark.id)} title="저장" className="p-1 rounded bg-amber-500 text-white font-bold text-[10px]"><Check className="w-3 h-3" /></button>
+                          <button onClick={cancelEditBookmark} title="취소" className="p-1 rounded border border-neutral-300 bg-white text-neutral-600 text-[10px]"><X className="w-3 h-3" /></button>
                         </div>
                       </div>
                     );
@@ -1694,20 +1714,20 @@ export default function Home() {
                       <div className="col-span-1 flex items-center justify-center gap-0.5 font-mono font-bold">
                         <button
                           onClick={(e) => handleUpdateBookmarkCount(bmark.id, -1, e)}
-                          className="w-5 h-5 rounded bg-white/90 border border-amber-300 hover:bg-amber-200 text-amber-950 flex items-center justify-center shadow-2xs transition active:scale-95"
+                          className="w-4 h-4 rounded bg-white/90 border border-amber-300 hover:bg-amber-200 text-amber-950 flex items-center justify-center shadow-2xs transition active:scale-95"
                           title="1화 감소"
                         >
-                          <Minus className="w-3 h-3" />
+                          <Minus className="w-2.5 h-2.5" />
                         </button>
-                        <span className="min-w-[24px] text-center text-neutral-900 font-black">
+                        <span className="min-w-[20px] text-center text-neutral-900 font-black">
                           {bmark.currentBookmark ?? 0}
                         </span>
                         <button
                           onClick={(e) => handleUpdateBookmarkCount(bmark.id, 1, e)}
-                          className="w-5 h-5 rounded bg-white/90 border border-amber-300 hover:bg-amber-200 text-amber-950 flex items-center justify-center shadow-2xs transition active:scale-95"
+                          className="w-4 h-4 rounded bg-white/90 border border-amber-300 hover:bg-amber-200 text-amber-950 flex items-center justify-center shadow-2xs transition active:scale-95"
                           title="1화 증가"
                         >
-                          <Plus className="w-3 h-3" />
+                          <Plus className="w-2.5 h-2.5" />
                         </button>
                       </div>
 
@@ -1715,7 +1735,7 @@ export default function Home() {
                       <div className="col-span-1 flex items-center justify-center gap-1">
                         <button
                           onClick={(e) => handleToggleCompleted(bmark.id, e)}
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-black border transition ${
+                          className={`px-1 py-0.5 rounded text-[10px] font-black border transition ${
                             bmark.isCompleted
                               ? "bg-rose-600 text-white border-rose-700 shadow-xs"
                               : "bg-white/80 text-neutral-700 border-amber-300 hover:bg-amber-100"
