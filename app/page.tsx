@@ -44,7 +44,7 @@ export default function Home() {
   const [newPasswordInput, setNewPasswordInput] = useState("");
   const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
 
-  const [currentTab, setCurrentTab] = useState("songs");
+  const [currentTab, setCurrentTab] = useState("schedule");
 
   // 초기 로딩 시 저장된 비밀번호 확인
   useEffect(() => {
@@ -671,11 +671,39 @@ export default function Home() {
       {/* 본문 3단 레이아웃 */}
       <main className="max-w-[1720px] mx-auto w-full px-6 py-6 flex flex-col lg:flex-row gap-5 items-start flex-1 relative z-10">
         
-        {/* [1] 좌측 배너 (노래책 탭일 때는 상시 일러스트 배너, 그 외 탭은 기본 배너) */}
+        {/* [1] 좌측 배너 (일정 탭: 핑크 일러스트, 노래책 탭: 민트 일러스트, 그 외: 기본 영역) */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px]">
-          {currentTab === "songs" ? (
+          {currentTab === "schedule" ? (
+            <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-pink-400/90 shadow-sm relative bg-[#fbcfe8]">
+              {/* 1순위: public에 저장된 일정 배너 이미지 로드 */}
+              <img
+                src="/schedule-banner.jpg"
+                alt="일정 배너"
+                className="w-full h-full object-cover relative z-10"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+              {/* 2순위: 로딩 실패 시 백업 핑크 그래픽 */}
+              <div className="absolute inset-0 flex flex-col items-center justify-between p-4 z-0 text-center bg-gradient-to-b from-[#fbcfe8] via-[#f472b6] to-[#831843]">
+                <div className="pt-6">
+                  <span className="text-3xl block filter drop-shadow">💖</span>
+                  <span className="text-xs font-black text-white tracking-widest uppercase block mt-1">Schedule Space</span>
+                </div>
+                <div className="w-full flex flex-col items-center gap-2">
+                  <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg">
+                    <Clock className="w-10 h-10 text-pink-100 animate-pulse" />
+                  </div>
+                  <span className="text-[11px] font-bold text-pink-100 mt-2">JB's Calendar</span>
+                </div>
+                <div className="pb-4 text-[10px] text-pink-200 font-medium">
+                  HADES Illustration
+                </div>
+              </div>
+            </div>
+          ) : currentTab === "songs" ? (
             <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-emerald-400/90 shadow-sm relative bg-[#8ec7b3]">
-              {/* 1순위: public에 저장된 이미지 로드 시도 */}
+              {/* 1순위: public에 저장된 노래책 배너 이미지 로드 */}
               <img
                 src="/song-banner.jpg"
                 alt="노래책 배너"
@@ -684,7 +712,7 @@ export default function Home() {
                   e.currentTarget.style.display = "none";
                 }}
               />
-              {/* 2순위: 이미지 파일이 아직 없거나 로딩 실패 시 항상 표시되는 백업 일러스트 그래픽 */}
+              {/* 2순위: 로딩 실패 시 백업 민트 그래픽 */}
               <div className="absolute inset-0 flex flex-col items-center justify-between p-4 z-0 text-center bg-gradient-to-b from-[#8ec7b3] via-[#7abda8] to-[#1e2a26]">
                 <div className="pt-6">
                   <span className="text-3xl block filter drop-shadow">🍀</span>
