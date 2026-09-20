@@ -57,7 +57,7 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("favorites"); // 기본 진입 탭
+  const [currentTab, setCurrentTab] = useState("songs"); // 기본 탭: 노래책 (schedule, ledger, favorites 전환 가능)
 
   // ================= 1. 테마 색상 동적 매핑 =================
   const themeClasses = useMemo(() => {
@@ -137,181 +137,16 @@ export default function Home() {
     };
   }, [currentTab]);
 
-  // ================= 2. 즐겨찾기 탭 기능 =================
-  const getCategoryIcon = (category: string) => {
-    const cat = (category || "").toLowerCase();
-    if (cat.includes("포털") || cat.includes("웹") || cat.includes("인터넷")) return "🌐";
-    if (cat.includes("검색") || cat.includes("구글")) return "🔍";
-    if (cat.includes("영상") || cat.includes("동영상") || cat.includes("유튜브") || cat.includes("ott")) return "🎬";
-    if (cat.includes("쇼핑") || cat.includes("구매") || cat.includes("마트")) return "🛒";
-    if (cat.includes("개발") || cat.includes("코딩") || cat.includes("깃")) return "💻";
-    if (cat.includes("음악") || cat.includes("노래") || cat.includes("뮤직")) return "🎵";
-    if (cat.includes("커뮤니티") || cat.includes("카페") || cat.includes("sns") || cat.includes("블로그")) return "💬";
-    if (cat.includes("게임")) return "🎮";
-    if (cat.includes("금융") || cat.includes("은행") || cat.includes("증권") || cat.includes("페이")) return "🏦";
-    if (cat.includes("업무") || cat.includes("회사") || cat.includes("오피스")) return "📁";
-    return "⭐";
+  // 공통 공휴일 데이터
+  const holidays: Record<string, string> = {
+    "2026-09-24": "추석 연휴",
+    "2026-09-25": "추석",
+    "2026-09-26": "추석 연휴",
   };
+  const TODAY_STR = "2026-09-20";
+  const todayDateObj = new Date(TODAY_STR);
 
-  const defaultFavorites = [
-    { id: 1, category: "포털", name: "네이버", url: "https://www.naver.com", memo: "뉴스, 지도, 블로그", username: "my_naver_id", pwHint: "초록창12#$" },
-    { id: 2, category: "검색", name: "구글", url: "https://www.google.com", memo: "검색 및 지메일", username: "user@gmail.com", pwHint: "구글영문+특수" },
-    { id: 3, category: "영상", name: "유튜브", url: "https://www.youtube.com", memo: "음악 및 동영상 시청", username: "youtube_acc", pwHint: "구글연동" },
-    { id: 4, category: "개발", name: "GitHub", url: "https://github.com", memo: "코드 저장소", username: "dev_user", pwHint: "깃허브토큰!" },
-    { id: 5, category: "쇼핑", name: "쿠팡", url: "https://www.coupang.com", memo: "로켓배송", username: "coupang_01", pwHint: "생일뒤자리@!" },
-  ];
-
-  const [favList, setFavList] = useState<any[]>([]);
-  const [isFavLoaded, setIsFavLoaded] = useState(false);
-  const [copiedId, setCopiedId] = useState<number | null>(null);
-
-  // 아이디 자동 복사 함수
-  const handleCopyUsername = (id: number, username: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!username) return;
-    navigator.clipboard.writeText(username);
-    setCopiedId(id);
-    setTimeout(() => {
-      setCopiedId((prev) => (prev === id ? null : prev));
-    }, 1500);
-  };
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("jb_bookmark_fav_list_v2");
-      if (saved) {
-        try {
-          setFavList(JSON.parse(saved));
-        } catch (e) {
-          setFavList(defaultFavorites);
-        }
-      } else {
-        setFavList(defaultFavorites);
-      }
-      setIsFavLoaded(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isFavLoaded && typeof window !== "undefined") {
-      localStorage.setItem("jb_bookmark_fav_list_v2", JSON.stringify(favList));
-    }
-  }, [favList, isFavLoaded]);
-
-  // 입력 폼 상태
-  const [newFavCategory, setNewFavCategory] = useState("");
-  const [newFavName, setNewFavName] = useState("");
-  const [newFavUrl, setNewFavUrl] = useState("");
-  const [newFavMemo, setNewFavMemo] = useState("");
-  const [newFavUsername, setNewFavUsername] = useState("");
-  const [newFavPwHint, setNewFavPwHint] = useState("");
-
-  const [selectedFavCategory, setSelectedFavCategory] = useState("전체");
-  const [favSearchQuery, setFavSearchQuery] = useState("");
-
-  // 수정 상태
-  const [editingFavId, setEditingFavId] = useState<number | null>(null);
-  const [editFavCategory, setEditFavCategory] = useState("");
-  const [editFavName, setEditFavName] = useState("");
-  const [editFavUrl, setEditFavUrl] = useState("");
-  const [editFavMemo, setEditFavMemo] = useState("");
-  const [editFavUsername, setEditFavUsername] = useState("");
-  const [editFavPwHint, setEditFavPwHint] = useState("");
-
-  const existingFavCategories = useMemo(() => {
-    const set = new Set<string>();
-    favList.forEach((f) => {
-      if (f.category && f.category.trim()) set.add(f.category.trim());
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
-  }, [favList]);
-
-  const handleAddFav = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newFavName.trim() || !newFavUrl.trim()) return;
-
-    let formattedUrl = newFavUrl.trim();
-    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
-      formattedUrl = "https://" + formattedUrl;
-    }
-
-    const newFav = {
-      id: Date.now(),
-      category: newFavCategory.trim() || "기타",
-      name: newFavName.trim(),
-      url: formattedUrl,
-      memo: newFavMemo.trim(),
-      username: newFavUsername.trim(),
-      pwHint: newFavPwHint.trim()
-    };
-
-    setFavList([newFav, ...favList]);
-    setNewFavCategory("");
-    setNewFavName("");
-    setNewFavUrl("");
-    setNewFavMemo("");
-    setNewFavUsername("");
-    setNewFavPwHint("");
-  };
-
-  const startEditFav = (fav: any) => {
-    setEditingFavId(fav.id);
-    setEditFavCategory(fav.category || "기타");
-    setEditFavName(fav.name || "");
-    setEditFavUrl(fav.url || "");
-    setEditFavMemo(fav.memo || "");
-    setEditFavUsername(fav.username || "");
-    setEditFavPwHint(fav.pwHint || "");
-  };
-
-  const cancelEditFav = () => setEditingFavId(null);
-
-  const saveEditFav = (id: number) => {
-    if (!editFavName.trim() || !editFavUrl.trim()) return;
-
-    let formattedUrl = editFavUrl.trim();
-    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
-      formattedUrl = "https://" + formattedUrl;
-    }
-
-    setFavList((prev) =>
-      prev.map((f) =>
-        f.id === id
-          ? {
-              ...f,
-              category: editFavCategory.trim() || "기타",
-              name: editFavName.trim(),
-              url: formattedUrl,
-              memo: editFavMemo.trim(),
-              username: editFavUsername.trim(),
-              pwHint: editFavPwHint.trim()
-            }
-          : f
-      )
-    );
-    setEditingFavId(null);
-  };
-
-  const handleDeleteFav = (id: number) => {
-    setFavList((prev) => prev.filter((f) => f.id !== id));
-  };
-
-  const filteredFavs = useMemo(() => {
-    return favList
-      .filter((fav) => {
-        const matchCategory = selectedFavCategory === "전체" || fav.category === selectedFavCategory;
-        const matchSearch =
-          fav.name.toLowerCase().includes(favSearchQuery.toLowerCase()) ||
-          fav.url.toLowerCase().includes(favSearchQuery.toLowerCase()) ||
-          fav.category.toLowerCase().includes(favSearchQuery.toLowerCase()) ||
-          (fav.memo && fav.memo.toLowerCase().includes(favSearchQuery.toLowerCase())) ||
-          (fav.username && fav.username.toLowerCase().includes(favSearchQuery.toLowerCase()));
-        return matchCategory && matchSearch;
-      })
-      .sort((a, b) => a.name.localeCompare(b.name, "ko"));
-  }, [favList, selectedFavCategory, favSearchQuery]);
-
-  // ================= 3. 노래책 데이터 =================
+  // ================= 2. 노래책 탭 데이터 & 상태 =================
   const defaultSongs = [
     { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
     { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
@@ -466,13 +301,200 @@ export default function Home() {
       });
   }, [songList, selectedGenre, searchQuery]);
 
-  // ================= 4. 일정 & 가계부 데이터 =================
+  // ================= 3. 일정 탭 데이터 & 상태 (완전 복구) =================
+  const SCHEDULE_SYMBOL_CONFIG = {
+    leave: { label: "연차", icon: "🌴", badge: "연차" },
+    half_leave: { label: "반차", icon: "🌓", badge: "반차" },
+    hair: { label: "헤어", icon: "✂️", badge: "헤어" },
+    birthday: { label: "생일", icon: "🎂", badge: "생일" },
+    appointment: { label: "약속", icon: "📌", badge: "약속" },
+  };
+
+  const SCHEDULE_COLOR_CONFIG = {
+    pink: { label: "핑크", class: "bg-pink-100 text-pink-900 border-pink-300", chip: "bg-pink-300" },
+    blue: { label: "파랑", class: "bg-blue-100 text-blue-900 border-blue-300", chip: "bg-blue-300" },
+    purple: { label: "보라", class: "bg-purple-100 text-purple-900 border-purple-300", chip: "bg-purple-300" },
+    yellow: { label: "노랑", class: "bg-amber-100 text-amber-900 border-amber-300", chip: "bg-amber-300" },
+    green: { label: "초록", class: "bg-emerald-100 text-emerald-900 border-emerald-300", chip: "bg-emerald-300" },
+  };
+
   const defaultSchedules = [
     { id: 1, date: "2026-09-06", title: "홍대 1주년 카페", symbol: "appointment", color: "pink" },
     { id: 2, date: "2026-09-16", title: "위어스헤어", symbol: "hair", color: "purple" },
     { id: 3, date: "2026-09-16", title: "오후 반차", symbol: "half_leave", color: "green" },
   ];
-  const [scheduleList, setScheduleList] = useState<any[]>(defaultSchedules);
+
+  const [scheduleList, setScheduleList] = useState<any[]>([]);
+  const [isScheduleLoaded, setIsScheduleLoaded] = useState(false);
+  const [calYear, setCalYear] = useState(2026);
+  const [calMonth, setCalMonth] = useState(9);
+
+  const [modalDate, setModalDate] = useState<string | null>(null);
+  const [newSchedTitle, setNewSchedTitle] = useState("");
+  const [newSchedSymbol, setNewSchedSymbol] = useState("appointment");
+  const [newSchedColor, setNewSchedColor] = useState("pink");
+
+  const [popupEditingId, setPopupEditingId] = useState<number | null>(null);
+  const [editPopupTitle, setEditPopupTitle] = useState("");
+  const [editPopupSymbol, setEditPopupSymbol] = useState("appointment");
+  const [editPopupColor, setEditPopupColor] = useState("pink");
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && modalDate) {
+        setModalDate(null);
+        setPopupEditingId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [modalDate]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("jb_bookmark_calendar_schedules");
+      setScheduleList(saved ? JSON.parse(saved) : defaultSchedules);
+      setIsScheduleLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isScheduleLoaded && typeof window !== "undefined") {
+      localStorage.setItem("jb_bookmark_calendar_schedules", JSON.stringify(scheduleList));
+    }
+  }, [scheduleList, isScheduleLoaded]);
+
+  const prevMonth = () => {
+    if (calMonth === 1) {
+      setCalYear(calYear - 1);
+      setCalMonth(12);
+    } else {
+      setCalMonth(calMonth - 1);
+    }
+  };
+
+  const nextMonth = () => {
+    if (calMonth === 12) {
+      setCalYear(calYear + 1);
+      setCalMonth(1);
+    } else {
+      setCalMonth(calMonth + 1);
+    }
+  };
+
+  const calendarGrid = useMemo(() => {
+    const firstDayIndex = new Date(calYear, calMonth - 1, 1).getDay();
+    const lastDate = new Date(calYear, calMonth, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < firstDayIndex; i++) cells.push({ day: null, dateStr: "" });
+    for (let d = 1; d <= lastDate; d++) {
+      const monthStr = String(calMonth).padStart(2, "0");
+      const dayStr = String(d).padStart(2, "0");
+      cells.push({ day: d, dateStr: `${calYear}-${monthStr}-${dayStr}` });
+    }
+    while (cells.length % 7 !== 0) cells.push({ day: null, dateStr: "" });
+    return cells;
+  }, [calYear, calMonth]);
+
+  const handleAddPopupSchedule = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modalDate || !newSchedTitle.trim()) return;
+    const newEntry = { id: Date.now(), date: modalDate, title: newSchedTitle.trim(), symbol: newSchedSymbol, color: newSchedColor };
+    setScheduleList((prev) => [...prev, newEntry]);
+    setNewSchedTitle("");
+  };
+
+  const startPopupEdit = (item: any) => {
+    setPopupEditingId(item.id);
+    setEditPopupTitle(item.title);
+    setEditPopupSymbol(item.symbol || "appointment");
+    setEditPopupColor(item.color || "pink");
+  };
+
+  const savePopupEdit = (id: number) => {
+    if (!editPopupTitle.trim()) return;
+    setScheduleList((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, title: editPopupTitle.trim(), symbol: editPopupSymbol, color: editPopupColor } : item
+      )
+    );
+    setPopupEditingId(null);
+  };
+
+  const handleDeleteSchedule = (id: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setScheduleList((prev) => prev.filter((item) => item.id !== id));
+    if (popupEditingId === id) setPopupEditingId(null);
+  };
+
+  const leaveSummary = useMemo(() => {
+    const currentYearStr = String(calYear);
+    const leaveItems = scheduleList.filter((s) => s.date.startsWith(currentYearStr) && (s.symbol === "leave" || s.symbol === "half_leave"));
+    if (leaveItems.length === 0) return null;
+    let used = 0;
+    leaveItems.forEach((s) => {
+      if (s.symbol === "leave") used += 1.0;
+      else if (s.symbol === "half_leave") used += 0.5;
+    });
+    const total = 16.0;
+    const remaining = Math.max(0, total - used);
+    return { used, remaining: remaining % 1 === 0 ? remaining.toFixed(0) : remaining.toFixed(1), count: leaveItems.length };
+  }, [scheduleList, calYear]);
+
+  const birthdaySummary = useMemo(() => {
+    const birthdays = scheduleList.filter((s) => s.symbol === "birthday").sort((a, b) => a.date.localeCompare(b.date));
+    if (birthdays.length === 0) return null;
+    let nextBday = birthdays.find((s) => s.date >= TODAY_STR) || birthdays[birthdays.length - 1];
+    const bdayDate = new Date(nextBday.date);
+    const diffDays = Math.ceil((bdayDate.getTime() - todayDateObj.getTime()) / (1000 * 60 * 60 * 24));
+    return {
+      title: nextBday.title || "생일",
+      date: nextBday.date,
+      dDayText: diffDays === 0 ? "D-Day" : diffDays > 0 ? `D-${diffDays}` : `D+${Math.abs(diffDays)}`
+    };
+  }, [scheduleList]);
+
+  const hairSummary = useMemo(() => {
+    const hairList = scheduleList.filter((s) => s.symbol === "hair").sort((a, b) => a.date.localeCompare(b.date));
+    if (hairList.length === 0) return null;
+    const nextHair = hairList.find((s) => s.date > TODAY_STR);
+    const pastHairs = hairList.filter((s) => s.date <= TODAY_STR);
+    const lastHair = pastHairs.length > 0 ? pastHairs[pastHairs.length - 1] : null;
+
+    if (nextHair) {
+      const nDate = new Date(nextHair.date);
+      const diffDays = Math.ceil((nDate.getTime() - todayDateObj.getTime()) / (1000 * 60 * 60 * 24));
+      return { mode: "next", title: nextHair.title || "이발 예약", date: nextHair.date, displayText: diffDays === 0 ? "오늘 예약" : `D-${diffDays}`, subText: `(예약: ${nextHair.date})` };
+    } else if (lastHair) {
+      const lDate = new Date(lastHair.date);
+      const diffDays = Math.floor((todayDateObj.getTime() - lDate.getTime()) / (1000 * 60 * 60 * 24));
+      return { mode: "past", title: "이발 후 경과일 (헤어)", date: lastHair.date, displayText: `+${diffDays}일`, subText: `(${lastHair.date} 기준)` };
+    }
+    return null;
+  }, [scheduleList]);
+
+  const upcomingAppointments = useMemo(() => {
+    return scheduleList.filter((s) => s.symbol === "appointment" && s.date >= TODAY_STR).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 2);
+  }, [scheduleList]);
+
+  const hasAnyScheduleSummary = leaveSummary || birthdaySummary || hairSummary || upcomingAppointments.length > 0;
+
+  // ================= 4. 가계부 탭 데이터 & 상태 (완전 복구) =================
+  const LEDGER_SYMBOL_CONFIG = {
+    taxi: { label: "택시", icon: "🚕", badge: "택시" },
+    delivery: { label: "배달", icon: "🛵", badge: "배달" },
+    convenience: { label: "편의점", icon: "🏪", badge: "편의점" },
+    fixed: { label: "고정", icon: "📌", badge: "고정" },
+    salary: { label: "월급", icon: "💰", badge: "월급" },
+  };
+
+  const LEDGER_COLOR_CONFIG = {
+    blue: { label: "파랑", class: "bg-blue-100 text-blue-900 border-blue-300", chip: "bg-blue-300" },
+    pink: { label: "핑크", class: "bg-pink-100 text-pink-900 border-pink-300", chip: "bg-pink-300" },
+    green: { label: "초록", class: "bg-emerald-100 text-emerald-900 border-emerald-300", chip: "bg-emerald-300" },
+    yellow: { label: "노랑", class: "bg-amber-100 text-amber-900 border-amber-300", chip: "bg-amber-300" },
+    purple: { label: "보라", class: "bg-purple-100 text-purple-900 border-purple-300", chip: "bg-purple-300" },
+  };
 
   const defaultLedgerEntries = [
     { id: 1, date: "2026-09-05", type: "expense", title: "카카오택시", amount: 14800, symbol: "taxi", color: "yellow" },
@@ -481,9 +503,338 @@ export default function Home() {
     { id: 4, date: "2026-09-01", type: "expense", title: "인터넷", amount: 34000, symbol: "fixed", color: "pink" },
     { id: 5, date: "2026-09-17", type: "expense", title: "GS25 편의점", amount: 6200, symbol: "convenience", color: "green" },
   ];
-  const [ledgerEntries, setLedgerEntries] = useState<any[]>(defaultLedgerEntries);
 
-  // ================= 5. 플레이리스트 & 시계 =================
+  const defaultFixedTemplates = [{ id: "fixed_tpl_1", title: "인터넷", color: "pink" }];
+
+  const [ledgerEntries, setLedgerEntries] = useState<any[]>([]);
+  const [fixedTemplates, setFixedTemplates] = useState<any[]>([]);
+  const [isLedgerLoaded, setIsLedgerLoaded] = useState(false);
+  const [ledgerYear, setLedgerYear] = useState(2026);
+  const [ledgerMonth, setLedgerMonth] = useState(9);
+
+  const [ledgerModalDate, setLedgerModalDate] = useState<string | null>(null);
+  const [newLedgerTitle, setNewLedgerTitle] = useState("");
+  const [newLedgerAmount, setNewLedgerAmount] = useState("");
+  const [newLedgerType, setNewLedgerType] = useState<"expense" | "income">("expense");
+  const [newLedgerSymbol, setNewLedgerSymbol] = useState("fixed");
+  const [newLedgerColor, setNewLedgerColor] = useState("pink");
+
+  const [ledgerEditingId, setLedgerEditingId] = useState<number | null>(null);
+  const [editLedgerTitle, setEditLedgerTitle] = useState("");
+  const [editLedgerAmount, setEditLedgerAmount] = useState("");
+  const [editLedgerType, setEditLedgerType] = useState<"expense" | "income">("expense");
+  const [editLedgerSymbol, setEditLedgerSymbol] = useState("fixed");
+  const [editLedgerColor, setEditLedgerColor] = useState("pink");
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && ledgerModalDate) {
+        setLedgerModalDate(null);
+        setLedgerEditingId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [ledgerModalDate]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedEntries = localStorage.getItem("jb_bookmark_calendar_ledgers_v3");
+      const savedTemplates = localStorage.getItem("jb_bookmark_fixed_templates_v1");
+      setLedgerEntries(savedEntries ? JSON.parse(savedEntries) : defaultLedgerEntries);
+      setFixedTemplates(savedTemplates ? JSON.parse(savedTemplates) : defaultFixedTemplates);
+      setIsLedgerLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLedgerLoaded && typeof window !== "undefined") {
+      localStorage.setItem("jb_bookmark_calendar_ledgers_v3", JSON.stringify(ledgerEntries));
+      localStorage.setItem("jb_bookmark_fixed_templates_v1", JSON.stringify(fixedTemplates));
+    }
+  }, [ledgerEntries, fixedTemplates, isLedgerLoaded]);
+
+  const prevLedgerMonth = () => {
+    if (ledgerMonth === 1) {
+      setLedgerYear(ledgerYear - 1);
+      setLedgerMonth(12);
+    } else {
+      setLedgerMonth(ledgerMonth - 1);
+    }
+  };
+
+  const nextLedgerMonth = () => {
+    if (ledgerMonth === 12) {
+      setLedgerYear(ledgerYear + 1);
+      setLedgerMonth(1);
+    } else {
+      setLedgerMonth(ledgerMonth + 1);
+    }
+  };
+
+  const ledgerCalendarGrid = useMemo(() => {
+    const firstDayIndex = new Date(ledgerYear, ledgerMonth - 1, 1).getDay();
+    const lastDate = new Date(ledgerYear, ledgerMonth, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < firstDayIndex; i++) cells.push({ day: null, dateStr: "" });
+    for (let d = 1; d <= lastDate; d++) {
+      const monthStr = String(ledgerMonth).padStart(2, "0");
+      const dayStr = String(d).padStart(2, "0");
+      cells.push({ day: d, dateStr: `${ledgerYear}-${monthStr}-${dayStr}` });
+    }
+    while (cells.length % 7 !== 0) cells.push({ day: null, dateStr: "" });
+    return cells;
+  }, [ledgerYear, ledgerMonth]);
+
+  const handleAddLedgerEntry = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ledgerModalDate || !newLedgerTitle.trim() || !newLedgerAmount) return;
+    const trimmedTitle = newLedgerTitle.trim();
+    const newEntry = {
+      id: Date.now(),
+      date: ledgerModalDate,
+      title: trimmedTitle,
+      amount: Number(newLedgerAmount),
+      type: newLedgerType,
+      symbol: newLedgerSymbol,
+      color: newLedgerColor
+    };
+    setLedgerEntries((prev) => [...prev, newEntry]);
+    if (newLedgerSymbol === "fixed") {
+      setFixedTemplates((prev) => {
+        if (!prev.some((tpl) => tpl.title === trimmedTitle)) {
+          return [...prev, { id: `fixed_tpl_${Date.now()}`, title: trimmedTitle, color: newLedgerColor }];
+        }
+        return prev;
+      });
+    }
+    setNewLedgerTitle("");
+    setNewLedgerAmount("");
+  };
+
+  const startLedgerEdit = (item: any) => {
+    setLedgerEditingId(item.id);
+    setEditLedgerTitle(item.title);
+    setEditLedgerAmount(String(item.amount));
+    setEditLedgerType(item.type || "expense");
+    setEditLedgerSymbol(item.symbol || "fixed");
+    setEditLedgerColor(item.color || "pink");
+  };
+
+  const saveLedgerEdit = (id: number) => {
+    if (!editLedgerTitle.trim() || !editLedgerAmount) return;
+    const trimmedTitle = editLedgerTitle.trim();
+    setLedgerEntries((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? { ...item, title: trimmedTitle, amount: Number(editLedgerAmount), type: editLedgerType, symbol: editLedgerSymbol, color: editLedgerColor }
+          : item
+      )
+    );
+    if (editLedgerSymbol === "fixed") {
+      setFixedTemplates((prev) => {
+        if (!prev.some((tpl) => tpl.title === trimmedTitle)) {
+          return [...prev, { id: `fixed_tpl_${Date.now()}`, title: trimmedTitle, color: editLedgerColor }];
+        }
+        return prev;
+      });
+    }
+    setLedgerEditingId(null);
+  };
+
+  const handleDeleteLedgerEntry = (id: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setLedgerEntries((prev) => prev.filter((item) => item.id !== id));
+    if (ledgerEditingId === id) setLedgerEditingId(null);
+  };
+
+  const handleDeleteFixedTemplate = (titleToDelete: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFixedTemplates((prev) => prev.filter((tpl) => tpl.title !== titleToDelete));
+    setLedgerEntries((prev) => prev.filter((item) => !(item.symbol === "fixed" && item.title === titleToDelete)));
+  };
+
+  const currentMonthLedgerSummary = useMemo(() => {
+    const prefix = `${ledgerYear}-${String(ledgerMonth).padStart(2, "0")}`;
+    const monthlyList = ledgerEntries.filter((item) => item.date.startsWith(prefix));
+    let income = 0;
+    let expense = 0;
+    let taxiTotal = 0;
+    let deliveryTotal = 0;
+    monthlyList.forEach((item) => {
+      const amt = Number(item.amount || 0);
+      if (item.type === "income") income += amt;
+      else {
+        expense += amt;
+        if (item.symbol === "taxi") taxiTotal += amt;
+        if (item.symbol === "delivery") deliveryTotal += amt;
+      }
+    });
+    const fixedItems = fixedTemplates.map((tpl) => {
+      const found = monthlyList.find((item) => item.symbol === "fixed" && item.title === tpl.title);
+      return { tplTitle: tpl.title, color: tpl.color || "pink", entry: found || null };
+    });
+    return { income, expense, balance: income - expense, taxiTotal, deliveryTotal, fixedItems, count: monthlyList.length };
+  }, [ledgerEntries, fixedTemplates, ledgerYear, ledgerMonth]);
+
+  const openFixedExpenseModal = (fixedItemObj?: any) => {
+    setLedgerEditingId(null);
+    if (fixedItemObj && fixedItemObj.entry) {
+      setLedgerModalDate(fixedItemObj.entry.date);
+    } else {
+      const defaultDate = `${ledgerYear}-${String(ledgerMonth).padStart(2, "0")}-01`;
+      setLedgerModalDate(defaultDate);
+      if (fixedItemObj) {
+        setNewLedgerTitle(fixedItemObj.tplTitle);
+        setNewLedgerAmount("");
+        setNewLedgerSymbol("fixed");
+        setNewLedgerType("expense");
+        setNewLedgerColor(fixedItemObj.color || "pink");
+      } else {
+        setNewLedgerTitle("");
+        setNewLedgerAmount("");
+        setNewLedgerSymbol("fixed");
+        setNewLedgerType("expense");
+        setNewLedgerColor("pink");
+      }
+    }
+  };
+
+  // ================= 5. 즐겨찾기 탭 데이터 & 상태 (완전 복구) =================
+  const [favList, setFavList] = useState<any[]>([]);
+  const [isFavLoaded, setIsFavLoaded] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
+  const handleCopyUsername = (id: number, username: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!username) return;
+    navigator.clipboard.writeText(username);
+    setCopiedId(id);
+    setTimeout(() => {
+      setCopiedId((prev) => (prev === id ? null : prev));
+    }, 1500);
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("jb_bookmark_fav_list_v2");
+      setFavList(saved ? JSON.parse(saved) : defaultFavorites);
+      setIsFavLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isFavLoaded && typeof window !== "undefined") {
+      localStorage.setItem("jb_bookmark_fav_list_v2", JSON.stringify(favList));
+    }
+  }, [favList, isFavLoaded]);
+
+  const [newFavCategory, setNewFavCategory] = useState("");
+  const [newFavName, setNewFavName] = useState("");
+  const [newFavUrl, setNewFavUrl] = useState("");
+  const [newFavMemo, setNewFavMemo] = useState("");
+  const [newFavUsername, setNewFavUsername] = useState("");
+  const [newFavPwHint, setNewFavPwHint] = useState("");
+  const [selectedFavCategory, setSelectedFavCategory] = useState("전체");
+  const [favSearchQuery, setFavSearchQuery] = useState("");
+
+  const [editingFavId, setEditingFavId] = useState<number | null>(null);
+  const [editFavCategory, setEditFavCategory] = useState("");
+  const [editFavName, setEditFavName] = useState("");
+  const [editFavUrl, setEditFavUrl] = useState("");
+  const [editFavMemo, setEditFavMemo] = useState("");
+  const [editFavUsername, setEditFavUsername] = useState("");
+  const [editFavPwHint, setEditFavPwHint] = useState("");
+
+  const existingFavCategories = useMemo(() => {
+    const set = new Set<string>();
+    favList.forEach((f) => {
+      if (f.category && f.category.trim()) set.add(f.category.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [favList]);
+
+  const handleAddFav = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFavName.trim() || !newFavUrl.trim()) return;
+    let formattedUrl = newFavUrl.trim();
+    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+      formattedUrl = "https://" + formattedUrl;
+    }
+    const newFav = {
+      id: Date.now(),
+      category: newFavCategory.trim() || "기타",
+      name: newFavName.trim(),
+      url: formattedUrl,
+      memo: newFavMemo.trim(),
+      username: newFavUsername.trim(),
+      pwHint: newFavPwHint.trim()
+    };
+    setFavList([newFav, ...favList]);
+    setNewFavCategory("");
+    setNewFavName("");
+    setNewFavUrl("");
+    setNewFavMemo("");
+    setNewFavUsername("");
+    setNewFavPwHint("");
+  };
+
+  const startEditFav = (fav: any) => {
+    setEditingFavId(fav.id);
+    setEditFavCategory(fav.category || "기타");
+    setEditFavName(fav.name || "");
+    setEditFavUrl(fav.url || "");
+    setEditFavMemo(fav.memo || "");
+    setEditFavUsername(fav.username || "");
+    setEditFavPwHint(fav.pwHint || "");
+  };
+
+  const cancelEditFav = () => setEditingFavId(null);
+
+  const saveEditFav = (id: number) => {
+    if (!editFavName.trim() || !editFavUrl.trim()) return;
+    let formattedUrl = editFavUrl.trim();
+    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+      formattedUrl = "https://" + formattedUrl;
+    }
+    setFavList((prev) =>
+      prev.map((f) =>
+        f.id === id
+          ? {
+              ...f,
+              category: editFavCategory.trim() || "기타",
+              name: editFavName.trim(),
+              url: formattedUrl,
+              memo: editFavMemo.trim(),
+              username: editFavUsername.trim(),
+              pwHint: editFavPwHint.trim()
+            }
+          : f
+      )
+    );
+    setEditingFavId(null);
+  };
+
+  const handleDeleteFav = (id: number) => {
+    setFavList((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const filteredFavs = useMemo(() => {
+    return favList
+      .filter((fav) => {
+        const matchCategory = selectedFavCategory === "전체" || fav.category === selectedFavCategory;
+        const matchSearch =
+          fav.name.toLowerCase().includes(favSearchQuery.toLowerCase()) ||
+          fav.url.toLowerCase().includes(favSearchQuery.toLowerCase()) ||
+          fav.category.toLowerCase().includes(favSearchQuery.toLowerCase()) ||
+          (fav.memo && fav.memo.toLowerCase().includes(favSearchQuery.toLowerCase())) ||
+          (fav.username && fav.username.toLowerCase().includes(favSearchQuery.toLowerCase()));
+        return matchCategory && matchSearch;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  }, [favList, selectedFavCategory, favSearchQuery]);
+
+  // ================= 6. 플레이리스트 & 시계 =================
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [repeatMode, setRepeatMode] = useState<"none" | "all" | "one">("all");
@@ -678,7 +1029,7 @@ export default function Home() {
     return `${m}:${String(s).padStart(2, "0")}`;
   };
 
-  // 시계 & 타이머
+  // 시계 & 타이머 상태
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [timerMinutes, setTimerMinutes] = useState(4);
   const [timeLeft, setTimeLeft] = useState(4 * 60);
@@ -883,204 +1234,197 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* [2] 중앙 내용 영역 */}
+        {/* [2] 중앙 내용 영역 (세로 높이 h-[760px] 고정) */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
-          {/* ==================== A. [즐겨찾기] 탭 화면 ==================== */}
-          {currentTab === "favorites" && (
+          {/* ==================== A. [노래책] 탭 화면 ==================== */}
+          {currentTab === "songs" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
-              
-              {/* 1단: 즐겨찾기 등록 바 */}
-              <form onSubmit={handleAddFav} className="border-2 border-amber-400/80 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-amber-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
+              {/* 등록 바 */}
+              <form onSubmit={handleAddSong} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
                 <div className="relative">
                   <input
                     type="text"
-                    list="fav-category-suggestions"
-                    value={newFavCategory}
-                    onChange={(e) => setNewFavCategory(e.target.value)}
-                    placeholder="분류 (예: 포털)"
-                    className="w-24 border border-amber-200 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-medium text-amber-950 focus:outline-none focus:border-amber-500 placeholder-neutral-400"
+                    list="genre-suggestions"
+                    value={newGenre}
+                    onChange={(e) => setNewGenre(e.target.value)}
+                    placeholder="장르 입력"
+                    className="w-24 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-500 placeholder-neutral-400"
                   />
-                  <datalist id="fav-category-suggestions">
-                    {existingFavCategories.map((c) => (
-                      <option key={c} value={c} />
+                  <datalist id="genre-suggestions">
+                    {existingGenres.map((g) => (
+                      <option key={g} value={g} />
                     ))}
                   </datalist>
                 </div>
 
                 <input
                   type="text"
-                  required
-                  value={newFavName}
-                  onChange={(e) => setNewFavName(e.target.value)}
-                  placeholder="사이트명 *"
-                  className="w-32 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-bold"
+                  value={newArtist}
+                  onChange={(e) => setNewArtist(e.target.value)}
+                  placeholder="가수 / 아티스트"
+                  className="w-36 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
                 />
 
                 <input
                   type="text"
                   required
-                  value={newFavUrl}
-                  onChange={(e) => setNewFavUrl(e.target.value)}
-                  placeholder="URL 주소 (https://...)*"
-                  className="flex-1 min-w-[150px] border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="곡 제목 *"
+                  className="w-44 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
                 />
 
                 <input
                   type="text"
-                  value={newFavMemo}
-                  onChange={(e) => setNewFavMemo(e.target.value)}
-                  placeholder="메모"
-                  className="w-28 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                  value={newUrl}
+                  onChange={(e) => setNewUrl(e.target.value)}
+                  placeholder="유튜브 링크"
+                  className="flex-1 min-w-[150px] border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
                 />
 
-                <input
-                  type="text"
-                  value={newFavUsername}
-                  onChange={(e) => setNewFavUsername(e.target.value)}
-                  placeholder="아이디"
-                  className="w-24 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
-                />
-
-                <input
-                  type="text"
-                  value={newFavPwHint}
-                  onChange={(e) => setNewFavPwHint(e.target.value)}
-                  placeholder="비번 힌트"
-                  className="w-24 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
-                />
+                <select
+                  value={newSongType}
+                  onChange={(e) => setNewSongType(e.target.value as "none" | "Original" | "Cover")}
+                  className={`w-28 border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none cursor-pointer transition ${
+                    newSongType === "Cover"
+                      ? "border-amber-400 bg-amber-50 text-amber-800"
+                      : newSongType === "Original"
+                      ? "border-blue-300 bg-blue-50 text-blue-800"
+                      : "border-emerald-200 bg-white/80 text-neutral-600"
+                  }`}
+                >
+                  <option value="none">선택 안함</option>
+                  <option value="Original">Original</option>
+                  <option value="Cover">Cover</option>
+                </select>
 
                 <button
                   type="submit"
-                  className="bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1"
                 >
-                  <Plus className="w-3.5 h-3.5" /> 추가
+                  <Plus className="w-3.5 h-3.5" /> 곡 추가
                 </button>
               </form>
 
-              {/* 2단: 검색 및 카테고리 필터 바 */}
-              <div className="border-2 border-amber-400/80 rounded-2xl p-3 bg-amber-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
+              {/* 검색 및 장르 필터 바 */}
+              <div className="border border-emerald-400 rounded-2xl p-3 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
                 <div className="relative w-full">
                   <input
                     type="text"
-                    value={favSearchQuery}
-                    onChange={(e) => setFavSearchQuery(e.target.value)}
-                    placeholder="사이트명, 분류, 메모, 아이디를 검색해보세요..."
-                    className="w-full border border-amber-200 bg-white/90 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="곡명, 아티스트, 장르를 검색해보세요..."
+                    className="w-full border border-emerald-200 bg-white/80 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
                   />
-                  <Search className="w-3.5 h-3.5 text-amber-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Search className="w-3.5 h-3.5 text-emerald-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
                 </div>
 
                 <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
-                  <span className="text-amber-950 font-semibold text-[11px] mr-1">분류:</span>
+                  <span className="text-emerald-900 font-semibold text-[11px] mr-1">장르:</span>
                   <button
-                    onClick={() => setSelectedFavCategory("전체")}
+                    onClick={() => setSelectedGenre("전체")}
                     className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
-                      selectedFavCategory === "전체"
-                        ? "border-amber-500 bg-amber-200 text-amber-950 font-bold shadow-2xs"
-                        : "border-amber-200/80 bg-white/70 text-neutral-700 hover:bg-white"
+                      selectedGenre === "전체"
+                        ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
+                        : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
                     }`}
                   >
                     전체
                   </button>
-                  {existingFavCategories.map((cat) => (
+                  {existingGenres.map((genre) => (
                     <button
-                      key={cat}
-                      onClick={() => setSelectedFavCategory(cat)}
+                      key={genre}
+                      onClick={() => setSelectedGenre(genre)}
                       className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
-                        selectedFavCategory === cat
-                          ? "border-amber-500 bg-amber-200 text-amber-950 font-bold shadow-2xs"
-                          : "border-amber-200/80 bg-white/70 text-neutral-700 hover:bg-white"
+                        selectedGenre === genre
+                          ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
+                          : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
                       }`}
                     >
-                      {getCategoryIcon(cat)} {cat}
+                      {genre}
                     </button>
                   ))}
-                  <span className="ml-auto text-[11px] text-amber-800/80 font-medium">
-                    총 {filteredFavs.length}개 사이트
+                  <span className="ml-auto text-[11px] text-emerald-800/80 font-medium">
+                    총 {filteredSongs.length}곡 (가수순 ➔ 제목순)
                   </span>
                 </div>
               </div>
 
-              {/* 3단: 헤더 박스 */}
-              <div className="border-2 border-amber-400/80 rounded-xl px-4 py-2.5 bg-amber-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
-                <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-amber-950 items-center text-center">
-                  <span className="col-span-2">🏷️ 분류</span>
-                  <span className="col-span-3">🌐 사이트명</span>
-                  <span className="col-span-1">바로가기</span>
-                  <span className="col-span-2">📝 메모</span>
-                  <span className="col-span-2">🔐 계정 정보 (클릭시 ID복사 / 힌트)</span>
-                  <span className="col-span-2">관리</span>
+              {/* 헤더 박스 */}
+              <div className="border border-emerald-400 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-emerald-900 items-center">
+                  <span className="col-span-2 flex items-center justify-center gap-1 text-center">🏷️ 장르</span>
+                  <span className="col-span-4 flex items-center justify-center gap-1 text-center">🎤 가수 / 아티스트</span>
+                  <span className="col-span-3 flex items-center justify-center gap-1 text-center">🎵 곡명</span>
+                  <span className="col-span-1 flex items-center justify-center gap-1 text-center">🎬 영상</span>
+                  <span className="col-span-2 flex items-center justify-center text-center">관리</span>
                 </div>
               </div>
 
-              {/* 4단: 즐겨찾기 카드 리스트 */}
+              {/* 곡 목록 리스트 */}
               <div className="flex flex-col gap-2">
-                {filteredFavs.map((fav) => {
-                  const isEditing = editingFavId === fav.id;
-                  const isCopied = copiedId === fav.id;
-                  const catIcon = getCategoryIcon(fav.category);
+                {filteredSongs.map((song) => {
+                  const isPlayingThis = isPlayingAudio && currentSong?.id === song.id;
+                  const isEditing = editingSongId === song.id;
+                  const isCover = song.songType === "Cover";
+                  const isOriginal = song.songType === "Original";
+                  const hasUrl = Boolean(song.url && getYouTubeId(song.url));
 
                   if (isEditing) {
                     return (
                       <div
-                        key={`edit-fav-${fav.id}`}
-                        className="p-3 rounded-2xl border-2 border-amber-400 bg-amber-50/90 shadow-md flex flex-wrap items-center gap-2"
+                        key={`edit-${song.id}`}
+                        className="p-3 rounded-2xl border-2 border-emerald-500 bg-emerald-50/90 shadow-md flex flex-wrap items-center gap-2"
                       >
                         <input
                           type="text"
-                          value={editFavCategory}
-                          onChange={(e) => setEditFavCategory(e.target.value)}
-                          placeholder="분류"
-                          className="w-20 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-amber-950 focus:outline-none focus:border-amber-600"
+                          value={editGenre}
+                          onChange={(e) => setEditGenre(e.target.value)}
+                          placeholder="장르"
+                          className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-600"
+                        />
+                        <input
+                          type="text"
+                          value={editArtist}
+                          onChange={(e) => setEditArtist(e.target.value)}
+                          placeholder="가수"
+                          className="w-32 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
                         />
                         <input
                           type="text"
                           required
-                          value={editFavName}
-                          onChange={(e) => setEditFavName(e.target.value)}
-                          placeholder="사이트 이름"
-                          className="w-28 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-bold"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          placeholder="곡 제목"
+                          className="w-44 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-bold"
                         />
                         <input
                           type="text"
-                          required
-                          value={editFavUrl}
-                          onChange={(e) => setEditFavUrl(e.target.value)}
-                          placeholder="웹사이트 URL"
-                          className="flex-1 min-w-[140px] border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium"
+                          value={editUrl}
+                          onChange={(e) => setEditUrl(e.target.value)}
+                          placeholder="유튜브 링크"
+                          className="flex-1 min-w-[140px] border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
                         />
-                        <input
-                          type="text"
-                          value={editFavMemo}
-                          onChange={(e) => setEditFavMemo(e.target.value)}
-                          placeholder="메모"
-                          className="w-28 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium"
-                        />
-                        <input
-                          type="text"
-                          value={editFavUsername}
-                          onChange={(e) => setEditFavUsername(e.target.value)}
-                          placeholder="아이디"
-                          className="w-24 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium"
-                        />
-                        <input
-                          type="text"
-                          value={editFavPwHint}
-                          onChange={(e) => setEditFavPwHint(e.target.value)}
-                          placeholder="비번 힌트"
-                          className="w-24 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium"
-                        />
+                        <select
+                          value={editSongType}
+                          onChange={(e) => setEditSongType(e.target.value as "none" | "Original" | "Cover")}
+                          className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none cursor-pointer"
+                        >
+                          <option value="none">선택 안함</option>
+                          <option value="Original">Original</option>
+                          <option value="Cover">Cover</option>
+                        </select>
                         <div className="flex items-center gap-1 shrink-0 ml-auto">
                           <button
-                            onClick={() => saveEditFav(fav.id)}
-                            title="저장"
-                            className="p-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"
+                            onClick={() => saveEditSong(song.id)}
+                            title="수정 저장"
+                            className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"
                           >
                             <Check className="w-3.5 h-3.5" /> 저장
                           </button>
                           <button
-                            onClick={cancelEditFav}
+                            onClick={cancelEditSong}
                             title="취소"
                             className="p-1.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-600 text-xs flex items-center gap-1 shadow-sm transition"
                           >
@@ -1093,101 +1437,894 @@ export default function Home() {
 
                   return (
                     <div
-                      key={fav.id}
-                      className="grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border-2 border-amber-400/80 bg-amber-50/40 hover:bg-amber-50/70 transition shadow-2xs"
+                      key={song.id}
+                      className={`grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border transition shadow-sm ${
+                        isPlayingThis
+                          ? "bg-emerald-100/90 border-emerald-500 ring-2 ring-emerald-300"
+                          : "bg-emerald-50/40 border-emerald-400 hover:border-emerald-500 hover:bg-emerald-50/70"
+                      }`}
                     >
-                      {/* 1. 분류 (자동 심볼 부착) */}
+                      <div className="col-span-2 flex justify-center">
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-[11px] font-bold text-center">
+                          {song.genre}
+                        </span>
+                      </div>
+
+                      <div className="col-span-4 text-neutral-800 truncate font-bold text-[13px] text-center px-1">
+                        {song.artist}
+                      </div>
+
+                      <div className="col-span-3 flex items-center justify-center gap-2 font-bold text-neutral-900 px-1 overflow-hidden">
+                        <Music className={`w-3.5 h-3.5 shrink-0 ${isPlayingThis ? "text-emerald-600 animate-pulse" : "text-emerald-500"}`} />
+                        <span className="truncate text-sm">{song.title}</span>
+                        {isCover && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 shadow-xs shrink-0">
+                            <Mic2 className="w-2.5 h-2.5" />
+                            <span>Cover</span>
+                          </span>
+                        )}
+                        {isOriginal && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-300 shadow-xs shrink-0">
+                            <Disc3 className="w-2.5 h-2.5" />
+                            <span>Original</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 영상 팝업 재생 버튼 */}
+                      <div className="col-span-1 flex items-center justify-center">
+                        {hasUrl ? (
+                          <button
+                            onClick={() => setVideoModalUrl(song.url)}
+                            className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-xs transition active:scale-95"
+                            title="내부 창에서 영상 시청"
+                          >
+                            <Play className="w-3 h-3 fill-white" />
+                            <span>재생</span>
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-neutral-400 font-medium">-</span>
+                        )}
+                      </div>
+
+                      {/* 관리 버튼 */}
+                      <div className="col-span-2 flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => startEditSong(song)}
+                          title="곡 내용 수정"
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-emerald-700 hover:bg-white transition"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => toggleLike(song.id)}
+                          title={song.liked ? "플레이리스트에서 제거" : "플레이리스트에 담기"}
+                          className={`p-1.5 rounded-lg transition ${
+                            song.liked ? "text-rose-500 fill-rose-500 hover:scale-110 bg-rose-50" : "text-neutral-400 hover:text-rose-500 hover:bg-white"
+                          }`}
+                        >
+                          <Heart className={`w-3.5 h-3.5 ${song.liked ? "fill-rose-500" : ""}`} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSong(song.id)}
+                          title="노래 삭제"
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredSongs.length === 0 && (
+                  <div className="border border-dashed border-emerald-300 rounded-2xl p-12 text-center text-xs font-medium text-emerald-800/70 bg-emerald-50/20">
+                    등록되었거나 조건에 맞는 노래가 없습니다.
+                  </div>
+                )}
+              </div>
+
+              {/* 16:9 클린 영상 모달 */}
+              {videoModalUrl && (
+                <div 
+                  className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                  onClick={() => setVideoModalUrl(null)}
+                >
+                  <div 
+                    className="bg-neutral-900 rounded-3xl overflow-hidden shadow-2xl border border-neutral-700 w-full max-w-4xl max-h-[720px] flex flex-col relative animate-in fade-in zoom-in-95 duration-150"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between px-4 py-2 bg-neutral-900/90 border-b border-neutral-800 text-white shrink-0">
+                      <div className="flex items-center gap-2 text-xs font-bold text-neutral-300">
+                        <Tv className="w-4 h-4 text-emerald-400" />
+                        <span>영상 플레이어</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-neutral-400 bg-neutral-800 px-2 py-0.5 rounded-md">ESC로 닫기</span>
+                        <button onClick={() => setVideoModalUrl(null)} className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="relative w-full aspect-video bg-black flex items-center justify-center">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${getYouTubeId(videoModalUrl)}?autoplay=1`}
+                        title="YouTube video player"
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {/* ==================== B. [일정] 탭 화면 ==================== */}
+          {currentTab === "schedule" && (
+            <div className="h-full flex flex-col gap-3">
+              <div className="border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
+                <div className="flex-1 flex items-center justify-between pr-6 border-r border-pink-200">
+                  <button onClick={prevMonth} className="px-4 py-1.5 rounded-xl border border-pink-400 text-pink-700 hover:bg-pink-50 font-bold text-xs transition">&lt; 이전달</button>
+                  <h2 className="text-lg font-black text-pink-950 tracking-tight flex items-center gap-2">
+                    <span>🗓️</span>
+                    <span>{calYear}년 {calMonth}월 일정표</span>
+                  </h2>
+                  <button onClick={nextMonth} className="px-4 py-1.5 rounded-xl border border-pink-400 text-pink-700 hover:bg-pink-50 font-bold text-xs transition">다음달 &gt;</button>
+                </div>
+                <div className="w-[280px] pl-6 flex items-center gap-1.5 text-sm font-extrabold text-pink-900">
+                  <span>📌</span>
+                  <span>일정 요약</span>
+                </div>
+              </div>
+
+              <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 items-stretch">
+                <div className="flex-1 h-full border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between overflow-hidden">
+                  <div className="grid grid-cols-7 text-center font-bold text-xs pb-2 border-b border-pink-100 text-neutral-700 shrink-0">
+                    <span className="text-rose-600 font-extrabold">일</span>
+                    <span>월</span>
+                    <span>화</span>
+                    <span>수</span>
+                    <span>목</span>
+                    <span>금</span>
+                    <span className="text-blue-600 font-extrabold">토</span>
+                  </div>
+
+                  <div className="flex-1 grid grid-cols-7 grid-rows-5 gap-2 pt-2 min-h-0">
+                    {calendarGrid.map((cell, idx) => {
+                      if (!cell.day) return <div key={`empty-${idx}`} className="h-full rounded-xl" />;
+                      const isSunday = idx % 7 === 0;
+                      const isSaturday = idx % 7 === 6;
+                      const isToday = cell.dateStr === TODAY_STR;
+                      const holidayName = holidays[cell.dateStr];
+                      const daySchedules = scheduleList.filter((s) => s.date === cell.dateStr);
+
+                      return (
+                        <div
+                          key={cell.dateStr}
+                          onClick={() => setModalDate(cell.dateStr)}
+                          className={`h-full border rounded-xl p-1.5 flex flex-col justify-between transition group relative cursor-pointer min-h-0 ${
+                            isToday ? "border-amber-400 bg-amber-50/70" : "border-pink-200/90 bg-white hover:border-pink-400 hover:bg-pink-50/20"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-[11px] font-bold leading-tight">
+                            <span className={isSunday || holidayName ? "text-rose-600" : isSaturday ? "text-blue-600" : "text-neutral-800"}>
+                              {cell.day}
+                            </span>
+                            {holidayName && (
+                              <span className="text-[9px] font-bold text-rose-500 truncate max-w-[55px]">{holidayName}</span>
+                            )}
+                          </div>
+
+                          <div className="flex-1 overflow-y-auto space-y-1 my-0.5 pr-0.5 scrollbar-none">
+                            {daySchedules.map((item) => {
+                              const symbolInfo = SCHEDULE_SYMBOL_CONFIG[item.symbol] || SCHEDULE_SYMBOL_CONFIG.appointment;
+                              const colorInfo = SCHEDULE_COLOR_CONFIG[item.color] || SCHEDULE_COLOR_CONFIG.pink;
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={`flex items-center justify-between px-1.5 py-0.5 rounded border text-[10px] font-semibold leading-none shadow-2xs ${colorInfo.class}`}
+                                >
+                                  <span className="truncate flex items-center gap-1">
+                                    <span className="text-[9px]">{symbolInfo.icon}</span>
+                                    <span>{item.title}</span>
+                                  </span>
+                                  <button onClick={(e) => handleDeleteSchedule(item.id, e)} title="삭제" className="text-neutral-400 hover:text-rose-500 ml-1 shrink-0">
+                                    <X className="w-2.5 h-2.5" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="text-[9px] text-neutral-400 text-right opacity-0 group-hover:opacity-100 transition leading-none">+추가</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="w-full lg:w-[280px] h-full shrink-0 border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-start gap-3.5 overflow-y-auto">
+                  {leaveSummary && (
+                    <div className="border border-blue-200 bg-blue-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
+                      <div className="flex items-center justify-between text-xs font-bold text-blue-900">
+                        <span>남은 연차 (총 16개 기준)</span>
+                        <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full font-bold">1월 1일 리셋</span>
+                      </div>
+                      <div className="text-3xl font-black text-blue-600 tracking-tight my-2">{leaveSummary.remaining} 개</div>
+                      <div className="text-[11px] text-neutral-500 font-medium">사용: {leaveSummary.used}개 (등록 {leaveSummary.count}건)</div>
+                    </div>
+                  )}
+
+                  {birthdaySummary && (
+                    <div className="border border-rose-200 bg-rose-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900">
+                        <span>🎂</span>
+                        <span>{birthdaySummary.title}</span>
+                      </div>
+                      <div className="text-3xl font-black text-rose-600 tracking-tight my-2">{birthdaySummary.dDayText}</div>
+                      <div className="text-[11px] text-neutral-500 font-medium">({birthdaySummary.date} 기준)</div>
+                    </div>
+                  )}
+
+                  {hairSummary && (
+                    <div className="border border-purple-200 bg-purple-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900">
+                        <span>✂️</span>
+                        <span>{hairSummary.title}</span>
+                      </div>
+                      <div className="text-3xl font-black text-purple-600 tracking-tight my-2">{hairSummary.displayText}</div>
+                      <div className="text-[11px] text-neutral-500 font-medium">{hairSummary.subText}</div>
+                    </div>
+                  )}
+
+                  {upcomingAppointments.map((app) => (
+                    <div key={`app-${app.id}`} className="border border-amber-200 bg-amber-50/80 rounded-2xl p-3.5 shadow-xs flex flex-col justify-between shrink-0">
+                      <div className="flex items-center justify-between text-xs font-bold text-amber-900">
+                        <span className="flex items-center gap-1">📌 약속: {app.title}</span>
+                        <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-md font-bold">D-Day</span>
+                      </div>
+                      <div className="text-[11px] text-neutral-500 font-medium mt-1">날짜: {app.date}</div>
+                    </div>
+                  ))}
+
+                  {!hasAnyScheduleSummary && (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 text-neutral-400">
+                      <CalendarDays className="w-8 h-8 mb-2 text-pink-300" />
+                      <span className="text-xs font-bold text-neutral-500 mb-1">일정 요약 없음</span>
+                      <p className="text-[11px] text-neutral-400 leading-relaxed">
+                        달력에 <span className="font-semibold text-pink-600">연차, 반차, 헤어, 생일</span> 일정을 등록하면 이곳에 자동으로 요약 카드가 생성됩니다.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 일정 팝업 모달 */}
+              {modalDate && (
+                <div 
+                  className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+                  onClick={() => {
+                    setModalDate(null);
+                    setPopupEditingId(null);
+                  }}
+                >
+                  <div 
+                    className="bg-white rounded-3xl p-6 border border-pink-300 shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between pb-3 border-b border-neutral-200 shrink-0">
+                      <h3 className="text-base font-black text-neutral-900 flex items-center gap-2">
+                        <CalendarIcon className="w-5 h-5 text-pink-500" />
+                        <span>{modalDate} 일정 관리</span>
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-neutral-400 font-medium bg-neutral-100 px-2 py-0.5 rounded-md">ESC로 닫기</span>
+                        <button onClick={() => { setModalDate(null); setPopupEditingId(null); }} className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="my-3 overflow-y-auto space-y-2 max-h-[220px] pr-1">
+                      <div className="text-[11px] font-bold text-neutral-500 mb-1">
+                        등록된 일정 ({scheduleList.filter((s) => s.date === modalDate).length}건)
+                      </div>
+
+                      {scheduleList.filter((s) => s.date === modalDate).map((item) => {
+                        const isEditingThis = popupEditingId === item.id;
+                        const symbolObj = SCHEDULE_SYMBOL_CONFIG[item.symbol] || SCHEDULE_SYMBOL_CONFIG.appointment;
+                        const colorObj = SCHEDULE_COLOR_CONFIG[item.color] || SCHEDULE_COLOR_CONFIG.pink;
+
+                        if (isEditingThis) {
+                          return (
+                            <div key={`pop-edit-${item.id}`} className="p-3 rounded-2xl border-2 border-pink-400 bg-pink-50/50 space-y-2">
+                              <input
+                                type="text"
+                                value={editPopupTitle}
+                                onChange={(e) => setEditPopupTitle(e.target.value)}
+                                className="w-full border border-pink-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-neutral-900 bg-white focus:outline-none focus:border-pink-500"
+                              />
+
+                              <div className="flex gap-1 flex-wrap">
+                                {Object.entries(SCHEDULE_SYMBOL_CONFIG).map(([key, val]) => (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => setEditPopupSymbol(key)}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition ${
+                                      editPopupSymbol === key ? "border-pink-500 bg-pink-50 text-pink-900 font-black" : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                                    }`}
+                                  >
+                                    {val.icon} {val.label}
+                                  </button>
+                                ))}
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-neutral-600">색상:</span>
+                                {Object.entries(SCHEDULE_COLOR_CONFIG).map(([key, val]) => (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => setEditPopupColor(key)}
+                                    className={`w-5 h-5 rounded-full ${val.chip} border-2 transition ${
+                                      editPopupColor === key ? "border-pink-600 scale-110" : "border-white"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+
+                              <div className="flex justify-end gap-1.5 pt-1">
+                                <button onClick={() => savePopupEdit(item.id)} className="px-3 py-1 bg-pink-500 text-white text-xs font-bold rounded-lg hover:bg-pink-600">저장</button>
+                                <button onClick={() => setPopupEditingId(null)} className="px-3 py-1 bg-white border border-neutral-300 text-neutral-600 text-xs rounded-lg hover:bg-neutral-50">취소</button>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div key={item.id} className={`flex items-center justify-between p-2 rounded-xl border text-xs font-semibold ${colorObj.class}`}>
+                            <div className="flex items-center gap-1.5 min-w-0 pr-2">
+                              <span className="text-sm">{symbolObj.icon}</span>
+                              <span className="truncate">{item.title}</span>
+                              <span className="text-[10px] opacity-75 font-normal">({symbolObj.label})</span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button onClick={() => startPopupEdit(item)} title="수정" className="p-1 rounded-md hover:bg-black/10 text-neutral-600">
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button onClick={() => handleDeleteSchedule(item.id)} title="삭제" className="p-1 rounded-md hover:bg-rose-100 text-neutral-600 hover:text-rose-600">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {scheduleList.filter((s) => s.date === modalDate).length === 0 && (
+                        <div className="text-center py-4 text-neutral-400 text-xs">등록된 일정이 없습니다.</div>
+                      )}
+                    </div>
+
+                    <form onSubmit={handleAddPopupSchedule} className="pt-3 border-t border-neutral-200 shrink-0 space-y-3">
+                      <div className="text-xs font-bold text-neutral-800">새 일정 추가</div>
+                      <div>
+                        <input
+                          type="text"
+                          required
+                          value={newSchedTitle}
+                          onChange={(e) => setNewSchedTitle(e.target.value)}
+                          placeholder="일정 제목을 입력하세요 (예: 치과, 생일파티 등)"
+                          className="w-full border border-pink-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-pink-500 font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="text-[11px] font-bold text-neutral-600 mb-1">심볼 선택</div>
+                        <div className="grid grid-cols-5 gap-1">
+                          {Object.entries(SCHEDULE_SYMBOL_CONFIG).map(([key, val]) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setNewSchedSymbol(key)}
+                              className={`py-1.5 rounded-xl text-[11px] font-bold border flex flex-col items-center gap-0.5 transition ${
+                                newSchedSymbol === key ? "border-pink-500 bg-pink-50 text-pink-900 font-black shadow-2xs" : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
+                              }`}
+                            >
+                              <span className="text-sm">{val.icon}</span>
+                              <span>{val.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-[11px] font-bold text-neutral-600 mb-1">파스텔 태그 색상</div>
+                        <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
+                          {Object.entries(SCHEDULE_COLOR_CONFIG).map(([key, val]) => (
+                            <label key={key} className="flex items-center gap-1.5 cursor-pointer">
+                              <input type="radio" name="tagColor" value={key} checked={newSchedColor === key} onChange={() => setNewSchedColor(key)} className="hidden" />
+                              <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${
+                                newSchedColor === key ? "border-pink-600 scale-110 shadow-xs" : "border-transparent opacity-70"
+                              }`}>
+                                {newSchedColor === key && <Check className="w-3 h-3 text-pink-950 stroke-[3]" />}
+                              </span>
+                              <span className="text-[11px] font-semibold text-neutral-700">{val.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <button type="button" onClick={() => { setModalDate(null); setPopupEditingId(null); }} className="flex-1 py-2 rounded-xl border border-neutral-300 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 transition">
+                          닫기 (ESC)
+                        </button>
+                        <button type="submit" className="flex-1 py-2 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold shadow-sm transition">
+                          일정 추가
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ==================== C. [가계부] 탭 화면 ==================== */}
+          {currentTab === "ledger" && (
+            <div className="h-full flex flex-col gap-3">
+              <div className="border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
+                <div className="flex-1 flex items-center justify-between pr-6 border-r border-sky-200">
+                  <button onClick={prevLedgerMonth} className="px-4 py-1.5 rounded-xl border border-sky-400 text-sky-700 hover:bg-sky-50 font-bold text-xs transition">&lt; 이전달</button>
+                  <h2 className="text-lg font-black text-sky-950 tracking-tight flex items-center gap-2">
+                    <Wallet className="w-5 h-5 text-sky-600" />
+                    <span>{ledgerYear}년 {ledgerMonth}월 가계부</span>
+                  </h2>
+                  <button onClick={nextLedgerMonth} className="px-4 py-1.5 rounded-xl border border-sky-400 text-sky-700 hover:bg-sky-50 font-bold text-xs transition">다음달 &gt;</button>
+                </div>
+                <div className="w-[280px] pl-6 flex items-center gap-1.5 text-sm font-extrabold text-sky-900">
+                  <PiggyBank className="w-4 h-4 text-sky-600" />
+                  <span>재정 요약</span>
+                </div>
+              </div>
+
+              <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 items-stretch">
+                <div className="flex-1 h-full border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between overflow-hidden">
+                  <div className="grid grid-cols-7 text-center font-bold text-xs pb-2 border-b border-sky-100 text-neutral-700 shrink-0">
+                    <span className="text-rose-600 font-extrabold">일</span>
+                    <span>월</span>
+                    <span>화</span>
+                    <span>수</span>
+                    <span>목</span>
+                    <span>금</span>
+                    <span className="text-blue-600 font-extrabold">토</span>
+                  </div>
+
+                  <div className="flex-1 grid grid-cols-7 grid-rows-5 gap-2 pt-2 min-h-0">
+                    {ledgerCalendarGrid.map((cell, idx) => {
+                      if (!cell.day) return <div key={`empty-ledger-${idx}`} className="h-full rounded-xl" />;
+                      const isSunday = idx % 7 === 0;
+                      const isSaturday = idx % 7 === 6;
+                      const isToday = cell.dateStr === TODAY_STR;
+                      const holidayName = holidays[cell.dateStr];
+                      const dayEntries = ledgerEntries.filter((s) => s.date === cell.dateStr);
+
+                      let dayIncome = 0;
+                      let dayExpense = 0;
+                      dayEntries.forEach(e => {
+                        if (e.type === "income") dayIncome += Number(e.amount || 0);
+                        else dayExpense += Number(e.amount || 0);
+                      });
+
+                      return (
+                        <div
+                          key={cell.dateStr}
+                          onClick={() => {
+                            setLedgerEditingId(null);
+                            setLedgerModalDate(cell.dateStr);
+                          }}
+                          className={`h-full border rounded-xl p-1.5 flex flex-col justify-between transition group relative cursor-pointer min-h-0 ${
+                            isToday ? "border-amber-400 bg-amber-50/70" : "border-sky-200/90 bg-white hover:border-sky-400 hover:bg-sky-50/20"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-[11px] font-bold leading-tight">
+                            <span className={isSunday || holidayName ? "text-rose-600" : isSaturday ? "text-blue-600" : "text-neutral-800"}>
+                              {cell.day}
+                            </span>
+                            {holidayName ? (
+                              <span className="text-[9px] font-bold text-rose-500 truncate max-w-[55px]">{holidayName}</span>
+                            ) : (dayIncome > 0 || dayExpense > 0) ? (
+                              <span className="text-[9px] font-mono font-bold text-sky-800">
+                                {dayExpense > 0 && <span className="text-rose-500 mr-1">-{dayExpense.toLocaleString()}</span>}
+                                {dayIncome > 0 && <span className="text-blue-600">+{dayIncome.toLocaleString()}</span>}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <div className="flex-1 overflow-y-auto space-y-1 my-0.5 pr-0.5 scrollbar-none">
+                            {dayEntries.map((item) => {
+                              const isIncome = item.type === "income";
+                              const colorObj = LEDGER_COLOR_CONFIG[item.color] || LEDGER_COLOR_CONFIG.pink;
+                              const symbolObj = LEDGER_SYMBOL_CONFIG[item.symbol] || LEDGER_SYMBOL_CONFIG.fixed;
+
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={`flex items-start justify-between p-1 rounded border text-[10px] font-semibold leading-tight shadow-2xs ${colorObj.class}`}
+                                >
+                                  <div className="flex items-start gap-1 min-w-0 break-all flex-1 pr-1">
+                                    <span className="text-[10px] shrink-0">{symbolObj.icon}</span>
+                                    <div className="flex flex-wrap items-baseline gap-x-1">
+                                      <span className="font-bold">{item.title}</span>
+                                      <span className="font-mono text-[9px] font-bold opacity-85 whitespace-nowrap">
+                                        {isIncome ? "+" : "-"}{Number(item.amount).toLocaleString()}원
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <button onClick={(e) => handleDeleteLedgerEntry(item.id, e)} title="삭제" className="text-neutral-400 hover:text-rose-500 p-0.5 shrink-0">
+                                    <X className="w-2.5 h-2.5" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="text-[9px] text-neutral-400 text-right opacity-0 group-hover:opacity-100 transition leading-none">+추가</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="w-full lg:w-[280px] h-full shrink-0 border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-start gap-3 overflow-y-auto">
+                  <div className="border border-blue-200 bg-blue-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
+                    <div className="flex items-center justify-between text-xs font-bold text-blue-900">
+                      <span className="flex items-center gap-1"><ArrowDownLeft className="w-3.5 h-3.5 text-blue-600" /> 총 수입</span>
+                      <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full font-bold">수입</span>
+                    </div>
+                    <div className="text-xl font-black text-blue-600 tracking-tight my-1.5">+{currentMonthLedgerSummary.income.toLocaleString()}원</div>
+                  </div>
+
+                  <div className="border border-rose-200 bg-rose-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
+                    <div className="flex items-center justify-between text-xs font-bold text-rose-900">
+                      <span className="flex items-center gap-1"><ArrowUpRight className="w-3.5 h-3.5 text-rose-600" /> 총 지출</span>
+                      <span className="text-[10px] text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded-full font-bold">지출</span>
+                    </div>
+                    <div className="text-xl font-black text-rose-600 tracking-tight my-1.5">-{currentMonthLedgerSummary.expense.toLocaleString()}원</div>
+                  </div>
+
+                  <div className="border border-sky-200 bg-sky-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
+                    <div className="flex items-center justify-between text-xs font-bold text-sky-900">
+                      <span className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5 text-sky-600" /> 정산 잔액</span>
+                      <span className="text-[10px] text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded-full font-bold">잔액</span>
+                    </div>
+                    <div className={`text-xl font-black tracking-tight my-1.5 ${currentMonthLedgerSummary.balance >= 0 ? "text-sky-700" : "text-rose-600"}`}>
+                      {currentMonthLedgerSummary.balance >= 0 ? "+" : ""}{currentMonthLedgerSummary.balance.toLocaleString()}원
+                    </div>
+                  </div>
+
+                  <div className="border-t border-sky-200/80 my-0.5 shrink-0" />
+
+                  <div className="border border-amber-200 bg-amber-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
+                    <div className="flex items-center justify-between text-xs font-bold text-amber-900">
+                      <span className="flex items-center gap-1">🚕 택시 지출 합산</span>
+                      <span className="text-[10px] text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-md font-bold">택시</span>
+                    </div>
+                    <div className="text-xl font-black text-amber-900 tracking-tight my-1.5">{currentMonthLedgerSummary.taxiTotal.toLocaleString()}원</div>
+                  </div>
+
+                  <div className="border border-pink-200 bg-pink-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
+                    <div className="flex items-center justify-between text-xs font-bold text-pink-900">
+                      <span className="flex items-center gap-1">🛵 배달 지출 합산</span>
+                      <span className="text-[10px] text-pink-800 bg-pink-100 px-1.5 py-0.5 rounded-md font-bold">배달</span>
+                    </div>
+                    <div className="text-xl font-black text-pink-900 tracking-tight my-1.5">{currentMonthLedgerSummary.deliveryTotal.toLocaleString()}원</div>
+                  </div>
+
+                  <div className="border border-purple-200 bg-purple-50/80 rounded-2xl p-3 shadow-xs flex flex-col gap-2 shrink-0">
+                    <div className="flex items-center justify-between text-xs font-bold text-purple-900">
+                      <span className="flex items-center gap-1">📌 고정 지출 목록</span>
+                      <button onClick={() => openFixedExpenseModal()} className="p-1 rounded bg-purple-100 hover:bg-purple-200 text-purple-800 text-[10px] font-bold flex items-center gap-0.5 transition" title="새 고정 지출 추가">
+                        <Plus className="w-3 h-3" /> 추가
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {currentMonthLedgerSummary.fixedItems.map((item) => (
+                        <div
+                          key={`fixed-tpl-${item.tplTitle}`}
+                          onClick={() => openFixedExpenseModal(item)}
+                          className="flex items-center justify-between bg-white/90 p-2 rounded-xl border border-purple-200 text-xs hover:border-purple-400 cursor-pointer transition group"
+                        >
+                          <div className="min-w-0 pr-1">
+                            <div className="font-bold text-neutral-800 truncate leading-tight flex items-center gap-1">
+                              <span>📌</span>
+                              <span>{item.tplTitle}</span>
+                            </div>
+                            <div className="text-[10px] font-mono font-bold mt-0.5">
+                              {item.entry ? (
+                                <span className="text-purple-700 font-black">-{Number(item.entry.amount).toLocaleString()}원</span>
+                              ) : (
+                                <span className="text-rose-500 italic font-semibold">금액 미입력 (클릭하여 입력)</span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={(e) => { e.stopPropagation(); openFixedExpenseModal(item); }} className="p-1 rounded-md text-neutral-400 hover:text-purple-700 hover:bg-purple-100 transition" title="수정하기">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={(e) => handleDeleteFixedTemplate(item.tplTitle, e)} className="p-1 rounded-md text-neutral-400 hover:text-rose-600 hover:bg-rose-50 transition" title="고정 목록에서 완전 삭제">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {currentMonthLedgerSummary.fixedItems.length === 0 && (
+                        <div className="text-center py-2 text-[10px] text-neutral-400">등록된 고정 지출이 없습니다.</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 가계부 팝업 모달 */}
+              {ledgerModalDate && (
+                <div 
+                  className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+                  onClick={() => {
+                    setLedgerModalDate(null);
+                    setLedgerEditingId(null);
+                  }}
+                >
+                  <div 
+                    className="bg-white rounded-3xl p-6 border border-sky-300 shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between pb-3 border-b border-neutral-200 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="w-5 h-5 text-sky-500" />
+                        <h3 className="text-base font-black text-neutral-900">가계부 관리</h3>
+                        <input
+                          type="date"
+                          value={ledgerModalDate}
+                          onChange={(e) => setLedgerModalDate(e.target.value)}
+                          className="border border-sky-200 bg-sky-50/50 rounded-lg px-2 py-0.5 text-xs font-bold text-sky-900 focus:outline-none focus:border-sky-500 cursor-pointer"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-neutral-400 font-medium bg-neutral-100 px-2 py-0.5 rounded-md">ESC로 닫기</span>
+                        <button onClick={() => { setLedgerModalDate(null); setLedgerEditingId(null); }} className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="my-3 overflow-y-auto space-y-2 max-h-[220px] pr-1">
+                      <div className="text-[11px] font-bold text-neutral-500 mb-1">
+                        선택 날짜({ledgerModalDate}) 등록 내역 ({ledgerEntries.filter((s) => s.date === ledgerModalDate).length}건)
+                      </div>
+
+                      {ledgerEntries.filter((s) => s.date === ledgerModalDate).map((item) => {
+                        const isEditingThis = ledgerEditingId === item.id;
+                        const isIncome = item.type === "income";
+                        const colorObj = LEDGER_COLOR_CONFIG[item.color] || LEDGER_COLOR_CONFIG.pink;
+                        const symbolObj = LEDGER_SYMBOL_CONFIG[item.symbol] || LEDGER_SYMBOL_CONFIG.fixed;
+
+                        if (isEditingThis) {
+                          return (
+                            <div key={`pop-ledger-edit-${item.id}`} className="p-3 rounded-2xl border-2 border-sky-400 bg-sky-50/50 space-y-2">
+                              <div className="flex gap-2">
+                                <select value={editLedgerType} onChange={(e) => setEditLedgerType(e.target.value as "expense" | "income")} className="border border-sky-300 rounded-lg px-2 py-1 text-xs font-bold bg-white">
+                                  <option value="expense">지출 (-)</option>
+                                  <option value="income">수입 (+)</option>
+                                </select>
+                                <input type="text" value={editLedgerTitle} onChange={(e) => setEditLedgerTitle(e.target.value)} placeholder="항목 내용" className="flex-1 border border-sky-300 rounded-lg px-2.5 py-1 text-xs font-bold text-neutral-900 bg-white" />
+                                <select value={editLedgerSymbol} onChange={(e) => setEditLedgerSymbol(e.target.value)} className="border border-sky-300 rounded-lg px-2 py-1 text-xs font-bold bg-white cursor-pointer">
+                                  {Object.entries(LEDGER_SYMBOL_CONFIG).map(([key, val]) => (
+                                    <option key={key} value={key}>{val.icon} {val.label}</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <input type="number" value={editLedgerAmount} onChange={(e) => setEditLedgerAmount(e.target.value)} placeholder="금액 (원)" className="w-full border border-sky-300 rounded-lg px-2.5 py-1 text-xs font-bold text-neutral-900 bg-white" />
+
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-neutral-600">색상:</span>
+                                {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
+                                  <button key={key} type="button" onClick={() => setEditLedgerColor(key)} className={`w-5 h-5 rounded-full ${val.chip} border-2 transition ${editLedgerColor === key ? "border-sky-800 scale-110" : "border-white"}`} />
+                                ))}
+                              </div>
+
+                              <div className="flex justify-end gap-1.5 pt-1">
+                                <button onClick={() => saveLedgerEdit(item.id)} className="px-3 py-1 bg-sky-500 text-white text-xs font-bold rounded-lg hover:bg-sky-600">저장</button>
+                                <button onClick={() => setLedgerEditingId(null)} className="px-3 py-1 bg-white border border-neutral-300 text-neutral-600 text-xs rounded-lg hover:bg-neutral-50">취소</button>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div key={item.id} className={`flex items-center justify-between p-2 rounded-xl border text-xs font-semibold ${colorObj.class}`}>
+                            <div className="flex items-center gap-2 min-w-0 pr-2">
+                              <span className="text-base">{symbolObj.icon}</span>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${isIncome ? "bg-blue-200 text-blue-900" : "bg-rose-200 text-rose-900"}`}>
+                                {isIncome ? "수입" : "지출"}
+                              </span>
+                              <span className="font-bold truncate">{item.title}</span>
+                              <span className="font-mono font-bold whitespace-nowrap">{isIncome ? "+" : "-"}{Number(item.amount).toLocaleString()}원</span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button onClick={() => startLedgerEdit(item)} title="수정" className="p-1 rounded-md hover:bg-black/10 text-neutral-600"><Pencil className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => handleDeleteLedgerEntry(item.id)} title="삭제" className="p-1 rounded-md hover:bg-rose-100 text-neutral-600 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {ledgerEntries.filter((s) => s.date === ledgerModalDate).length === 0 && (
+                        <div className="text-center py-4 text-neutral-400 text-xs">해당 일자에 등록된 내역이 없습니다.</div>
+                      )}
+                    </div>
+
+                    <form onSubmit={handleAddLedgerEntry} className="pt-3 border-t border-neutral-200 shrink-0 space-y-3">
+                      <div className="text-xs font-bold text-neutral-800">새 내역 추가</div>
+                      <div className="flex gap-2">
+                        <select value={newLedgerType} onChange={(e) => setNewLedgerType(e.target.value as "expense" | "income")} className="border border-sky-300 rounded-xl px-2.5 py-2 text-xs font-bold bg-white focus:outline-none focus:border-sky-500 cursor-pointer">
+                          <option value="expense">지출 (-)</option>
+                          <option value="income">수입 (+)</option>
+                        </select>
+                        <input type="text" required value={newLedgerTitle} onChange={(e) => setNewLedgerTitle(e.target.value)} placeholder="항목 내용" className="flex-1 border border-sky-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500 font-medium" />
+                        <select value={newLedgerSymbol} onChange={(e) => setNewLedgerSymbol(e.target.value)} className="border border-sky-300 rounded-xl px-2 py-2 text-xs font-bold bg-white focus:outline-none focus:border-sky-500 cursor-pointer">
+                          {Object.entries(LEDGER_SYMBOL_CONFIG).map(([key, val]) => (
+                            <option key={key} value={key}>{val.icon} {val.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <input type="number" required min="0" value={newLedgerAmount} onChange={(e) => setNewLedgerAmount(e.target.value)} placeholder="금액을 입력하세요 (예: 15000)" className="w-full border border-sky-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500 font-medium" />
+                      </div>
+
+                      <div>
+                        <div className="text-[11px] font-bold text-neutral-600 mb-1">파스텔 태그 색상</div>
+                        <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
+                          {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
+                            <label key={key} className="flex items-center gap-1.5 cursor-pointer">
+                              <input type="radio" name="ledgerTagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
+                              <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${newLedgerColor === key ? "border-sky-800 scale-110 shadow-xs" : "border-transparent opacity-70"}`}>
+                                {newLedgerColor === key && <Check className="w-3 h-3 text-sky-950 stroke-[3]" />}
+                              </span>
+                              <span className="text-[11px] font-semibold text-neutral-700">{val.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <button type="button" onClick={() => { setLedgerModalDate(null); setLedgerEditingId(null); }} className="flex-1 py-2 rounded-xl border border-neutral-300 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 transition">
+                          닫기 (ESC)
+                        </button>
+                        <button type="submit" className="flex-1 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-sm transition">
+                          내역 추가
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ==================== D. [즐겨찾기] 탭 화면 ==================== */}
+          {currentTab === "favorites" && (
+            <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
+              <form onSubmit={handleAddFav} className="border-2 border-amber-400/80 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-amber-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="relative">
+                  <input type="text" list="fav-category-suggestions" value={newFavCategory} onChange={(e) => setNewFavCategory(e.target.value)} placeholder="분류 (예: 포털)" className="w-24 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs font-medium text-amber-950 focus:outline-none focus:border-amber-500 placeholder-neutral-400" />
+                  <datalist id="fav-category-suggestions">
+                    {existingFavCategories.map((c) => (<option key={c} value={c} />))}
+                  </datalist>
+                </div>
+                <input type="text" required value={newFavName} onChange={(e) => setNewFavName(e.target.value)} placeholder="사이트명 *" className="w-32 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-bold" />
+                <input type="text" required value={newFavUrl} onChange={(e) => setNewFavUrl(e.target.value)} placeholder="URL 주소 (https://...)*" className="flex-1 min-w-[150px] border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium" />
+                <input type="text" value={newFavMemo} onChange={(e) => setNewFavMemo(e.target.value)} placeholder="메모" className="w-28 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium" />
+                <input type="text" value={newFavUsername} onChange={(e) => setNewFavUsername(e.target.value)} placeholder="아이디" className="w-24 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium" />
+                <input type="text" value={newFavPwHint} onChange={(e) => setNewFavPwHint(e.target.value)} placeholder="비번 힌트" className="w-24 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium" />
+                <button type="submit" className="bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1">
+                  <Plus className="w-3.5 h-3.5" /> 추가
+                </button>
+              </form>
+
+              <div className="border-2 border-amber-400/80 rounded-2xl p-3 bg-amber-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
+                <div className="relative w-full">
+                  <input type="text" value={favSearchQuery} onChange={(e) => setFavSearchQuery(e.target.value)} placeholder="사이트명, 분류, 메모, 아이디를 검색해보세요..." className="w-full border border-amber-200 bg-white/90 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium" />
+                  <Search className="w-3.5 h-3.5 text-amber-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+                <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
+                  <span className="text-amber-950 font-semibold text-[11px] mr-1">분류:</span>
+                  <button onClick={() => setSelectedFavCategory("전체")} className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${selectedFavCategory === "전체" ? "border-amber-500 bg-amber-200 text-amber-950 font-bold shadow-2xs" : "border-amber-200/80 bg-white/70 text-neutral-700 hover:bg-white"}`}>전체</button>
+                  {existingFavCategories.map((cat) => (
+                    <button key={cat} onClick={() => setSelectedFavCategory(cat)} className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${selectedFavCategory === cat ? "border-amber-500 bg-amber-200 text-amber-950 font-bold shadow-2xs" : "border-amber-200/80 bg-white/70 text-neutral-700 hover:bg-white"}`}>
+                      {getCategoryIcon(cat)} {cat}
+                    </button>
+                  ))}
+                  <span className="ml-auto text-[11px] text-amber-800/80 font-medium">총 {filteredFavs.length}개 사이트</span>
+                </div>
+              </div>
+
+              <div className="border-2 border-amber-400/80 rounded-xl px-4 py-2.5 bg-amber-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-amber-950 items-center text-center">
+                  <span className="col-span-2">🏷️ 분류</span>
+                  <span className="col-span-3">🌐 사이트명</span>
+                  <span className="col-span-1">바로가기</span>
+                  <span className="col-span-2">📝 메모</span>
+                  <span className="col-span-2">🔐 계정 정보 (클릭시 ID복사 / 힌트)</span>
+                  <span className="col-span-2">관리</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {filteredFavs.map((fav) => {
+                  const isEditing = editingFavId === fav.id;
+                  const isCopied = copiedId === fav.id;
+                  const catIcon = getCategoryIcon(fav.category);
+
+                  if (isEditing) {
+                    return (
+                      <div key={`edit-fav-${fav.id}`} className="p-3 rounded-2xl border-2 border-amber-400 bg-amber-50/90 shadow-md flex flex-wrap items-center gap-2">
+                        <input type="text" value={editFavCategory} onChange={(e) => setEditFavCategory(e.target.value)} placeholder="분류" className="w-20 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-amber-950 focus:outline-none focus:border-amber-600" />
+                        <input type="text" required value={editFavName} onChange={(e) => setEditFavName(e.target.value)} placeholder="사이트 이름" className="w-28 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-bold" />
+                        <input type="text" required value={editFavUrl} onChange={(e) => setEditFavUrl(e.target.value)} placeholder="웹사이트 URL" className="flex-1 min-w-[140px] border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium" />
+                        <input type="text" value={editFavMemo} onChange={(e) => setEditFavMemo(e.target.value)} placeholder="메모" className="w-28 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium" />
+                        <input type="text" value={editFavUsername} onChange={(e) => setEditFavUsername(e.target.value)} placeholder="아이디" className="w-24 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium" />
+                        <input type="text" value={editFavPwHint} onChange={(e) => setEditFavPwHint(e.target.value)} placeholder="비번 힌트" className="w-24 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium" />
+                        <div className="flex items-center gap-1 shrink-0 ml-auto">
+                          <button onClick={() => saveEditFav(fav.id)} title="저장" className="p-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"><Check className="w-3.5 h-3.5" /> 저장</button>
+                          <button onClick={cancelEditFav} title="취소" className="p-1.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-600 text-xs flex items-center gap-1 shadow-sm transition"><X className="w-3.5 h-3.5" /> 취소</button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={fav.id} className="grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border-2 border-amber-400/80 bg-amber-50/40 hover:bg-amber-50/70 transition shadow-2xs">
                       <div className="col-span-2 flex justify-center">
                         <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-bold text-center flex items-center gap-1 shadow-2xs">
                           <span>{catIcon}</span>
                           <span>{fav.category}</span>
                         </span>
                       </div>
-
-                      {/* 2. 사이트명 */}
-                      <div className="col-span-3 text-neutral-900 truncate font-black text-[13px] text-center px-1">
-                        {fav.name}
-                      </div>
-
-                      {/* 3. 바로가기 버튼 */}
+                      <div className="col-span-3 text-neutral-900 truncate font-black text-[13px] text-center px-1">{fav.name}</div>
                       <div className="col-span-1 flex justify-center">
-                        <a
-                          href={fav.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-2xs transition active:scale-95"
-                          title={`${fav.name} 바로가기`}
-                        >
+                        <a href={fav.url} target="_blank" rel="noreferrer" className="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-2xs transition active:scale-95" title={`${fav.name} 바로가기`}>
                           <ExternalLink className="w-3 h-3" />
                           <span>이동</span>
                         </a>
                       </div>
-
-                      {/* 4. 메모 */}
-                      <div className="col-span-2 text-neutral-600 truncate text-[11px] px-1 text-center font-medium">
-                        {fav.memo || <span className="text-neutral-300">-</span>}
-                      </div>
-
-                      {/* 5. 아이디(클릭시 자동복사) & 비번힌트 */}
+                      <div className="col-span-2 text-neutral-600 truncate text-[11px] px-1 text-center font-medium">{fav.memo || <span className="text-neutral-300">-</span>}</div>
                       <div className="col-span-2 flex flex-col items-center justify-center gap-1 px-1 overflow-hidden">
                         {fav.username ? (
-                          <button
-                            onClick={(e) => handleCopyUsername(fav.id, fav.username, e)}
-                            className={`flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border transition active:scale-95 max-w-full ${
-                              isCopied
-                                ? "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold"
-                                : "bg-white/90 hover:bg-amber-100/80 text-neutral-800 border-amber-200/80"
-                            }`}
-                            title="클릭하여 아이디 복사"
-                          >
-                            {isCopied ? (
-                              <>
-                                <Check className="w-3 h-3 text-emerald-600 shrink-0" />
-                                <span className="text-emerald-700 font-bold">복사됨!</span>
-                              </>
-                            ) : (
-                              <>
-                                <User className="w-2.5 h-2.5 text-amber-700 shrink-0" />
-                                <span className="truncate">{fav.username}</span>
-                                <Copy className="w-2.5 h-2.5 opacity-50 shrink-0 ml-0.5" />
-                              </>
-                            )}
+                          <button onClick={(e) => handleCopyUsername(fav.id, fav.username, e)} className={`flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border transition active:scale-95 max-w-full ${isCopied ? "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold" : "bg-white/90 hover:bg-amber-100/80 text-neutral-800 border-amber-200/80"}`} title="클릭하여 아이디 복사">
+                            {isCopied ? (<><Check className="w-3 h-3 text-emerald-600 shrink-0" /><span className="text-emerald-700 font-bold">복사됨!</span></>) : (<><User className="w-2.5 h-2.5 text-amber-700 shrink-0" /><span className="truncate">{fav.username}</span><Copy className="w-2.5 h-2.5 opacity-50 shrink-0 ml-0.5" /></>)}
                           </button>
                         ) : null}
-
                         {fav.pwHint ? (
-                          <div 
-                            className="flex items-center gap-1 text-[10px] font-mono text-neutral-600 bg-amber-100/60 px-1.5 py-0.2 rounded border border-amber-200/90 truncate max-w-full cursor-help group"
-                            title="마우스를 올리면 비밀번호 힌트가 보입니다"
-                          >
+                          <div className="flex items-center gap-1 text-[10px] font-mono text-neutral-600 bg-amber-100/60 px-1.5 py-0.2 rounded border border-amber-200/90 truncate max-w-full cursor-help group" title="마우스를 올리면 비밀번호 힌트가 보입니다">
                             <Key className="w-2.5 h-2.5 text-amber-700 shrink-0" />
-                            <span className="filter blur-[3px] group-hover:blur-none transition-all duration-200 select-none group-hover:select-text text-amber-950 font-bold">
-                              {fav.pwHint}
-                            </span>
+                            <span className="filter blur-[3px] group-hover:blur-none transition-all duration-200 select-none group-hover:select-text text-amber-950 font-bold">{fav.pwHint}</span>
                           </div>
                         ) : null}
-
-                        {!fav.username && !fav.pwHint && (
-                          <span className="text-[10px] text-neutral-300">-</span>
-                        )}
+                        {!fav.username && !fav.pwHint && <span className="text-[10px] text-neutral-300">-</span>}
                       </div>
-
-                      {/* 6. 관리 버튼 */}
                       <div className="col-span-2 flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => startEditFav(fav)}
-                          title="수정"
-                          className="p-1.5 rounded-lg text-neutral-400 hover:text-amber-800 hover:bg-white transition"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteFav(fav.id)}
-                          title="삭제"
-                          className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <button onClick={() => startEditFav(fav)} title="수정" className="p-1.5 rounded-lg text-neutral-400 hover:text-amber-800 hover:bg-white transition"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleDeleteFav(fav.id)} title="삭제" className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   );
@@ -1199,58 +2336,14 @@ export default function Home() {
                   </div>
                 )}
               </div>
-
             </div>
           )}
 
-          {/* ==================== B. [가계부] 탭 화면 ==================== */}
-          {currentTab === "ledger" && (
-            <div className="h-full flex flex-col gap-3">
-              <div className="border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
-                <div className="flex-1 flex items-center justify-between pr-6 border-r border-sky-200">
-                  <span className="font-bold text-xs text-sky-700">가계부 탭</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ==================== C. [일정] 탭 화면 ==================== */}
-          {currentTab === "schedule" && (
-            <div className="h-full flex flex-col gap-3">
-              <div className="border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
-                <div className="flex-1 flex items-center justify-between pr-6 border-r border-pink-200">
-                  <span className="font-bold text-xs text-pink-700">일정 탭</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ==================== D. [노래책] 탭 화면 ==================== */}
-          {currentTab === "songs" && (
-            <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
-              <form onSubmit={handleAddSong} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
-                <input
-                  type="text"
-                  required
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="곡 제목 *"
-                  className="w-44 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 font-medium"
-                />
-                <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1">
-                  <Plus className="w-3.5 h-3.5" /> 곡 추가
-                </button>
-              </form>
-            </div>
-          )}
-
-          {/* 그 외 탭 */}
+          {/* ==================== E. 그 외 탭 ==================== */}
           {currentTab !== "songs" && currentTab !== "schedule" && currentTab !== "ledger" && currentTab !== "favorites" && (
             <div className="h-full border border-dashed border-emerald-300 rounded-2xl p-20 flex flex-col items-center justify-center text-center bg-emerald-50/20 backdrop-blur-[2px]">
               <span className="text-3xl mb-2 block">🚧</span>
-              <h3 className="text-sm font-bold text-emerald-900 mb-1">
-                {menuItems.find((m) => m.id === currentTab)?.label} 준비 중
-              </h3>
+              <h3 className="text-sm font-bold text-emerald-900 mb-1">{menuItems.find((m) => m.id === currentTab)?.label} 준비 중</h3>
               <p className="text-xs text-emerald-700/80">해당 탭의 기능도 곧 추가될 예정입니다.</p>
             </div>
           )}
@@ -1274,23 +2367,11 @@ export default function Home() {
               <div className="flex items-center justify-between w-full mb-1 px-1">
                 <span className="text-[10px] font-bold text-neutral-600 flex items-center gap-1">타이머</span>
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => !isTimerRunning && setTimerMinutes((p) => Math.max(1, p - 1))}
-                    disabled={isTimerRunning}
-                    title="1분 감소"
-                    className={`p-0.5 rounded ${themeClasses.accentBtnSub} disabled:opacity-30 transition`}
-                  >
+                  <button onClick={() => !isTimerRunning && setTimerMinutes((p) => Math.max(1, p - 1))} disabled={isTimerRunning} className={`p-0.5 rounded ${themeClasses.accentBtnSub} disabled:opacity-30 transition`}>
                     <Minus className="w-3 h-3" />
                   </button>
-                  <span className={`text-[10px] font-bold ${themeClasses.textPrimary} min-w-[24px] text-center`}>
-                    {timerMinutes}분
-                  </span>
-                  <button
-                    onClick={() => !isTimerRunning && setTimerMinutes((p) => p + 1)}
-                    disabled={isTimerRunning}
-                    title="1분 증가"
-                    className={`p-0.5 rounded ${themeClasses.accentBtnSub} disabled:opacity-30 transition`}
-                  >
+                  <span className={`text-[10px] font-bold ${themeClasses.textPrimary} min-w-[24px] text-center`}>{timerMinutes}분</span>
+                  <button onClick={() => !isTimerRunning && setTimerMinutes((p) => p + 1)} disabled={isTimerRunning} className={`p-0.5 rounded ${themeClasses.accentBtnSub} disabled:opacity-30 transition`}>
                     <Plus className="w-3 h-3" />
                   </button>
                 </div>
@@ -1301,21 +2382,12 @@ export default function Home() {
               </div>
 
               <div className="flex items-center gap-1.5 w-full mt-1">
-                <button
-                  onClick={toggleTimer}
-                  className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition shadow-sm ${
-                    isTimerRunning ? "bg-amber-500 hover:bg-amber-600 text-white" : themeClasses.accentBtn
-                  }`}
-                >
+                <button onClick={toggleTimer} className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition shadow-sm ${isTimerRunning ? "bg-amber-500 hover:bg-amber-600 text-white" : themeClasses.accentBtn}`}>
                   {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
                   <span>{isTimerRunning ? "정지" : "시작"}</span>
                 </button>
-                <button
-                  onClick={resetTimer}
-                  title="타이머 초기화"
-                  className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60 ${themeClasses.textSecondary} transition`}
-                >
-                  <RotateCcw className="w-3 h-3" />
+                <button onClick={resetTimer} title="타이머 초기화" className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60 ${themeClasses.textSecondary} transition`}>
+                  <RotateCcw className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -1368,17 +2440,7 @@ export default function Home() {
                 </div>
 
                 <button onClick={cycleRepeatMode} title="반복 설정" className={`p-1 rounded-md transition flex items-center gap-0.5 text-[10px] font-bold ${repeatMode !== "none" ? themeClasses.accentActive + " px-1.5" : "text-neutral-400 hover:text-neutral-600"}`}>
-                  {repeatMode === "one" ? (
-                    <>
-                      <Repeat1 className="w-3.5 h-3.5" />
-                      <span>1</span>
-                    </>
-                  ) : (
-                    <>
-                      <Repeat className="w-3.5 h-3.5" />
-                      {repeatMode === "all" && <span>ALL</span>}
-                    </>
-                  )}
+                  {repeatMode === "one" ? <><span>1</span></> : <><Repeat className="w-3.5 h-3.5" />{repeatMode === "all" && <span>ALL</span>}</>}
                 </button>
               </div>
 
