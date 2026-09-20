@@ -21,7 +21,8 @@ import {
   Repeat,
   Volume2,
   VolumeX,
-  Settings
+  Settings,
+  Wallet
 } from "lucide-react";
 
 import ScheduleTab from "@/components/tabs/ScheduleTab";
@@ -671,11 +672,10 @@ export default function Home() {
       {/* 본문 3단 레이아웃 */}
       <main className="max-w-[1720px] mx-auto w-full px-6 py-6 flex flex-col lg:flex-row gap-5 items-start flex-1 relative z-10">
         
-        {/* [1] 좌측 배너 (일정 탭: 핑크 일러스트, 노래책 탭: 민트 일러스트, 그 외: 기본 영역) */}
+        {/* [1] 좌측 배너 (일정: 핑크, 가계부: 블루, 노래책: 민트, 그 외: 기본 영역) */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px]">
           {currentTab === "schedule" ? (
             <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-pink-400/90 shadow-sm relative bg-[#fbcfe8]">
-              {/* 1순위: public에 저장된 일정 배너 이미지 로드 */}
               <img
                 src="/schedule-banner.jpg"
                 alt="일정 배너"
@@ -684,7 +684,6 @@ export default function Home() {
                   e.currentTarget.style.display = "none";
                 }}
               />
-              {/* 2순위: 로딩 실패 시 백업 핑크 그래픽 */}
               <div className="absolute inset-0 flex flex-col items-center justify-between p-4 z-0 text-center bg-gradient-to-b from-[#fbcfe8] via-[#f472b6] to-[#831843]">
                 <div className="pt-6">
                   <span className="text-3xl block filter drop-shadow">💖</span>
@@ -701,9 +700,34 @@ export default function Home() {
                 </div>
               </div>
             </div>
+          ) : currentTab === "ledger" ? (
+            <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-sky-400/90 shadow-sm relative bg-[#bae6fd]">
+              <img
+                src="/ledger-banner.jpg"
+                alt="가계부 배너"
+                className="w-full h-full object-cover relative z-10"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+              <div className="absolute inset-0 flex flex-col items-center justify-between p-4 z-0 text-center bg-gradient-to-b from-[#bae6fd] via-[#60a5fa] to-[#1e3a8a]">
+                <div className="pt-6">
+                  <span className="text-3xl block filter drop-shadow">💎</span>
+                  <span className="text-xs font-black text-white tracking-widest uppercase block mt-1">Ledger Space</span>
+                </div>
+                <div className="w-full flex flex-col items-center gap-2">
+                  <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg">
+                    <Wallet className="w-10 h-10 text-sky-100 animate-pulse" />
+                  </div>
+                  <span className="text-[11px] font-bold text-sky-100 mt-2">JB's Finance</span>
+                </div>
+                <div className="pb-4 text-[10px] text-sky-200 font-medium">
+                  HADES Illustration
+                </div>
+              </div>
+            </div>
           ) : currentTab === "songs" ? (
             <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-emerald-400/90 shadow-sm relative bg-[#8ec7b3]">
-              {/* 1순위: public에 저장된 노래책 배너 이미지 로드 */}
               <img
                 src="/song-banner.jpg"
                 alt="노래책 배너"
@@ -712,7 +736,6 @@ export default function Home() {
                   e.currentTarget.style.display = "none";
                 }}
               />
-              {/* 2순위: 로딩 실패 시 백업 민트 그래픽 */}
               <div className="absolute inset-0 flex flex-col items-center justify-between p-4 z-0 text-center bg-gradient-to-b from-[#8ec7b3] via-[#7abda8] to-[#1e2a26]">
                 <div className="pt-6">
                   <span className="text-3xl block filter drop-shadow">🍀</span>
