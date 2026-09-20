@@ -48,7 +48,47 @@ export default function Home() {
   const CORRECT_PIN = "1234";
   const [currentTab, setCurrentTab] = useState("schedule"); // 'schedule' 또는 'songs'
 
-  // ================= 1. 노래책 데이터 =================
+  // ================= 1. 테마 색상 동적 매핑 (탭별 동기화) =================
+  const isPinkTheme = currentTab === "schedule";
+
+  const themeClasses = useMemo(() => {
+    if (isPinkTheme) {
+      return {
+        borderDashed: "border-pink-400/80",
+        borderSolid: "border-pink-400/80",
+        borderSubtle: "border-pink-200/80",
+        bgLight: "bg-pink-50/40",
+        bgHeader: "bg-pink-100/70",
+        textPrimary: "text-pink-950",
+        textSecondary: "text-pink-800",
+        accentBtn: "bg-pink-500 hover:bg-pink-600 text-white",
+        accentBtnSub: "bg-pink-100 hover:bg-pink-200 text-pink-800",
+        accentActive: "border-pink-500 bg-pink-100 text-pink-900 font-bold",
+        rangeAccent: "accent-pink-500",
+        rangeBg: "bg-pink-100",
+        activeTrack: "bg-pink-100/90 border-pink-400",
+        playIcon: "text-pink-600 fill-pink-600",
+      };
+    }
+    return {
+      borderDashed: "border-emerald-400/90",
+      borderSolid: "border-emerald-400/90",
+      borderSubtle: "border-emerald-200/70",
+      bgLight: "bg-emerald-50/30",
+      bgHeader: "bg-emerald-100/60",
+      textPrimary: "text-emerald-950",
+      textSecondary: "text-emerald-700",
+      accentBtn: "bg-emerald-600 hover:bg-emerald-700 text-white",
+      accentBtnSub: "bg-emerald-100 hover:bg-emerald-200 text-emerald-800",
+      accentActive: "border-emerald-500 bg-emerald-100 text-emerald-800 font-bold",
+      rangeAccent: "accent-emerald-600",
+      rangeBg: "bg-emerald-100",
+      activeTrack: "bg-emerald-100/90 border-emerald-400",
+      playIcon: "text-emerald-700 fill-emerald-700",
+    };
+  }, [isPinkTheme]);
+
+  // ================= 2. 노래책 데이터 =================
   const defaultSongs = [
     { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
     { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
@@ -193,7 +233,7 @@ export default function Home() {
       });
   }, [songList, selectedGenre, searchQuery]);
 
-  // ================= 2. 일정 캘린더 & 동적 요약 데이터 =================
+  // ================= 3. 일정 캘린더 & 동적 요약 데이터 =================
   const SYMBOL_CONFIG = {
     leave: { label: "연차", icon: "🌴", badge: "연차" },
     half_leave: { label: "반차", icon: "🌓", badge: "반차" },
@@ -240,7 +280,7 @@ export default function Home() {
   const [editPopupSymbol, setEditPopupSymbol] = useState("appointment");
   const [editPopupColor, setEditPopupColor] = useState("pink");
 
-  // ESC 키 눌렀을 때 팝업 모달 닫기
+  // ESC 키로 팝업 모달 닫기
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -865,7 +905,9 @@ export default function Home() {
                   onClick={() => setCurrentTab(item.id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
                     isActive
-                      ? "bg-emerald-100/90 text-emerald-800 border border-emerald-300 shadow-sm"
+                      ? item.id === "schedule"
+                        ? "bg-pink-100/90 text-pink-900 border border-pink-300 shadow-sm"
+                        : "bg-emerald-100/90 text-emerald-800 border border-emerald-300 shadow-sm"
                       : "text-neutral-700 hover:bg-white/80 hover:text-neutral-900 border border-transparent"
                   }`}
                 >
@@ -893,22 +935,22 @@ export default function Home() {
       {/* ================= 본문 3단 레이아웃 ================= */}
       <main className="max-w-[1720px] mx-auto w-full px-6 py-6 flex flex-col lg:flex-row gap-5 items-start flex-1 relative z-10">
         
-        {/* [1] 좌측 배너 (세로 h-[760px] 고정) */}
+        {/* [1] 좌측 배너 (탭 테마 색상과 완벽 연동) */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px]">
-          <div className="border border-dashed border-emerald-400/90 rounded-2xl h-full flex flex-col items-center justify-center p-4 text-center bg-emerald-50/30 backdrop-blur-[2px] shadow-sm">
+          <div className={`border-2 border-dashed ${themeClasses.borderDashed} rounded-2xl h-full flex flex-col items-center justify-center p-4 text-center ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm transition-colors duration-200`}>
             <span className="text-xl mb-1">🖼️</span>
-            <span className="text-xs font-semibold text-emerald-700">좌측 배너 영역</span>
+            <span className={`text-xs font-semibold ${themeClasses.textSecondary}`}>좌측 배너 영역</span>
           </div>
         </aside>
 
         {/* [2] 중앙 내용 영역 (배너 세로 높이 h-[760px]와 완벽 일치) */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
-          {/* ==================== A. [일정] 탭 화면 (파스텔톤 짙은 핑크 테두리 적용) ==================== */}
+          {/* ==================== A. [일정] 탭 화면 ==================== */}
           {currentTab === "schedule" && (
             <div className="h-full flex flex-col gap-3">
               
-              {/* [박스 1] 상단 헤더 박스 (파스텔톤 짙은 핑크 테두리) */}
+              {/* [박스 1] 상단 헤더 박스 (파스텔 핑크 테두리) */}
               <div className="border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
                 <div className="flex-1 flex items-center justify-between pr-6 border-r border-pink-200">
                   <button
@@ -940,9 +982,8 @@ export default function Home() {
               {/* 하단 2분할 영역 (달력 박스 + 요약 박스) */}
               <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 items-stretch">
                 
-                {/* [박스 2] 좌측 메인 달력 박스 (파스텔톤 짙은 핑크 테두리) */}
+                {/* [박스 2] 좌측 메인 달력 박스 (파스텔 핑크 테두리) */}
                 <div className="flex-1 h-full border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between overflow-hidden">
-                  {/* 요일 헤더 */}
                   <div className="grid grid-cols-7 text-center font-bold text-xs pb-2 border-b border-pink-100 text-neutral-700 shrink-0">
                     <span className="text-rose-600 font-extrabold">일</span>
                     <span>월</span>
@@ -977,7 +1018,6 @@ export default function Home() {
                               : "border-pink-200/90 bg-white hover:border-pink-400 hover:bg-pink-50/20"
                           }`}
                         >
-                          {/* 날짜 번호 및 공휴일 */}
                           <div className="flex items-center justify-between text-[11px] font-bold leading-tight">
                             <span className={isSunday || holidayName ? "text-rose-600" : isSaturday ? "text-blue-600" : "text-neutral-800"}>
                               {cell.day}
@@ -989,7 +1029,6 @@ export default function Home() {
                             )}
                           </div>
 
-                          {/* 일정 태그 뱃지 리스트 */}
                           <div className="flex-1 overflow-y-auto space-y-1 my-0.5 pr-0.5 scrollbar-none">
                             {daySchedules.map((item) => {
                               const symbolInfo = SYMBOL_CONFIG[item.symbol] || SYMBOL_CONFIG.appointment;
@@ -1025,7 +1064,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* [박스 3] 우측 일정 요약 박스 (파스텔톤 짙은 핑크 테두리) */}
+                {/* [박스 3] 우측 일정 요약 박스 (파스텔 핑크 테두리) */}
                 <div className="w-full lg:w-[280px] h-full shrink-0 border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-start gap-3.5 overflow-y-auto">
                   
                   {/* A. 남은 연차 카드 */}
@@ -1104,7 +1143,7 @@ export default function Home() {
 
               </div>
 
-              {/* [일정 조회/추가/수정/삭제 팝업 모달 - ESC 닫기 연동] */}
+              {/* [일정 조회/추가/수정/삭제 팝업 모달] */}
               {modalDate && (
                 <div 
                   className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -1117,7 +1156,6 @@ export default function Home() {
                     className="bg-white rounded-3xl p-6 border border-pink-300 shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {/* 모달 헤더 */}
                     <div className="flex items-center justify-between pb-3 border-b border-neutral-200 shrink-0">
                       <h3 className="text-base font-black text-neutral-900 flex items-center gap-2">
                         <CalendarIcon className="w-5 h-5 text-pink-500" />
@@ -1137,7 +1175,6 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* 모달 본문 1: 기존 등록된 일정 목록 (수정 및 삭제 가능) */}
                     <div className="my-3 overflow-y-auto space-y-2 max-h-[220px] pr-1">
                       <div className="text-[11px] font-bold text-neutral-500 mb-1">
                         등록된 일정 ({scheduleList.filter((s) => s.date === modalDate).length}건)
@@ -1158,7 +1195,6 @@ export default function Home() {
                                 className="w-full border border-pink-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-neutral-900 bg-white focus:outline-none focus:border-pink-500"
                               />
 
-                              {/* 심볼 변경 */}
                               <div className="flex gap-1 flex-wrap">
                                 {Object.entries(SYMBOL_CONFIG).map(([key, val]) => (
                                   <button
@@ -1176,7 +1212,6 @@ export default function Home() {
                                 ))}
                               </div>
 
-                              {/* 색상 변경 */}
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-bold text-neutral-600">색상:</span>
                                 {Object.entries(COLOR_CONFIG).map(([key, val]) => (
@@ -1248,7 +1283,6 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* 모달 본문 2: 새 일정 등록 폼 */}
                     <form onSubmit={handleAddPopupSchedule} className="pt-3 border-t border-neutral-200 shrink-0 space-y-3">
                       <div className="text-xs font-bold text-neutral-800">새 일정 추가</div>
 
@@ -1263,7 +1297,6 @@ export default function Home() {
                         />
                       </div>
 
-                      {/* 심볼 5종 선택 (연차, 반차, 헤어, 생일, 약속) */}
                       <div>
                         <div className="text-[11px] font-bold text-neutral-600 mb-1">심볼 선택</div>
                         <div className="grid grid-cols-5 gap-1">
@@ -1285,7 +1318,6 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {/* 파스텔톤 5가지 색상 선택 */}
                       <div>
                         <div className="text-[11px] font-bold text-neutral-600 mb-1">파스텔 태그 색상</div>
                         <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
@@ -1630,22 +1662,22 @@ export default function Home() {
 
         </section>
 
-        {/* [3] 우측 배너 (세로 h-[760px] 고정) */}
+        {/* [3] 우측 배너 (탭 테마 색상과 완벽 연동) */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px] flex flex-col gap-3">
           
           {/* 1. 시계 & 타이머 */}
-          <div className={`border rounded-2xl p-3 bg-emerald-50/30 backdrop-blur-[2px] shadow-sm flex flex-col items-center text-center shrink-0 transition-colors ${
-            isAlarmRinging ? "border-rose-500 bg-rose-50/80 animate-pulse" : "border-emerald-400/90"
+          <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col items-center text-center shrink-0 transition-colors duration-200 ${
+            isAlarmRinging ? "border-rose-500 bg-rose-50/80 animate-pulse" : ""
           }`}>
-            <div className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 mb-0.5">
+            <div className={`flex items-center gap-1 text-[10px] font-semibold ${themeClasses.textSecondary} mb-0.5`}>
               <Clock className="w-3 h-3" />
               <span>{dateString}</span>
             </div>
-            <div className="text-base font-black text-emerald-950 tracking-tight mb-2">
+            <div className={`text-base font-black ${themeClasses.textPrimary} tracking-tight mb-2`}>
               {timeString}
             </div>
 
-            <div className="w-full pt-2 border-t border-emerald-200/70 flex flex-col items-center">
+            <div className={`w-full pt-2 border-t ${themeClasses.borderSubtle} flex flex-col items-center`}>
               <div className="flex items-center justify-between w-full mb-1 px-1">
                 <span className="text-[10px] font-bold text-neutral-600 flex items-center gap-1">
                   {isAlarmRinging ? (
@@ -1662,18 +1694,18 @@ export default function Home() {
                     onClick={subtractMinute}
                     disabled={isTimerRunning}
                     title="1분 감소"
-                    className="p-0.5 rounded bg-emerald-100 hover:bg-emerald-200 disabled:opacity-30 text-emerald-800 transition"
+                    className={`p-0.5 rounded ${themeClasses.accentBtnSub} disabled:opacity-30 transition`}
                   >
                     <Minus className="w-3 h-3" />
                   </button>
-                  <span className="text-[10px] font-bold text-emerald-900 min-w-[24px] text-center">
+                  <span className={`text-[10px] font-bold ${themeClasses.textPrimary} min-w-[24px] text-center`}>
                     {timerMinutes}분
                   </span>
                   <button
                     onClick={addMinute}
                     disabled={isTimerRunning}
                     title="1분 증가"
-                    className="p-0.5 rounded bg-emerald-100 hover:bg-emerald-200 disabled:opacity-30 text-emerald-800 transition"
+                    className={`p-0.5 rounded ${themeClasses.accentBtnSub} disabled:opacity-30 transition`}
                   >
                     <Plus className="w-3 h-3" />
                   </button>
@@ -1681,7 +1713,7 @@ export default function Home() {
               </div>
 
               <div className={`text-xl font-black my-1 font-mono tracking-wider ${
-                isAlarmRinging ? "text-rose-600 animate-bounce" : "text-emerald-950"
+                isAlarmRinging ? "text-rose-600 animate-bounce" : themeClasses.textPrimary
               }`}>
                 {timerMin}:{timerSec}
               </div>
@@ -1698,10 +1730,10 @@ export default function Home() {
                   <>
                     <button
                       onClick={toggleTimer}
-                      className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition shadow-sm text-white ${
+                      className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition shadow-sm ${
                         isTimerRunning
-                          ? "bg-amber-500 hover:bg-amber-600"
-                          : "bg-emerald-600 hover:bg-emerald-700"
+                          ? "bg-amber-500 hover:bg-amber-600 text-white"
+                          : themeClasses.accentBtn
                       }`}
                     >
                       {isTimerRunning ? (
@@ -1717,7 +1749,7 @@ export default function Home() {
                     <button
                       onClick={resetTimer}
                       title="타이머 초기화"
-                      className="p-1 rounded-lg border border-emerald-300 hover:bg-white/60 text-emerald-700 transition"
+                      className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60 ${themeClasses.textSecondary} transition`}
                     >
                       <RotateCcw className="w-3 h-3" />
                     </button>
@@ -1728,19 +1760,19 @@ export default function Home() {
           </div>
 
           {/* 2. 플레이리스트 위젯 */}
-          <div className="border border-emerald-400/90 rounded-2xl p-3 bg-emerald-50/30 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0 max-h-[460px] overflow-hidden">
-            <div className="flex items-center justify-between border-b border-emerald-200/70 pb-1.5 shrink-0">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-950">
+          <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0 max-h-[460px] overflow-hidden transition-colors duration-200`}>
+            <div className={`flex items-center justify-between border-b ${themeClasses.borderSubtle} pb-1.5 shrink-0`}>
+              <div className={`flex items-center gap-1.5 text-xs font-bold ${themeClasses.textPrimary}`}>
                 <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
                 <span>플레이리스트</span>
               </div>
-              <span className="text-[10px] text-emerald-800 font-bold bg-emerald-100 px-1.5 py-0.5 rounded-full">
+              <span className={`text-[10px] ${themeClasses.textSecondary} font-bold ${themeClasses.bgHeader} px-1.5 py-0.5 rounded-full`}>
                 {likedSongs.length}곡
               </span>
             </div>
 
-            <div className="bg-white/80 border border-emerald-200 rounded-xl p-2.5 flex flex-col gap-2 shrink-0">
-              <div className="text-[11px] font-bold text-emerald-950 truncate text-center leading-tight">
+            <div className={`bg-white/80 border ${themeClasses.borderSubtle} rounded-xl p-2.5 flex flex-col gap-2 shrink-0`}>
+              <div className={`text-[11px] font-bold ${themeClasses.textPrimary} truncate text-center leading-tight`}>
                 {currentSong ? (
                   <span>🎵 {currentSong.title}</span>
                 ) : (
@@ -1757,9 +1789,9 @@ export default function Home() {
                   value={currentTimeSec}
                   onChange={handleSeek}
                   disabled={!currentSong}
-                  className="w-full h-1 bg-emerald-100 rounded-lg appearance-none cursor-pointer accent-emerald-600 disabled:opacity-40"
+                  className={`w-full h-1 ${themeClasses.rangeBg} rounded-lg appearance-none cursor-pointer ${themeClasses.rangeAccent} disabled:opacity-40`}
                 />
-                <div className="flex justify-between text-[9px] text-emerald-700 font-mono font-medium">
+                <div className={`flex justify-between text-[9px] ${themeClasses.textSecondary} font-mono font-medium`}>
                   <span>{formatSeconds(currentTimeSec)}</span>
                   <span>{formatSeconds(durationSec)}</span>
                 </div>
@@ -1772,7 +1804,7 @@ export default function Home() {
                     onClick={handlePrevSong}
                     title="이전 곡"
                     disabled={likedSongs.length === 0}
-                    className="p-1 rounded-md text-neutral-600 hover:text-emerald-700 disabled:opacity-30 transition"
+                    className="p-1 rounded-md text-neutral-600 hover:text-neutral-900 disabled:opacity-30 transition"
                   >
                     <SkipBack className="w-3.5 h-3.5" />
                   </button>
@@ -1781,7 +1813,7 @@ export default function Home() {
                     onClick={togglePlayAudio}
                     title={isPlayingAudio ? "일시정지" : "재생"}
                     disabled={likedSongs.length === 0}
-                    className="p-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-30 shadow-sm transition"
+                    className={`p-1.5 rounded-full ${themeClasses.accentBtn} disabled:opacity-30 shadow-sm transition`}
                   >
                     {isPlayingAudio ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
                   </button>
@@ -1790,7 +1822,7 @@ export default function Home() {
                     onClick={handleNextSong}
                     title="다음 곡"
                     disabled={likedSongs.length === 0}
-                    className="p-1 rounded-md text-neutral-600 hover:text-emerald-700 disabled:opacity-30 transition"
+                    className="p-1 rounded-md text-neutral-600 hover:text-neutral-900 disabled:opacity-30 transition"
                   >
                     <SkipForward className="w-3.5 h-3.5" />
                   </button>
@@ -1807,7 +1839,7 @@ export default function Home() {
                   }
                   className={`p-1 rounded-md transition flex items-center gap-0.5 text-[10px] font-bold ${
                     repeatMode !== "none"
-                      ? "text-emerald-800 bg-emerald-100 px-1.5"
+                      ? themeClasses.accentActive + " px-1.5"
                       : "text-neutral-400 hover:text-neutral-600"
                   }`}
                 >
@@ -1826,11 +1858,11 @@ export default function Home() {
               </div>
 
               {/* 볼륨 컨트롤 */}
-              <div className="flex items-center gap-1.5 pt-1 border-t border-emerald-100 px-0.5">
+              <div className={`flex items-center gap-1.5 pt-1 border-t ${themeClasses.borderSubtle} px-0.5`}>
                 <button
                   onClick={toggleMute}
                   title={isMuted ? "음소거 해제" : "음소거"}
-                  className="text-emerald-700 hover:text-emerald-900 p-0.5 transition shrink-0"
+                  className={`${themeClasses.textSecondary} hover:text-neutral-950 p-0.5 transition shrink-0`}
                 >
                   {isMuted || volume === 0 ? (
                     <VolumeX className="w-3.5 h-3.5 text-neutral-400" />
@@ -1844,7 +1876,7 @@ export default function Home() {
                   max={100}
                   value={isMuted ? 0 : volume}
                   onChange={handleVolumeChange}
-                  className="w-full h-1 bg-emerald-100 rounded-lg appearance-none cursor-pointer accent-emerald-600"
+                  className={`w-full h-1 ${themeClasses.rangeBg} rounded-lg appearance-none cursor-pointer ${themeClasses.rangeAccent}`}
                 />
               </div>
             </div>
@@ -1862,12 +1894,12 @@ export default function Home() {
                     onClick={() => handleSelectSong(idx)}
                     className={`flex items-center justify-between p-1.5 rounded-lg border text-[11px] cursor-pointer transition group ${
                       isSelected
-                        ? "bg-emerald-100/90 border-emerald-400 font-bold"
-                        : "bg-white/70 border-emerald-100 hover:bg-emerald-50"
+                        ? themeClasses.activeTrack + " font-bold"
+                        : `bg-white/70 ${themeClasses.borderSubtle} hover:${themeClasses.bgLight}`
                     }`}
                   >
                     <div className="min-w-0 pr-1 flex items-center gap-1.5">
-                      <Play className={`w-3.5 h-3.5 shrink-0 ${isSelected && isPlayingAudio ? "text-emerald-700 fill-emerald-700 animate-pulse" : "text-neutral-400 group-hover:text-emerald-600"}`} />
+                      <Play className={`w-3.5 h-3.5 shrink-0 ${isSelected && isPlayingAudio ? themeClasses.playIcon + " animate-pulse" : "text-neutral-400 group-hover:text-neutral-700"}`} />
                       <div className="min-w-0">
                         <div className="text-neutral-900 truncate leading-tight flex items-center gap-1">
                           <span className="truncate">{song.title}</span>
@@ -1904,17 +1936,17 @@ export default function Home() {
               })}
 
               {likedSongs.length === 0 && (
-                <div className="py-4 text-center text-[11px] text-emerald-800/60 leading-tight">
+                <div className={`py-4 text-center text-[11px] ${themeClasses.textSecondary} opacity-70 leading-tight`}>
                   노래 목록에서 ❤️를 누르면<br />여기에 담깁니다.
                 </div>
               )}
             </div>
           </div>
 
-          {/* 3. 우측 하단 배너 */}
-          <div className="border border-dashed border-emerald-400/90 rounded-2xl p-3 flex-1 min-h-0 flex flex-col items-center justify-center text-center bg-emerald-50/30 backdrop-blur-[2px] shadow-sm overflow-hidden">
+          {/* 3. 우측 하단 배너 (탭 테마 색상과 완벽 연동) */}
+          <div className={`border-2 border-dashed ${themeClasses.borderDashed} rounded-2xl p-3 flex-1 min-h-0 flex flex-col items-center justify-center text-center ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm overflow-hidden transition-colors duration-200`}>
             <span className="text-xl mb-1 shrink-0">🖼️</span>
-            <span className="text-xs font-semibold text-emerald-700 truncate">우측 하단 배너</span>
+            <span className={`text-xs font-semibold ${themeClasses.textSecondary} truncate`}>우측 하단 배너</span>
           </div>
 
         </aside>
