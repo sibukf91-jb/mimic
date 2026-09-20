@@ -11,8 +11,7 @@ import {
   Pencil,
   Check,
   X,
-  Heart,
-  Music2
+  Heart
 } from "lucide-react";
 
 interface SongsTabProps {
@@ -75,7 +74,7 @@ export default function SongsTab({
       artist: newSongArtist.trim() || "Various Artists",
       url: formattedUrl,
       tags: tagsArray,
-      liked: true // 신규 추가 시 바로 플레이리스트에 담김
+      liked: true // 추가 시 바로 플레이리스트에 담김
     };
 
     setSongList([newSong, ...(songList || [])]);
@@ -130,7 +129,6 @@ export default function SongsTab({
     setSongList((prev) => prev.filter((s) => s.id !== id));
   };
 
-  // 하트 토글 시 즉시 상태 변경 및 localStorage 저장 트리거
   const handleToggleLike = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
     setSongList((prev) =>
@@ -371,8 +369,8 @@ export default function SongsTab({
               </div>
 
               <div className="col-span-1 flex items-center justify-center gap-1">
-                <button onClick={() => startEditSong(song)} title="수정" className="p-1 rounded text-neutral-500 hover:text-emerald-900 hover:bg-white transition"><Pencil className="w-3 h-3" /></button>
-                <button onClick={() => handleDeleteSong(song.id)} title="삭제" className="p-1 rounded text-neutral-500 hover:text-rose-600 hover:bg-white transition"><Trash2 className="w-3 h-3" /></button>
+                <button onClick={() => startEditSong(song)} title="수정" className="p-1 rounded text-neutral-500 hover:text-emerald-900 hover:bg-white transition"><Pencil className="w-3.5 h-3.5" /></button>
+                <button onClick={() => handleDeleteSong(song.id)} title="삭제" className="p-1 rounded text-neutral-500 hover:text-rose-600 hover:bg-white transition"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             </div>
           );
@@ -380,7 +378,7 @@ export default function SongsTab({
 
         {filteredSongs.length === 0 && (
           <div className="border-2 border-dashed border-emerald-300 rounded-2xl p-12 text-center text-xs font-medium text-emerald-800/70 bg-emerald-50/20">
-            등록된 노래가 없습니다. 유튜브 음악 링크를 추가해보세요!
+            등록된 노래가 없습니다. 상단에서 노래를 추가해보세요!
           </div>
         )}
       </div>
