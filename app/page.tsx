@@ -42,7 +42,8 @@ import {
   ArrowUpRight,
   ArrowDownLeft,
   CreditCard,
-  PiggyBank
+  PiggyBank,
+  Tv
 } from "lucide-react";
 
 export default function Home() {
@@ -51,7 +52,7 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("ledger"); // 'ledger', 'schedule', 'songs'
+  const [currentTab, setCurrentTab] = useState("songs"); // 기본 진입 탭
 
   // ================= 1. 테마 색상 동적 매핑 =================
   const themeClasses = useMemo(() => {
@@ -125,6 +126,26 @@ export default function Home() {
 
   const [songList, setSongList] = useState<any[]>([]);
   const [isSongDataLoaded, setIsSongDataLoaded] = useState(false);
+
+  // 내부 팝업 비디오 재생용 상태
+  const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
+
+  const getYouTubeId = (url: string) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return match && match[2].length === 11 ? match[2] : null;
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && videoModalUrl) {
+        setVideoModalUrl(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [videoModalUrl]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -304,17 +325,13 @@ export default function Home() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && modalDate) {
         setModalDate(null);
         setPopupEditingId(null);
       }
     };
-    if (modalDate) {
-      window.addEventListener("keydown", handleKeyDown);
-    }
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [modalDate]);
 
   useEffect(() => {
@@ -564,20 +581,15 @@ export default function Home() {
   const [editLedgerSymbol, setEditLedgerSymbol] = useState("fixed");
   const [editLedgerColor, setEditLedgerColor] = useState("pink");
 
-  // ESC 키로 가계부 팝업 닫기
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" && ledgerModalDate) {
         setLedgerModalDate(null);
         setLedgerEditingId(null);
       }
     };
-    if (ledgerModalDate) {
-      window.addEventListener("keydown", handleKeyDown);
-    }
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [ledgerModalDate]);
 
   useEffect(() => {
@@ -653,7 +665,6 @@ export default function Home() {
     return cells;
   }, [ledgerYear, ledgerMonth]);
 
-  // 가계부 내역 추가
   const handleAddLedgerEntry = (e: React.FormEvent) => {
     e.preventDefault();
     if (!ledgerModalDate || !newLedgerTitle.trim() || !newLedgerAmount) return;
@@ -684,7 +695,6 @@ export default function Home() {
     setNewLedgerAmount("");
   };
 
-  // 가계부 내역 인라인 수정 시작
   const startLedgerEdit = (item: any) => {
     setLedgerEditingId(item.id);
     setEditLedgerTitle(item.title);
@@ -694,7 +704,6 @@ export default function Home() {
     setEditLedgerColor(item.color || "pink");
   };
 
-  // 가계부 내역 인라인 수정 저장
   const saveLedgerEdit = (id: number) => {
     if (!editLedgerTitle.trim() || !editLedgerAmount) return;
     const trimmedTitle = editLedgerTitle.trim();
@@ -726,21 +735,18 @@ export default function Home() {
     setLedgerEditingId(null);
   };
 
-  // 가계부 내역 삭제
   const handleDeleteLedgerEntry = (id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setLedgerEntries((prev) => prev.filter((item) => item.id !== id));
     if (ledgerEditingId === id) setLedgerEditingId(null);
   };
 
-  // 요약창 고정지출 템플릿 자체 개별 삭제
   const handleDeleteFixedTemplate = (titleToDelete: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setFixedTemplates((prev) => prev.filter((tpl) => tpl.title !== titleToDelete));
     setLedgerEntries((prev) => prev.filter((item) => !(item.symbol === "fixed" && item.title === titleToDelete)));
   };
 
-  // 요약창용 동적 합산 및 고정지출 항목 계산
   const currentMonthLedgerSummary = useMemo(() => {
     const prefix = `${ledgerYear}-${String(ledgerMonth).padStart(2, "0")}`;
     const monthlyList = ledgerEntries.filter((item) => item.date.startsWith(prefix));
@@ -781,9 +787,8 @@ export default function Home() {
     };
   }, [ledgerEntries, fixedTemplates, ledgerYear, ledgerMonth]);
 
-  // 요약창에서 고정지출 클릭 시 팝업 열기 (날짜 설정 지원)
   const openFixedExpenseModal = (fixedItemObj?: any) => {
-    setLedgerEditingId(null); // 초기 진입 시 깔끔한 목록 뷰 유지
+    setLedgerEditingId(null);
 
     if (fixedItemObj && fixedItemObj.entry) {
       setLedgerModalDate(fixedItemObj.entry.date);
@@ -807,13 +812,6 @@ export default function Home() {
   };
 
   // ================= 5. 플레이리스트 재생, 게이지 & 볼륨 =================
-  const getYouTubeId = (url: string) => {
-    if (!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return match && match[2].length === 11 ? match[2] : null;
-  };
-
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [repeatMode, setRepeatMode] = useState<"none" | "all" | "one">("all");
@@ -1264,7 +1262,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 하단 2분할 영역 (달력 박스 + 요약 박스) */}
+              {/* 하단 2분할 영역 */}
               <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 items-stretch">
                 
                 {/* [박스 2] 좌측 메인 가계부 달력 박스 */}
@@ -1279,7 +1277,6 @@ export default function Home() {
                     <span className="text-blue-600 font-extrabold">토</span>
                   </div>
 
-                  {/* 달력 그리드 */}
                   <div className="flex-1 grid grid-cols-7 grid-rows-5 gap-2 pt-2 min-h-0">
                     {ledgerCalendarGrid.map((cell, idx) => {
                       if (!cell.day) {
@@ -1329,7 +1326,6 @@ export default function Home() {
                             ) : null}
                           </div>
 
-                          {/* 당일 내역 태그 뱃지 리스트 */}
                           <div className="flex-1 overflow-y-auto space-y-1 my-0.5 pr-0.5 scrollbar-none">
                             {dayEntries.map((item) => {
                               const isIncome = item.type === "income";
@@ -1507,7 +1503,7 @@ export default function Home() {
 
               </div>
 
-              {/* [가계부 팝업 모달 - 달력 클릭/요약창 클릭 완전 동일 규격 + 날짜 선택 지원] */}
+              {/* [가계부 팝업 모달] */}
               {ledgerModalDate && (
                 <div 
                   className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -1520,7 +1516,6 @@ export default function Home() {
                     className="bg-white rounded-3xl p-6 border border-sky-300 shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {/* 모달 상단 헤더 */}
                     <div className="flex items-center justify-between pb-3 border-b border-neutral-200 shrink-0">
                       <div className="flex items-center gap-2">
                         <Wallet className="w-5 h-5 text-sky-500" />
@@ -1548,7 +1543,7 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* 등록된 내역 목록 (달력과 동일하게 깨짐 없는 리스트 뷰) */}
+                    {/* 등록된 내역 목록 */}
                     <div className="my-3 overflow-y-auto space-y-2 max-h-[220px] pr-1">
                       <div className="text-[11px] font-bold text-neutral-500 mb-1">
                         선택 날짜({ledgerModalDate}) 등록 내역 ({ledgerEntries.filter((s) => s.date === ledgerModalDate).length}건)
@@ -2290,21 +2285,25 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* 헤더 박스: 곡명과 관리 사이에 '영상' 컬럼 추가 */}
               <div className="border border-emerald-400 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
                 <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-emerald-900 items-center">
                   <span className="col-span-2 flex items-center justify-center gap-1 text-center">🏷️ 장르</span>
                   <span className="col-span-4 flex items-center justify-center gap-1 text-center">🎤 가수 / 아티스트</span>
-                  <span className="col-span-4 flex items-center justify-center gap-1 text-center">🎵 곡명</span>
+                  <span className="col-span-3 flex items-center justify-center gap-1 text-center">🎵 곡명</span>
+                  <span className="col-span-1 flex items-center justify-center gap-1 text-center">🎬 영상</span>
                   <span className="col-span-2 flex items-center justify-center text-center">관리</span>
                 </div>
               </div>
 
+              {/* 곡 목록 */}
               <div className="flex flex-col gap-2">
                 {filteredSongs.map((song) => {
                   const isPlayingThis = isPlayingAudio && currentSong?.id === song.id;
                   const isEditing = editingSongId === song.id;
                   const isCover = song.songType === "Cover";
                   const isOriginal = song.songType === "Original";
+                  const hasUrl = Boolean(song.url && getYouTubeId(song.url));
 
                   if (isEditing) {
                     return (
@@ -2382,15 +2381,20 @@ export default function Home() {
                           : "bg-emerald-50/40 border-emerald-400 hover:border-emerald-500 hover:bg-emerald-50/70"
                       }`}
                     >
+                      {/* 장르 */}
                       <div className="col-span-2 flex justify-center">
                         <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-[11px] font-bold text-center">
                           {song.genre}
                         </span>
                       </div>
+
+                      {/* 가수 */}
                       <div className="col-span-4 text-neutral-800 truncate font-bold text-[13px] text-center px-1">
                         {song.artist}
                       </div>
-                      <div className="col-span-4 flex items-center justify-center gap-2 font-bold text-neutral-900 px-1 overflow-hidden">
+
+                      {/* 곡명 */}
+                      <div className="col-span-3 flex items-center justify-center gap-2 font-bold text-neutral-900 px-1 overflow-hidden">
                         <Music className={`w-3.5 h-3.5 shrink-0 ${isPlayingThis ? "text-emerald-600 animate-pulse" : "text-emerald-500"}`} />
                         <span className="truncate text-sm">{song.title}</span>
                         {isCover && (
@@ -2405,17 +2409,25 @@ export default function Home() {
                             <span>Original</span>
                           </span>
                         )}
-                        {song.url && (
-                          <a
-                            href={song.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-neutral-400 hover:text-emerald-600 transition shrink-0 ml-0.5"
+                      </div>
+
+                      {/* [신규] 곡명과 관리 사이의 내부 영상 재생 팝업 버튼 */}
+                      <div className="col-span-1 flex items-center justify-center">
+                        {hasUrl ? (
+                          <button
+                            onClick={() => setVideoModalUrl(song.url)}
+                            className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-xs transition active:scale-95"
+                            title="내부 창에서 영상 시청"
                           >
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
+                            <Play className="w-3 h-3 fill-white" />
+                            <span>재생</span>
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-neutral-400 font-medium">-</span>
                         )}
                       </div>
+
+                      {/* 관리 버튼 */}
                       <div className="col-span-2 flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => startEditSong(song)}
@@ -2453,6 +2465,48 @@ export default function Home() {
                   </div>
                 )}
               </div>
+
+              {/* [신규] 영상 전용 클린 팝업 모달 (내용박스 크기를 넘지 않는 16:9 뷰) */}
+              {videoModalUrl && (
+                <div 
+                  className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                  onClick={() => setVideoModalUrl(null)}
+                >
+                  <div 
+                    className="bg-neutral-900 rounded-3xl overflow-hidden shadow-2xl border border-neutral-700 w-full max-w-4xl max-h-[720px] flex flex-col relative animate-in fade-in zoom-in-95 duration-150"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* 상단 닫기 바 */}
+                    <div className="flex items-center justify-between px-4 py-2 bg-neutral-900/90 border-b border-neutral-800 text-white shrink-0">
+                      <div className="flex items-center gap-2 text-xs font-bold text-neutral-300">
+                        <Tv className="w-4 h-4 text-emerald-400" />
+                        <span>영상 플레이어</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-neutral-400 bg-neutral-800 px-2 py-0.5 rounded-md">ESC로 닫기</span>
+                        <button
+                          onClick={() => setVideoModalUrl(null)}
+                          className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 유튜브 16:9 반응형 iframe */}
+                    <div className="relative w-full aspect-video bg-black flex items-center justify-center">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${getYouTubeId(videoModalUrl)}?autoplay=1`}
+                        title="YouTube video player"
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
 
