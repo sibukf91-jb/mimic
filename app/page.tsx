@@ -33,9 +33,9 @@ import {
   Check,
   X,
   Calendar as CalendarIcon,
-  CheckCircle2,
-  Circle,
-  Tag
+  Cake,
+  Scissors,
+  Palmtree
 } from "lucide-react";
 
 export default function Home() {
@@ -44,9 +44,9 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("songs"); // 기본 'songs', 'schedule' 등으로 전환
+  const [currentTab, setCurrentTab] = useState("schedule"); // 'schedule' 또는 'songs'
 
-  // ================= 1. 노래책 데이터 (LocalStorage 영구 저장) =================
+  // ================= 1. 노래책 데이터 =================
   const defaultSongs = [
     { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
     { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
@@ -82,7 +82,6 @@ export default function Home() {
     }
   }, [songList, isSongDataLoaded]);
 
-  // 노래 수정 상태
   const [editingSongId, setEditingSongId] = useState<number | null>(null);
   const [editGenre, setEditGenre] = useState("");
   const [editArtist, setEditArtist] = useState("");
@@ -99,9 +98,7 @@ export default function Home() {
     setEditSongType(song.songType || "none");
   };
 
-  const cancelEditSong = () => {
-    setEditingSongId(null);
-  };
+  const cancelEditSong = () => setEditingSongId(null);
 
   const saveEditSong = (id: number) => {
     if (!editTitle.trim()) return;
@@ -194,20 +191,38 @@ export default function Home() {
       });
   }, [songList, selectedGenre, searchQuery]);
 
-  // ================= 2. 일정 관리 데이터 (LocalStorage 영구 저장) =================
+  // ================= 2. 이미지 기반 일정 캘린더 & D-Day 요약 =================
   const defaultSchedules = [
-    { id: 1, date: "2026-09-20", time: "10:00", category: "업무", title: "주간 프로젝트 회의", completed: false },
-    { id: 2, date: "2026-09-20", time: "14:30", category: "개인", title: "치과 정기 검진 예약", completed: true },
-    { id: 3, date: "2026-09-21", time: "19:00", category: "운동", title: "저녁 러닝 5km", completed: false },
-    { id: 4, date: "2026-09-25", time: "12:00", category: "약속", title: "친구들과 점심 식사", completed: false },
+    { id: 1, date: "2026-09-06", title: "홍대 1주년 카페", color: "gray" },
+    { id: 2, date: "2026-09-07", title: "휴", color: "gray" },
+    { id: 3, date: "2026-09-08", title: "~", color: "gray" },
+    { id: 4, date: "2026-09-09", title: "가", color: "gray" },
+    { id: 5, date: "2026-09-16", title: "위어스헤어", color: "purple" },
+    { id: 6, date: "2026-09-16", title: "오후 반차", color: "teal" },
   ];
+
+  // 공휴일 정보
+  const holidays: Record<string, string> = {
+    "2026-09-24": "추석 연휴",
+    "2026-09-25": "추석",
+    "2026-09-26": "추석 연휴",
+  };
 
   const [scheduleList, setScheduleList] = useState<any[]>([]);
   const [isScheduleLoaded, setIsScheduleLoaded] = useState(false);
 
+  // 달력 탐색 상태
+  const [calYear, setCalYear] = useState(2026);
+  const [calMonth, setCalMonth] = useState(9); // 1~12
+
+  // 클릭하여 일정 추가 모달/인풋용
+  const [modalDate, setModalDate] = useState<string | null>(null);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalColor, setModalColor] = useState("gray");
+
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("jb_bookmark_schedule_list");
+      const saved = localStorage.getItem("jb_bookmark_calendar_schedules");
       if (saved) {
         try {
           setScheduleList(JSON.parse(saved));
@@ -223,107 +238,73 @@ export default function Home() {
 
   useEffect(() => {
     if (isScheduleLoaded && typeof window !== "undefined") {
-      localStorage.setItem("jb_bookmark_schedule_list", JSON.stringify(scheduleList));
+      localStorage.setItem("jb_bookmark_calendar_schedules", JSON.stringify(scheduleList));
     }
   }, [scheduleList, isScheduleLoaded]);
 
-  // 일정 입력 폼 상태
-  const [schedDate, setSchedDate] = useState(() => new Date().toISOString().split("T")[0]);
-  const [schedTime, setSchedTime] = useState("12:00");
-  const [schedCategory, setSchedCategory] = useState("개인");
-  const [schedTitle, setSchedTitle] = useState("");
-  const [schedSearch, setSchedSearch] = useState("");
-  const [schedCategoryFilter, setSchedCategoryFilter] = useState("전체");
-
-  // 일정 수정 상태
-  const [editingSchedId, setEditingSchedId] = useState<number | null>(null);
-  const [editSchedDate, setEditSchedDate] = useState("");
-  const [editSchedTime, setEditSchedTime] = useState("");
-  const [editSchedCategory, setEditSchedCategory] = useState("");
-  const [editSchedTitle, setEditSchedTitle] = useState("");
-
-  const startEditSchedule = (item: any) => {
-    setEditingSchedId(item.id);
-    setEditSchedDate(item.date);
-    setEditSchedTime(item.time || "");
-    setEditSchedCategory(item.category || "기타");
-    setEditSchedTitle(item.title);
+  const prevMonth = () => {
+    if (calMonth === 1) {
+      setCalYear(calYear - 1);
+      setCalMonth(12);
+    } else {
+      setCalMonth(calMonth - 1);
+    }
   };
 
-  const cancelEditSchedule = () => {
-    setEditingSchedId(null);
+  const nextMonth = () => {
+    if (calMonth === 12) {
+      setCalYear(calYear + 1);
+      setCalMonth(1);
+    } else {
+      setCalMonth(calMonth + 1);
+    }
   };
 
-  const saveEditSchedule = (id: number) => {
-    if (!editSchedTitle.trim()) return;
-    setScheduleList((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              date: editSchedDate,
-              time: editSchedTime,
-              category: editSchedCategory.trim() || "기타",
-              title: editSchedTitle.trim()
-            }
-          : item
-      )
-    );
-    setEditingSchedId(null);
-  };
+  // 달력 날짜 계산
+  const calendarGrid = useMemo(() => {
+    const firstDayIndex = new Date(calYear, calMonth - 1, 1).getDay(); // 0(일) ~ 6(토)
+    const lastDate = new Date(calYear, calMonth, 0).getDate();
 
-  const handleAddSchedule = (e: React.FormEvent) => {
+    const cells = [];
+    // 빈 앞칸
+    for (let i = 0; i < firstDayIndex; i++) {
+      cells.push({ day: null, dateStr: "" });
+    }
+    // 실제 날짜
+    for (let d = 1; d <= lastDate; d++) {
+      const monthStr = String(calMonth).padStart(2, "0");
+      const dayStr = String(d).padStart(2, "0");
+      cells.push({ day: d, dateStr: `${calYear}-${monthStr}-${dayStr}` });
+    }
+    // 7열 맞추기
+    while (cells.length % 7 !== 0) {
+      cells.push({ day: null, dateStr: "" });
+    }
+    return cells;
+  }, [calYear, calMonth]);
+
+  // 일정 직접 추가
+  const handleAddCalendarSchedule = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!schedTitle.trim()) return;
+    if (!modalDate || !modalTitle.trim()) return;
 
-    const newSched = {
+    const newEntry = {
       id: Date.now(),
-      date: schedDate || new Date().toISOString().split("T")[0],
-      time: schedTime || "00:00",
-      category: schedCategory.trim() || "기타",
-      title: schedTitle.trim(),
-      completed: false
+      date: modalDate,
+      title: modalTitle.trim(),
+      color: modalColor
     };
 
-    setScheduleList([newSched, ...scheduleList]);
-    setSchedTitle("");
+    setScheduleList((prev) => [...prev, newEntry]);
+    setModalTitle("");
+    setModalDate(null);
   };
 
-  const toggleScheduleComplete = (id: number) => {
-    setScheduleList((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, completed: !item.completed } : item))
-    );
-  };
-
-  const handleDeleteSchedule = (id: number) => {
+  // 일정 삭제
+  const handleDeleteCalendarSchedule = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
     setScheduleList((prev) => prev.filter((item) => item.id !== id));
   };
-
-  const scheduleCategories = useMemo(() => {
-    const set = new Set<string>();
-    scheduleList.forEach((s) => {
-      if (s.category && s.category.trim()) set.add(s.category.trim());
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
-  }, [scheduleList]);
-
-  const filteredSchedules = useMemo(() => {
-    return scheduleList
-      .filter((item) => {
-        const matchCategory = schedCategoryFilter === "전체" || item.category === schedCategoryFilter;
-        const matchSearch =
-          item.title.toLowerCase().includes(schedSearch.toLowerCase()) ||
-          item.category.toLowerCase().includes(schedSearch.toLowerCase()) ||
-          item.date.includes(schedSearch);
-        return matchCategory && matchSearch;
-      })
-      .sort((a, b) => {
-        // 1차 날짜순(오름차순) -> 2차 시간순(오름차순)
-        const dateComp = a.date.localeCompare(b.date);
-        if (dateComp !== 0) return dateComp;
-        return (a.time || "").localeCompare(b.time || "");
-      });
-  }, [scheduleList, schedCategoryFilter, schedSearch]);
 
   // ================= 3. 플레이리스트 재생, 게이지 & 볼륨 =================
   const getYouTubeId = (url: string) => {
@@ -702,7 +683,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-neutral-100/60 text-neutral-800 flex flex-col font-sans relative">
-      {/* 배경 격자 패턴 (50% 희미한 은은한 격자) */}
+      {/* 배경 격자 패턴 */}
       <div 
         className="fixed inset-0 pointer-events-none z-0"
         style={{
@@ -766,7 +747,7 @@ export default function Home() {
       {/* ================= 본문 3단 레이아웃 ================= */}
       <main className="max-w-[1720px] mx-auto w-full px-6 py-6 flex flex-col lg:flex-row gap-5 items-start flex-1 relative z-10">
         
-        {/* [1] 좌측 배너 (어떤 탭에서도 영구 고정) */}
+        {/* [1] 좌측 배너 */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px]">
           <div className="border border-dashed border-emerald-400/90 rounded-2xl h-full flex flex-col items-center justify-center p-4 text-center bg-emerald-50/30 backdrop-blur-[2px] shadow-sm">
             <span className="text-xl mb-1">🖼️</span>
@@ -774,263 +755,248 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* [2] 중앙 가변 영역 (탭 전환 시 중앙 화면만 변경) */}
-        <section className="flex-1 w-full flex flex-col gap-2.5 min-w-0 pb-16">
+        {/* [2] 중앙 영역 */}
+        <section className="flex-1 w-full min-w-0 pb-16">
           
-          {/* ==================== A. [일정] 탭 화면 ==================== */}
+          {/* ==================== A. [일정] 탭 화면 (이미지 100% 반영) ==================== */}
           {currentTab === "schedule" && (
-            <>
-              {/* [일정 박스 1] 일정 등록 바 */}
-              <form onSubmit={handleAddSchedule} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
-                {/* 날짜 선택 */}
-                <input
-                  type="date"
-                  required
-                  value={schedDate}
-                  onChange={(e) => setSchedDate(e.target.value)}
-                  className="w-36 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-900 focus:outline-none focus:border-emerald-500 cursor-pointer"
-                />
-
-                {/* 시간 선택 */}
-                <input
-                  type="time"
-                  value={schedTime}
-                  onChange={(e) => setSchedTime(e.target.value)}
-                  className="w-28 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-900 focus:outline-none focus:border-emerald-500 cursor-pointer"
-                />
-
-                {/* 카테고리 */}
-                <div className="relative">
-                  <input
-                    type="text"
-                    list="sched-categories"
-                    value={schedCategory}
-                    onChange={(e) => setSchedCategory(e.target.value)}
-                    placeholder="카테고리"
-                    className="w-28 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-500 placeholder-neutral-400"
-                  />
-                  <datalist id="sched-categories">
-                    <option value="개인" />
-                    <option value="업무" />
-                    <option value="운동" />
-                    <option value="약속" />
-                    <option value="기념일" />
-                  </datalist>
-                </div>
-
-                {/* 일정 내용 */}
-                <input
-                  type="text"
-                  required
-                  value={schedTitle}
-                  onChange={(e) => setSchedTitle(e.target.value)}
-                  placeholder="일정 내용을 입력하세요 *"
-                  className="flex-1 min-w-[200px] border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
-                />
-
-                <button
-                  type="submit"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" /> 일정 추가
-                </button>
-              </form>
-
-              {/* [일정 박스 2] 독립된 검색창 & 카테고리 필터 박스 */}
-              <div className="border border-emerald-400 rounded-2xl p-3 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
-                <div className="relative w-full">
-                  <input
-                    type="text"
-                    value={schedSearch}
-                    onChange={(e) => setSchedSearch(e.target.value)}
-                    placeholder="일정 내용, 카테고리, 날짜(YYYY-MM-DD)를 검색해보세요..."
-                    className="w-full border border-emerald-200 bg-white/80 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
-                  />
-                  <Search className="w-3.5 h-3.5 text-emerald-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
-                </div>
-
-                <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
-                  <span className="text-emerald-900 font-semibold text-[11px] mr-1">분류:</span>
+            <div className="border-2 border-indigo-400/80 rounded-3xl bg-white/95 backdrop-blur-md shadow-md p-6 flex flex-col gap-4">
+              
+              {/* [헤더 라인] 이전달 / 2026년 9월 일정표 / 다음달 | 일정 요약 타이틀 */}
+              <div className="flex items-center justify-between pb-3 border-b-2 border-indigo-300">
+                <div className="flex-1 flex items-center justify-between pr-6 border-r border-indigo-200">
                   <button
-                    onClick={() => setSchedCategoryFilter("전체")}
-                    className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
-                      schedCategoryFilter === "전체"
-                        ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
-                        : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
-                    }`}
+                    onClick={prevMonth}
+                    className="px-4 py-1.5 rounded-xl border border-indigo-400 text-indigo-700 hover:bg-indigo-50 font-bold text-xs transition"
                   >
-                    전체
+                    &lt; 이전달
                   </button>
-                  {scheduleCategories.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setSchedCategoryFilter(cat)}
-                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
-                        schedCategoryFilter === cat
-                          ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
-                          : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                  <span className="ml-auto text-[11px] text-emerald-800/80 font-medium">
-                    총 {filteredSchedules.length}개 일정 (날짜순 ➔ 시간순)
-                  </span>
+
+                  <h2 className="text-xl font-black text-indigo-900 tracking-tight flex items-center gap-2">
+                    <span>🗓️</span>
+                    <span>{calYear}년 {calMonth}월 일정표</span>
+                  </h2>
+
+                  <button
+                    onClick={nextMonth}
+                    className="px-4 py-1.5 rounded-xl border border-indigo-400 text-indigo-700 hover:bg-indigo-50 font-bold text-xs transition"
+                  >
+                    다음달 &gt;
+                  </button>
+                </div>
+
+                <div className="w-[280px] pl-6 flex items-center gap-1.5 text-sm font-extrabold text-indigo-900">
+                  <span>📌</span>
+                  <span>일정 요약</span>
                 </div>
               </div>
 
-              {/* [일정 박스 3] 헤더 전용 박스 (2 : 3 : 5 : 2 대칭 분할 구조) */}
-              <div className="border border-emerald-400 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
-                <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-emerald-900 items-center">
-                  <span className="col-span-2 flex items-center justify-center gap-1 text-center">🏷️ 분류</span>
-                  <span className="col-span-3 flex items-center justify-center gap-1 text-center">📅 날짜 및 시간</span>
-                  <span className="col-span-5 flex items-center justify-center gap-1 text-center">📝 일정 내용</span>
-                  <span className="col-span-2 flex items-center justify-center text-center">관리</span>
+              {/* [본문 2분할] 좌측 달력 그리드 + 우측 요약 카드 박스 */}
+              <div className="flex flex-col lg:flex-row gap-5 items-start">
+                
+                {/* [좌측 와이드 메인 달력] */}
+                <div className="flex-1 w-full min-w-0 flex flex-col">
+                  {/* 요일 헤더 */}
+                  <div className="grid grid-cols-7 text-center font-bold text-xs mb-2 text-neutral-700">
+                    <span className="text-rose-600 font-extrabold">일</span>
+                    <span>월</span>
+                    <span>화</span>
+                    <span>수</span>
+                    <span>목</span>
+                    <span>금</span>
+                    <span className="text-blue-600 font-extrabold">토</span>
+                  </div>
+
+                  {/* 달력 날짜 그리드 (이미지 형식의 큼직한 사각 카드들) */}
+                  <div className="grid grid-cols-7 gap-2">
+                    {calendarGrid.map((cell, idx) => {
+                      if (!cell.day) {
+                        return <div key={`empty-${idx}`} className="h-28" />;
+                      }
+
+                      const dayOfWeek = idx % 7;
+                      const isSunday = dayOfWeek === 0;
+                      const isSaturday = dayOfWeek === 6;
+                      const isToday = cell.dateStr === "2026-09-20";
+                      const holidayName = holidays[cell.dateStr];
+                      const daySchedules = scheduleList.filter((s) => s.date === cell.dateStr);
+
+                      return (
+                        <div
+                          key={cell.dateStr}
+                          onClick={() => setModalDate(cell.dateStr)}
+                          className={`h-28 border rounded-2xl p-2 flex flex-col justify-between transition group relative cursor-pointer ${
+                            isToday
+                              ? "border-amber-400 bg-amber-50/70"
+                              : "border-indigo-200/90 bg-white hover:border-indigo-400 hover:bg-indigo-50/20"
+                          }`}
+                        >
+                          {/* 날짜 번호 및 공휴일 표시 */}
+                          <div className="flex items-center justify-between text-xs font-bold">
+                            <span className={isSunday || holidayName ? "text-rose-600" : isSaturday ? "text-blue-600" : "text-neutral-800"}>
+                              {cell.day}
+                            </span>
+                            {holidayName && (
+                              <span className="text-[10px] font-bold text-rose-500 truncate max-w-[65px]">
+                                {holidayName}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* 날짜 칸 안의 일정 뱃지 목록 (이미지 디자인) */}
+                          <div className="flex-1 overflow-y-auto space-y-1 my-1 pr-0.5">
+                            {daySchedules.map((item) => {
+                              const colorClass =
+                                item.color === "purple"
+                                  ? "bg-purple-100 text-purple-800 border-purple-300"
+                                  : item.color === "teal"
+                                  ? "bg-teal-100 text-teal-800 border-teal-300"
+                                  : "bg-neutral-100 text-neutral-800 border-neutral-300";
+
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={`flex items-center justify-between px-1.5 py-0.5 rounded-lg border text-[11px] font-semibold ${colorClass}`}
+                                >
+                                  <span className="truncate leading-tight">{item.title}</span>
+                                  <button
+                                    onClick={(e) => handleDeleteCalendarSchedule(item.id, e)}
+                                    title="일정 삭제"
+                                    className="text-neutral-400 hover:text-rose-500 ml-1 p-0.5 shrink-0"
+                                  >
+                                    <X className="w-2.5 h-2.5" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* 호버 시 나타나는 추가 힌트 */}
+                          <div className="text-[9px] text-neutral-400 text-right opacity-0 group-hover:opacity-100 transition">
+                            + 추가
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
+
+                {/* [우측 요약 패널 - 3단 카드 박스 (이미지와 동일)] */}
+                <div className="w-full lg:w-[280px] shrink-0 flex flex-col gap-3.5">
+                  
+                  {/* 카드 1: 남은 연차 */}
+                  <div className="border border-blue-200 bg-blue-50/70 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-[115px]">
+                    <div className="text-xs font-bold text-blue-900">
+                      남은 연차 (총 3개)
+                    </div>
+                    <div className="text-2xl font-black text-blue-600 tracking-tight">
+                      2.5 개
+                    </div>
+                  </div>
+
+                  {/* 카드 2: 내 생일 D-Day */}
+                  <div className="border border-rose-200 bg-rose-50/70 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-[135px]">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900">
+                      <span>🎂</span>
+                      <span>내 생일</span>
+                    </div>
+                    <div className="text-2xl font-black text-rose-600 tracking-tight">
+                      D-118
+                    </div>
+                    <div className="text-[11px] text-neutral-500 font-medium">
+                      (2027-01-16 기준)
+                    </div>
+                  </div>
+
+                  {/* 카드 3: 이발 후 경과일 */}
+                  <div className="border border-purple-200 bg-purple-50/70 rounded-2xl p-4 shadow-xs flex flex-col justify-between h-[135px]">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900">
+                      <span>✂️</span>
+                      <span>이발 후 경과일 (헤어)</span>
+                    </div>
+                    <div className="text-2xl font-black text-purple-600 tracking-tight">
+                      +4일
+                    </div>
+                    <div className="text-[11px] text-neutral-500 font-medium">
+                      (2026-09-16 기준)
+                    </div>
+                  </div>
+
+                </div>
+
               </div>
 
-              {/* [일정 박스 4] 일정 목록 개별 카드 리스트 */}
-              <div className="flex flex-col gap-2">
-                {filteredSchedules.map((item) => {
-                  const isEditing = editingSchedId === item.id;
-
-                  // 인라인 편집 모드
-                  if (isEditing) {
-                    return (
-                      <div
-                        key={`edit-sched-${item.id}`}
-                        className="p-3 rounded-2xl border-2 border-emerald-500 bg-emerald-50/90 shadow-md flex flex-wrap items-center gap-2"
+              {/* [일정 추가 모달 / 인풋 팝업] */}
+              {modalDate && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-3xl p-6 border border-indigo-200 shadow-2xl max-w-sm w-full animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-bold text-indigo-950 flex items-center gap-1.5">
+                        <CalendarIcon className="w-4 h-4 text-indigo-600" />
+                        <span>{modalDate} 일정 추가</span>
+                      </h3>
+                      <button
+                        onClick={() => setModalDate(null)}
+                        className="text-neutral-400 hover:text-neutral-600 p-1 rounded-lg"
                       >
-                        <input
-                          type="date"
-                          value={editSchedDate}
-                          onChange={(e) => setEditSchedDate(e.target.value)}
-                          className="w-32 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-600"
-                        />
-                        <input
-                          type="time"
-                          value={editSchedTime}
-                          onChange={(e) => setEditSchedTime(e.target.value)}
-                          className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-600"
-                        />
-                        <input
-                          type="text"
-                          value={editSchedCategory}
-                          onChange={(e) => setEditSchedCategory(e.target.value)}
-                          placeholder="분류"
-                          className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
-                        />
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleAddCalendarSchedule} className="space-y-3">
+                      <div>
+                        <label className="text-xs font-semibold text-neutral-600 mb-1 block">일정 내용</label>
                         <input
                           type="text"
                           required
-                          value={editSchedTitle}
-                          onChange={(e) => setEditSchedTitle(e.target.value)}
-                          placeholder="일정 내용"
-                          className="flex-1 min-w-[180px] border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-bold"
+                          autoFocus
+                          value={modalTitle}
+                          onChange={(e) => setModalTitle(e.target.value)}
+                          placeholder="예: 위어스헤어, 회의 등"
+                          className="w-full border border-indigo-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 font-medium"
                         />
-
-                        <div className="flex items-center gap-1 shrink-0 ml-auto">
-                          <button
-                            onClick={() => saveEditSchedule(item.id)}
-                            title="수정 완료"
-                            className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"
-                          >
-                            <Check className="w-3.5 h-3.5" /> 저장
-                          </button>
-                          <button
-                            onClick={cancelEditSchedule}
-                            title="취소"
-                            className="p-1.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-600 text-xs flex items-center gap-1 shadow-sm transition"
-                          >
-                            <X className="w-3.5 h-3.5" /> 취소
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  // 일반 뷰 모드
-                  return (
-                    <div
-                      key={item.id}
-                      className={`grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border transition shadow-sm ${
-                        item.completed
-                          ? "bg-neutral-100/70 border-neutral-300 opacity-70"
-                          : "bg-emerald-50/40 border-emerald-400 hover:border-emerald-500 hover:bg-emerald-50/70"
-                      }`}
-                    >
-                      {/* 1. 분류 (2칸) */}
-                      <div className="col-span-2 flex justify-center">
-                        <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-[11px] font-bold text-center">
-                          {item.category}
-                        </span>
                       </div>
 
-                      {/* 2. 날짜 및 시간 (3칸) */}
-                      <div className="col-span-3 text-neutral-800 truncate font-semibold text-[12px] text-center px-1 flex items-center justify-center gap-1.5">
-                        <CalendarIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span>{item.date}</span>
-                        {item.time && (
-                          <span className="text-neutral-500 font-mono text-[11px]">
-                            ({item.time})
-                          </span>
-                        )}
-                      </div>
-
-                      {/* 3. 일정 내용 (5칸) */}
-                      <div className={`col-span-5 flex items-center gap-2 font-bold px-1 overflow-hidden ${
-                        item.completed ? "line-through text-neutral-400" : "text-neutral-900"
-                      }`}>
-                        <button
-                          onClick={() => toggleScheduleComplete(item.id)}
-                          title={item.completed ? "미완료로 변경" : "완료로 표시"}
-                          className="shrink-0 text-emerald-600 hover:scale-110 transition"
+                      <div>
+                        <label className="text-xs font-semibold text-neutral-600 mb-1 block">태그 색상</label>
+                        <select
+                          value={modalColor}
+                          onChange={(e) => setModalColor(e.target.value)}
+                          className="w-full border border-indigo-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 font-semibold cursor-pointer"
                         >
-                          {item.completed ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 fill-emerald-100" />
-                          ) : (
-                            <Circle className="w-4 h-4 text-neutral-400 hover:text-emerald-500" />
-                          )}
+                          <option value="gray">기본 회색 (Gray)</option>
+                          <option value="purple">보라색 (Purple - 헤어/약속)</option>
+                          <option value="teal">청록색 (Teal - 연차/반차)</option>
+                        </select>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setModalDate(null)}
+                          className="flex-1 py-2 rounded-xl border border-neutral-300 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 transition"
+                        >
+                          취소
                         </button>
-                        <span className="truncate text-sm">{item.title}</span>
-                      </div>
-
-                      {/* 4. 관리 버튼 (2칸: 여백 대칭) */}
-                      <div className="col-span-2 flex items-center justify-center gap-1.5">
                         <button
-                          onClick={() => startEditSchedule(item)}
-                          title="일정 수정"
-                          className="p-1.5 rounded-lg text-neutral-400 hover:text-emerald-700 hover:bg-white transition"
+                          type="submit"
+                          className="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition"
                         >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-
-                        <button
-                          onClick={() => handleDeleteSchedule(item.id)}
-                          title="일정 삭제"
-                          className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          추가하기
                         </button>
                       </div>
-                    </div>
-                  );
-                })}
-
-                {filteredSchedules.length === 0 && (
-                  <div className="border border-dashed border-emerald-300 rounded-2xl p-12 text-center text-xs font-medium text-emerald-800/70 bg-emerald-50/20">
-                    등록되었거나 조건에 맞는 일정이 없습니다.
+                    </form>
                   </div>
-                )}
-              </div>
-            </>
+                </div>
+              )}
+
+            </div>
           )}
 
           {/* ==================== B. [노래책] 탭 화면 ==================== */}
           {currentTab === "songs" && (
-            <>
-              {/* [노래책 박스 1] 노래 등록 바 */}
+            <div className="flex flex-col gap-2.5">
+              {/* 노래 등록 바 */}
               <form onSubmit={handleAddSong} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
                 <div className="relative">
                   <input
@@ -1097,7 +1063,7 @@ export default function Home() {
                 </button>
               </form>
 
-              {/* [노래책 박스 2] 독립된 검색창 & 장르 필터 박스 */}
+              {/* 검색 & 필터 바 */}
               <div className="border border-emerald-400 rounded-2xl p-3 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
                 <div className="relative w-full">
                   <input
@@ -1141,7 +1107,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* [노래책 박스 3] 헤더 전용 박스 (2 : 4 : 4 : 2 대칭 분할 구조) */}
+              {/* 헤더 박스 (2 : 4 : 4 : 2 대칭 분할 구조) */}
               <div className="border border-emerald-400 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
                 <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-emerald-900 items-center">
                   <span className="col-span-2 flex items-center justify-center gap-1 text-center">🏷️ 장르</span>
@@ -1151,7 +1117,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* [노래책 박스 4] 추가된 곡 목록 (2 : 4 : 4 : 2 대칭 구조) */}
+              {/* 곡 목록 */}
               <div className="flex flex-col gap-2">
                 {filteredSongs.map((song) => {
                   const isPlayingThis = isPlayingAudio && currentSong?.id === song.id;
@@ -1159,7 +1125,6 @@ export default function Home() {
                   const isCover = song.songType === "Cover";
                   const isOriginal = song.songType === "Original";
 
-                  // 인라인 편집 모드
                   if (isEditing) {
                     return (
                       <div
@@ -1176,7 +1141,6 @@ export default function Home() {
                             className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-600"
                           />
                         </div>
-
                         <input
                           type="text"
                           value={editArtist}
@@ -1184,7 +1148,6 @@ export default function Home() {
                           placeholder="가수"
                           className="w-32 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
                         />
-
                         <input
                           type="text"
                           required
@@ -1193,7 +1156,6 @@ export default function Home() {
                           placeholder="곡 제목"
                           className="w-44 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-bold"
                         />
-
                         <input
                           type="text"
                           value={editUrl}
@@ -1201,7 +1163,6 @@ export default function Home() {
                           placeholder="유튜브 링크"
                           className="flex-1 min-w-[140px] border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
                         />
-
                         <select
                           value={editSongType}
                           onChange={(e) => setEditSongType(e.target.value as "none" | "Original" | "Cover")}
@@ -1211,7 +1172,6 @@ export default function Home() {
                           <option value="Original">Original</option>
                           <option value="Cover">Cover</option>
                         </select>
-
                         <div className="flex items-center gap-1 shrink-0 ml-auto">
                           <button
                             onClick={() => saveEditSong(song.id)}
@@ -1232,7 +1192,6 @@ export default function Home() {
                     );
                   }
 
-                  // 일반 보기 모드
                   return (
                     <div
                       key={song.id}
@@ -1242,37 +1201,29 @@ export default function Home() {
                           : "bg-emerald-50/40 border-emerald-400 hover:border-emerald-500 hover:bg-emerald-50/70"
                       }`}
                     >
-                      {/* 1. 장르 (2칸) */}
                       <div className="col-span-2 flex justify-center">
                         <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-[11px] font-bold text-center">
                           {song.genre}
                         </span>
                       </div>
-
-                      {/* 2. 가수 / 아티스트 (4칸) */}
                       <div className="col-span-4 text-neutral-800 truncate font-bold text-[13px] text-center px-1">
                         {song.artist}
                       </div>
-
-                      {/* 3. 곡명 & 심볼 (4칸) */}
                       <div className="col-span-4 flex items-center justify-center gap-2 font-bold text-neutral-900 px-1 overflow-hidden">
                         <Music className={`w-3.5 h-3.5 shrink-0 ${isPlayingThis ? "text-emerald-600 animate-pulse" : "text-emerald-500"}`} />
                         <span className="truncate text-sm">{song.title}</span>
-
                         {isCover && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 shadow-xs shrink-0">
                             <Mic2 className="w-2.5 h-2.5" />
                             <span>Cover</span>
                           </span>
                         )}
-
                         {isOriginal && (
                           <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-300 shadow-xs shrink-0">
                             <Disc3 className="w-2.5 h-2.5" />
                             <span>Original</span>
                           </span>
                         )}
-
                         {song.url && (
                           <a
                             href={song.url}
@@ -1284,8 +1235,6 @@ export default function Home() {
                           </a>
                         )}
                       </div>
-
-                      {/* 4. 관리 버튼 (2칸) */}
                       <div className="col-span-2 flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => startEditSong(song)}
@@ -1294,7 +1243,6 @@ export default function Home() {
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
-
                         <button
                           onClick={() => toggleLike(song.id)}
                           title={song.liked ? "플레이리스트에서 제거" : "플레이리스트에 담기"}
@@ -1306,7 +1254,6 @@ export default function Home() {
                         >
                           <Heart className={`w-3.5 h-3.5 ${song.liked ? "fill-rose-500" : ""}`} />
                         </button>
-
                         <button
                           onClick={() => handleDeleteSong(song.id)}
                           title="노래 삭제"
@@ -1325,10 +1272,10 @@ export default function Home() {
                   </div>
                 )}
               </div>
-            </>
+            </div>
           )}
 
-          {/* ==================== C. 그 외 메뉴 탭 화면 (준비중) ==================== */}
+          {/* ==================== C. 그 외 탭 ==================== */}
           {currentTab !== "songs" && currentTab !== "schedule" && (
             <div className="border border-dashed border-emerald-300 rounded-2xl p-20 text-center bg-emerald-50/20 backdrop-blur-[2px]">
               <span className="text-3xl mb-2 block">🚧</span>
@@ -1343,7 +1290,7 @@ export default function Home() {
 
         </section>
 
-        {/* [3] 우측 배너 (어떤 탭에서도 영구 고정) */}
+        {/* [3] 우측 배너 */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px] flex flex-col gap-3">
           
           {/* 1. 시계 & 타이머 */}
