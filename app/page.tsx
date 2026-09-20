@@ -32,7 +32,12 @@ import {
   Pencil,
   Check,
   X,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Cake,
+  Scissors,
+  Palmtree,
+  Clock3,
+  CalendarDays
 } from "lucide-react";
 
 export default function Home() {
@@ -188,14 +193,29 @@ export default function Home() {
       });
   }, [songList, selectedGenre, searchQuery]);
 
-  // ================= 2. 일정 캘린더 & D-Day 요약 데이터 =================
+  // ================= 2. 일정 캘린더 & 동적 요약 데이터 =================
+  // 심볼 설정 (연차, 반차, 헤어, 생일, 약속)
+  const SYMBOL_CONFIG = {
+    leave: { label: "연차", icon: "🌴", badge: "연차" },
+    half_leave: { label: "반차", icon: "🌓", badge: "반차" },
+    hair: { label: "헤어", icon: "✂️", badge: "헤어" },
+    birthday: { label: "생일", icon: "🎂", badge: "생일" },
+    appointment: { label: "약속", icon: "📌", badge: "약속" },
+  };
+
+  // 파스텔 톤 5가지 색상
+  const COLOR_CONFIG = {
+    pink: { label: "핑크", class: "bg-pink-100 text-pink-900 border-pink-300", chip: "bg-pink-300" },
+    blue: { label: "파랑", class: "bg-blue-100 text-blue-900 border-blue-300", chip: "bg-blue-300" },
+    purple: { label: "보라", class: "bg-purple-100 text-purple-900 border-purple-300", chip: "bg-purple-300" },
+    yellow: { label: "노랑", class: "bg-amber-100 text-amber-900 border-amber-300", chip: "bg-amber-300" },
+    green: { label: "초록", class: "bg-emerald-100 text-emerald-900 border-emerald-300", chip: "bg-emerald-300" },
+  };
+
   const defaultSchedules = [
-    { id: 1, date: "2026-09-06", title: "홍대 1주년 ...", color: "gray" },
-    { id: 2, date: "2026-09-07", title: "휴", color: "gray" },
-    { id: 3, date: "2026-09-08", title: "~", color: "gray" },
-    { id: 4, date: "2026-09-09", title: "가", color: "gray" },
-    { id: 5, date: "2026-09-16", title: "위어스헤어", color: "purple" },
-    { id: 6, date: "2026-09-16", title: "오후 반차", color: "teal" },
+    { id: 1, date: "2026-09-06", title: "홍대 1주년 카페", symbol: "appointment", color: "pink" },
+    { id: 2, date: "2026-09-16", title: "위어스헤어", symbol: "hair", color: "purple" },
+    { id: 3, date: "2026-09-16", title: "오후 반차", symbol: "half_leave", color: "green" },
   ];
 
   const holidays: Record<string, string> = {
@@ -210,9 +230,17 @@ export default function Home() {
   const [calYear, setCalYear] = useState(2026);
   const [calMonth, setCalMonth] = useState(9); // 1~12
 
+  // 팝업 모달 상태
   const [modalDate, setModalDate] = useState<string | null>(null);
-  const [modalTitle, setModalTitle] = useState("");
-  const [modalColor, setModalColor] = useState("gray");
+  const [newSchedTitle, setNewSchedTitle] = useState("");
+  const [newSchedSymbol, setNewSchedSymbol] = useState("appointment");
+  const [newSchedColor, setNewSchedColor] = useState("pink");
+
+  // 팝업 내 인라인 수정 상태
+  const [popupEditingId, setPopupEditingId] = useState<number | null>(null);
+  const [editPopupTitle, setEditPopupTitle] = useState("");
+  const [editPopupSymbol, setEditPopupSymbol] = useState("appointment");
+  const [editPopupColor, setEditPopupColor] = useState("pink");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -273,28 +301,156 @@ export default function Home() {
     return cells;
   }, [calYear, calMonth]);
 
-  const handleAddCalendarSchedule = (e: React.FormEvent) => {
+  // 일정 추가
+  const handleAddPopupSchedule = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!modalDate || !modalTitle.trim()) return;
+    if (!modalDate || !newSchedTitle.trim()) return;
 
     const newEntry = {
       id: Date.now(),
       date: modalDate,
-      title: modalTitle.trim(),
-      color: modalColor
+      title: newSchedTitle.trim(),
+      symbol: newSchedSymbol,
+      color: newSchedColor
     };
 
     setScheduleList((prev) => [...prev, newEntry]);
-    setModalTitle("");
-    setModalDate(null);
+    setNewSchedTitle("");
   };
 
-  const handleDeleteCalendarSchedule = (id: number, e: React.MouseEvent) => {
-    e.stopPropagation();
+  // 팝업 내 인라인 수정 시작
+  const startPopupEdit = (item: any) => {
+    setPopupEditingId(item.id);
+    setEditPopupTitle(item.title);
+    setEditPopupSymbol(item.symbol || "appointment");
+    setEditPopupColor(item.color || "pink");
+  };
+
+  // 팝업 내 인라인 수정 완료 저장
+  const savePopupEdit = (id: number) => {
+    if (!editPopupTitle.trim()) return;
+    setScheduleList((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              title: editPopupTitle.trim(),
+              symbol: editPopupSymbol,
+              color: editPopupColor
+            }
+          : item
+      )
+    );
+    setPopupEditingId(null);
+  };
+
+  // 일정 삭제
+  const handleDeleteSchedule = (id: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setScheduleList((prev) => prev.filter((item) => item.id !== id));
+    if (popupEditingId === id) setPopupEditingId(null);
   };
 
-  // ================= 3. 플레이리스트 재생, 게이지 & 볼륨 =================
+  // ================= 4. 요약칸 동적 연동 계산 로직 =================
+  const TODAY_STR = "2026-09-20";
+  const todayDateObj = new Date(TODAY_STR);
+
+  // A. 연차 / 반차 계산 (1월 1일 기준 기본 16개에서 달력의 연차/반차 사용량 차감)
+  const leaveSummary = useMemo(() => {
+    const currentYearStr = String(calYear);
+    const leaveItems = scheduleList.filter((s) => s.date.startsWith(currentYearStr) && (s.symbol === "leave" || s.symbol === "half_leave"));
+    if (leaveItems.length === 0) return null; // 등록된 연차/반차가 없으면 요약칸에 미표시
+
+    let used = 0;
+    leaveItems.forEach((s) => {
+      if (s.symbol === "leave") used += 1.0;
+      else if (s.symbol === "half_leave") used += 0.5;
+    });
+
+    const total = 16.0;
+    const remaining = Math.max(0, total - used);
+    return {
+      used,
+      remaining: remaining % 1 === 0 ? remaining.toFixed(0) : remaining.toFixed(1),
+      count: leaveItems.length
+    };
+  }, [scheduleList, calYear]);
+
+  // B. 생일 D-Day 계산 (달력에 실제로 등록된 생일 심볼만 표시)
+  const birthdaySummary = useMemo(() => {
+    const birthdays = scheduleList
+      .filter((s) => s.symbol === "birthday")
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    if (birthdays.length === 0) return null;
+
+    // 가장 가까운 다음 생일 찾기 (오늘 이후 포함)
+    let nextBday = birthdays.find((s) => s.date >= TODAY_STR);
+    if (!nextBday) {
+      // 모두 과거인 경우 가장 마지막 등록된 생일
+      nextBday = birthdays[birthdays.length - 1];
+    }
+
+    const bdayDate = new Date(nextBday.date);
+    const diffTime = bdayDate.getTime() - todayDateObj.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return {
+      title: nextBday.title || "생일",
+      date: nextBday.date,
+      dDayText: diffDays === 0 ? "D-Day" : diffDays > 0 ? `D-${diffDays}` : `D+${Math.abs(diffDays)}`
+    };
+  }, [scheduleList]);
+
+  // C. 헤어(이발) 경과일 또는 다음 예약 D-Day 계산
+  const hairSummary = useMemo(() => {
+    const hairList = scheduleList
+      .filter((s) => s.symbol === "hair")
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    if (hairList.length === 0) return null;
+
+    // 미래 예약이 있는지 확인
+    const nextHair = hairList.find((s) => s.date > TODAY_STR);
+    // 과거 최근 이발 확인
+    const pastHairs = hairList.filter((s) => s.date <= TODAY_STR);
+    const lastHair = pastHairs.length > 0 ? pastHairs[pastHairs.length - 1] : null;
+
+    if (nextHair) {
+      const nDate = new Date(nextHair.date);
+      const diffDays = Math.ceil((nDate.getTime() - todayDateObj.getTime()) / (1000 * 60 * 60 * 24));
+      return {
+        mode: "next",
+        title: nextHair.title || "이발 예약",
+        date: nextHair.date,
+        displayText: diffDays === 0 ? "오늘 예약" : `D-${diffDays}`,
+        subText: `(예약: ${nextHair.date})`
+      };
+    } else if (lastHair) {
+      const lDate = new Date(lastHair.date);
+      const diffDays = Math.floor((todayDateObj.getTime() - lDate.getTime()) / (1000 * 60 * 60 * 24));
+      return {
+        mode: "past",
+        title: "이발 후 경과일 (헤어)",
+        date: lastHair.date,
+        displayText: `+${diffDays}일`,
+        subText: `(${lastHair.date} 기준)`
+      };
+    }
+    return null;
+  }, [scheduleList]);
+
+  // D. 다가오는 일반 약속 D-Day 목록 (선택적)
+  const upcomingAppointments = useMemo(() => {
+    return scheduleList
+      .filter((s) => s.symbol === "appointment" && s.date >= TODAY_STR)
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 2);
+  }, [scheduleList]);
+
+  const hasAnySummary = leaveSummary || birthdaySummary || hairSummary || upcomingAppointments.length > 0;
+
+  // ================= 5. 플레이리스트 재생, 게이지 & 볼륨 =================
   const getYouTubeId = (url: string) => {
     if (!url) return null;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
@@ -509,7 +665,7 @@ export default function Home() {
     return `${m}:${String(s).padStart(2, "0")}`;
   };
 
-  // ================= 4. 시계 & 타이머 =================
+  // ================= 6. 시계 & 타이머 =================
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [timerMinutes, setTimerMinutes] = useState(4);
   const [timeLeft, setTimeLeft] = useState(4 * 60);
@@ -743,10 +899,10 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* [2] 중앙 내용 영역 (배너 세로 높이 h-[760px]와 정확히 일치) */}
+        {/* [2] 중앙 내용 영역 (배너 세로 높이 h-[760px]와 완벽 일치) */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
-          {/* ==================== A. [일정] 탭 화면 (3분할 독립 박스 구조) ==================== */}
+          {/* ==================== A. [일정] 탭 화면 ==================== */}
           {currentTab === "schedule" && (
             <div className="h-full flex flex-col gap-3">
               
@@ -795,7 +951,7 @@ export default function Home() {
                     <span className="text-blue-600 font-extrabold">토</span>
                   </div>
 
-                  {/* 5~6개 주차 달력 그리드 (높이에 맞춰 균등 분할) */}
+                  {/* 5개 행 달력 그리드 */}
                   <div className="flex-1 grid grid-cols-7 grid-rows-5 gap-2 pt-2 min-h-0">
                     {calendarGrid.map((cell, idx) => {
                       if (!cell.day) {
@@ -805,7 +961,7 @@ export default function Home() {
                       const dayOfWeek = idx % 7;
                       const isSunday = dayOfWeek === 0;
                       const isSaturday = dayOfWeek === 6;
-                      const isToday = cell.dateStr === "2026-09-20";
+                      const isToday = cell.dateStr === TODAY_STR;
                       const holidayName = holidays[cell.dateStr];
                       const daySchedules = scheduleList.filter((s) => s.date === cell.dateStr);
 
@@ -819,7 +975,7 @@ export default function Home() {
                               : "border-indigo-100 bg-white hover:border-indigo-300 hover:bg-indigo-50/20"
                           }`}
                         >
-                          {/* 날짜 번호 및 공휴일 뱃지 */}
+                          {/* 날짜 번호 및 공휴일 */}
                           <div className="flex items-center justify-between text-[11px] font-bold leading-tight">
                             <span className={isSunday || holidayName ? "text-rose-600" : isSaturday ? "text-blue-600" : "text-neutral-800"}>
                               {cell.day}
@@ -834,21 +990,20 @@ export default function Home() {
                           {/* 일정 태그 뱃지 리스트 */}
                           <div className="flex-1 overflow-y-auto space-y-1 my-0.5 pr-0.5 scrollbar-none">
                             {daySchedules.map((item) => {
-                              const colorClass =
-                                item.color === "purple"
-                                  ? "bg-purple-100 text-purple-800 border-purple-300"
-                                  : item.color === "teal"
-                                  ? "bg-teal-100 text-teal-800 border-teal-300"
-                                  : "bg-neutral-100 text-neutral-800 border-neutral-300";
+                              const symbolInfo = SYMBOL_CONFIG[item.symbol] || SYMBOL_CONFIG.appointment;
+                              const colorInfo = COLOR_CONFIG[item.color] || COLOR_CONFIG.pink;
 
                               return (
                                 <div
                                   key={item.id}
-                                  className={`flex items-center justify-between px-1.5 py-0.5 rounded border text-[10px] font-semibold leading-none ${colorClass}`}
+                                  className={`flex items-center justify-between px-1.5 py-0.5 rounded border text-[10px] font-semibold leading-none shadow-2xs ${colorInfo.class}`}
                                 >
-                                  <span className="truncate">{item.title}</span>
+                                  <span className="truncate flex items-center gap-1">
+                                    <span className="text-[9px]">{symbolInfo.icon}</span>
+                                    <span>{item.title}</span>
+                                  </span>
                                   <button
-                                    onClick={(e) => handleDeleteCalendarSchedule(item.id, e)}
+                                    onClick={(e) => handleDeleteSchedule(item.id, e)}
                                     title="삭제"
                                     className="text-neutral-400 hover:text-rose-500 ml-1 shrink-0"
                                   >
@@ -859,7 +1014,6 @@ export default function Home() {
                             })}
                           </div>
 
-                          {/* 호버 시 우측 하단 추가 안내 */}
                           <div className="text-[9px] text-neutral-400 text-right opacity-0 group-hover:opacity-100 transition leading-none">
                             +추가
                           </div>
@@ -869,114 +1023,300 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* [박스 3] 우측 일정 요약 박스 (남은 연차 / 생일 D-Day / 이발 경과일) */}
-                <div className="w-full lg:w-[280px] h-full shrink-0 border-2 border-indigo-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between gap-3.5">
+                {/* [박스 3] 우측 일정 요약 박스 (동적 조건부 카드 표시) */}
+                <div className="w-full lg:w-[280px] h-full shrink-0 border-2 border-indigo-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-start gap-3.5 overflow-y-auto">
                   
-                  {/* 카드 1: 남은 연차 */}
-                  <div className="flex-1 border border-blue-200 bg-blue-50/70 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
-                    <div className="text-xs font-bold text-blue-900">
-                      남은 연차 (총 3개)
+                  {/* A. 남은 연차 카드 (연차/반차 심볼이 있을 때만 표시) */}
+                  {leaveSummary && (
+                    <div className="border border-blue-200 bg-blue-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
+                      <div className="flex items-center justify-between text-xs font-bold text-blue-900">
+                        <span>남은 연차 (총 16개 기준)</span>
+                        <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full font-bold">1월 1일 리셋</span>
+                      </div>
+                      <div className="text-3xl font-black text-blue-600 tracking-tight my-2">
+                        {leaveSummary.remaining} 개
+                      </div>
+                      <div className="text-[11px] text-neutral-500 font-medium">
+                        사용: {leaveSummary.used}개 (등록 {leaveSummary.count}건)
+                      </div>
                     </div>
-                    <div className="text-3xl font-black text-blue-600 tracking-tight">
-                      2.5 개
-                    </div>
-                    <div className="text-[10px] text-blue-500 font-medium">
-                      2026년 잔여 휴가 기준
-                    </div>
-                  </div>
+                  )}
 
-                  {/* 카드 2: 내 생일 D-Day */}
-                  <div className="flex-1 border border-rose-200 bg-rose-50/70 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900">
-                      <span>🎂</span>
-                      <span>내 생일</span>
+                  {/* B. 생일 D-Day 카드 (달력에 생일 심볼이 있을 때만 표시) */}
+                  {birthdaySummary && (
+                    <div className="border border-rose-200 bg-rose-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900">
+                        <span>🎂</span>
+                        <span>{birthdaySummary.title}</span>
+                      </div>
+                      <div className="text-3xl font-black text-rose-600 tracking-tight my-2">
+                        {birthdaySummary.dDayText}
+                      </div>
+                      <div className="text-[11px] text-neutral-500 font-medium">
+                        ({birthdaySummary.date} 기준)
+                      </div>
                     </div>
-                    <div className="text-3xl font-black text-rose-600 tracking-tight">
-                      D-118
-                    </div>
-                    <div className="text-[11px] text-neutral-500 font-medium">
-                      (2027-01-16 기준)
-                    </div>
-                  </div>
+                  )}
 
-                  {/* 카드 3: 이발 후 경과일 */}
-                  <div className="flex-1 border border-purple-200 bg-purple-50/70 rounded-2xl p-4 shadow-xs flex flex-col justify-between">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900">
-                      <span>✂️</span>
-                      <span>이발 후 경과일 (헤어)</span>
+                  {/* C. 헤어(이발) 경과일/D-Day 카드 (헤어 심볼이 있을 때만 표시) */}
+                  {hairSummary && (
+                    <div className="border border-purple-200 bg-purple-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900">
+                        <span>✂️</span>
+                        <span>{hairSummary.title}</span>
+                      </div>
+                      <div className="text-3xl font-black text-purple-600 tracking-tight my-2">
+                        {hairSummary.displayText}
+                      </div>
+                      <div className="text-[11px] text-neutral-500 font-medium">
+                        {hairSummary.subText}
+                      </div>
                     </div>
-                    <div className="text-3xl font-black text-purple-600 tracking-tight">
-                      +4일
+                  )}
+
+                  {/* D. 다가오는 약속 카드 */}
+                  {upcomingAppointments.map((app) => (
+                    <div key={`app-${app.id}`} className="border border-amber-200 bg-amber-50/80 rounded-2xl p-3.5 shadow-xs flex flex-col justify-between shrink-0">
+                      <div className="flex items-center justify-between text-xs font-bold text-amber-900">
+                        <span className="flex items-center gap-1">📌 약속: {app.title}</span>
+                        <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-md font-bold">D-Day</span>
+                      </div>
+                      <div className="text-[11px] text-neutral-500 font-medium mt-1">
+                        날짜: {app.date}
+                      </div>
                     </div>
-                    <div className="text-[11px] text-neutral-500 font-medium">
-                      (2026-09-16 기준)
+                  ))}
+
+                  {/* 등록된 요약 심볼이 아무것도 없을 때 */}
+                  {!hasAnySummary && (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 text-neutral-400">
+                      <CalendarDays className="w-8 h-8 mb-2 text-indigo-300" />
+                      <span className="text-xs font-bold text-neutral-500 mb-1">일정 요약 없음</span>
+                      <p className="text-[11px] text-neutral-400 leading-relaxed">
+                        달력에 <span className="font-semibold text-indigo-600">연차, 반차, 헤어, 생일</span> 일정을 등록하면 이곳에 자동으로 요약 카드가 생성됩니다.
+                      </p>
                     </div>
-                  </div>
+                  )}
 
                 </div>
 
               </div>
 
-              {/* [일정 추가 모달 팝업] */}
+              {/* [일정 조회/추가/수정/삭제 팝업 모달] */}
               {modalDate && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-                  <div className="bg-white rounded-3xl p-6 border border-indigo-200 shadow-2xl max-w-sm w-full animate-in fade-in zoom-in-95 duration-150">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-bold text-indigo-950 flex items-center gap-1.5">
-                        <CalendarIcon className="w-4 h-4 text-indigo-600" />
-                        <span>{modalDate} 일정 추가</span>
+                  <div className="bg-white rounded-3xl p-6 border border-indigo-200 shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150">
+                    
+                    {/* 모달 헤더 */}
+                    <div className="flex items-center justify-between pb-3 border-b border-neutral-200 shrink-0">
+                      <h3 className="text-base font-black text-indigo-950 flex items-center gap-2">
+                        <CalendarIcon className="w-5 h-5 text-indigo-600" />
+                        <span>{modalDate} 일정 관리</span>
                       </h3>
                       <button
-                        onClick={() => setModalDate(null)}
-                        className="text-neutral-400 hover:text-neutral-600 p-1 rounded-lg"
+                        onClick={() => {
+                          setModalDate(null);
+                          setPopupEditingId(null);
+                        }}
+                        className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-5 h-5" />
                       </button>
                     </div>
 
-                    <form onSubmit={handleAddCalendarSchedule} className="space-y-3">
+                    {/* 모달 본문 1: 기존 등록된 일정 목록 (수정 및 삭제 가능) */}
+                    <div className="my-3 overflow-y-auto space-y-2 max-h-[220px] pr-1">
+                      <div className="text-[11px] font-bold text-neutral-500 mb-1">
+                        등록된 일정 ({scheduleList.filter((s) => s.date === modalDate).length}건)
+                      </div>
+
+                      {scheduleList.filter((s) => s.date === modalDate).map((item) => {
+                        const isEditingThis = popupEditingId === item.id;
+                        const symbolObj = SYMBOL_CONFIG[item.symbol] || SYMBOL_CONFIG.appointment;
+                        const colorObj = COLOR_CONFIG[item.color] || COLOR_CONFIG.pink;
+
+                        if (isEditingThis) {
+                          return (
+                            <div key={`pop-edit-${item.id}`} className="p-3 rounded-2xl border-2 border-indigo-500 bg-indigo-50/50 space-y-2">
+                              <input
+                                type="text"
+                                value={editPopupTitle}
+                                onChange={(e) => setEditPopupTitle(e.target.value)}
+                                className="w-full border border-indigo-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-neutral-900 bg-white"
+                              />
+
+                              {/* 심볼 변경 */}
+                              <div className="flex gap-1 flex-wrap">
+                                {Object.entries(SYMBOL_CONFIG).map(([key, val]) => (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => setEditPopupSymbol(key)}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition ${
+                                      editPopupSymbol === key
+                                        ? "border-indigo-600 bg-indigo-600 text-white"
+                                        : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                                    }`}
+                                  >
+                                    {val.icon} {val.label}
+                                  </button>
+                                ))}
+                              </div>
+
+                              {/* 색상 변경 */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-neutral-600">색상:</span>
+                                {Object.entries(COLOR_CONFIG).map(([key, val]) => (
+                                  <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => setEditPopupColor(key)}
+                                    className={`w-5 h-5 rounded-full ${val.chip} border-2 transition ${
+                                      editPopupColor === key ? "border-indigo-800 scale-110" : "border-white"
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+
+                              <div className="flex justify-end gap-1.5 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={() => savePopupEdit(item.id)}
+                                  className="px-3 py-1 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700"
+                                >
+                                  저장
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setPopupEditingId(null)}
+                                  className="px-3 py-1 bg-white border border-neutral-300 text-neutral-600 text-xs rounded-lg hover:bg-neutral-50"
+                                >
+                                  취소
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={item.id}
+                            className={`flex items-center justify-between p-2 rounded-xl border text-xs font-semibold ${colorObj.class}`}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0 pr-2">
+                              <span className="text-sm">{symbolObj.icon}</span>
+                              <span className="truncate">{item.title}</span>
+                              <span className="text-[10px] opacity-75 font-normal">({symbolObj.label})</span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => startPopupEdit(item)}
+                                title="수정"
+                                className="p-1 rounded-md hover:bg-black/10 text-neutral-600"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSchedule(item.id)}
+                                title="삭제"
+                                className="p-1 rounded-md hover:bg-rose-100 text-neutral-600 hover:text-rose-600"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {scheduleList.filter((s) => s.date === modalDate).length === 0 && (
+                        <div className="text-center py-4 text-neutral-400 text-xs">
+                          등록된 일정이 없습니다.
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 모달 본문 2: 새 일정 등록 폼 */}
+                    <form onSubmit={handleAddPopupSchedule} className="pt-3 border-t border-neutral-200 shrink-0 space-y-3">
+                      <div className="text-xs font-bold text-neutral-800">새 일정 추가</div>
+
                       <div>
-                        <label className="text-xs font-semibold text-neutral-600 mb-1 block">일정 내용</label>
                         <input
                           type="text"
                           required
-                          autoFocus
-                          value={modalTitle}
-                          onChange={(e) => setModalTitle(e.target.value)}
-                          placeholder="예: 위어스헤어, 회의 등"
+                          value={newSchedTitle}
+                          onChange={(e) => setNewSchedTitle(e.target.value)}
+                          placeholder="일정 제목을 입력하세요 (예: 치과, 생일파티 등)"
                           className="w-full border border-indigo-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 font-medium"
                         />
                       </div>
 
+                      {/* 심볼 5종 선택 (연차, 반차, 헤어, 생일, 약속) */}
                       <div>
-                        <label className="text-xs font-semibold text-neutral-600 mb-1 block">태그 색상</label>
-                        <select
-                          value={modalColor}
-                          onChange={(e) => setModalColor(e.target.value)}
-                          className="w-full border border-indigo-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 font-semibold cursor-pointer"
-                        >
-                          <option value="gray">기본 회색 (Gray)</option>
-                          <option value="purple">보라색 (Purple - 헤어/약속)</option>
-                          <option value="teal">청록색 (Teal - 연차/반차)</option>
-                        </select>
+                        <div className="text-[11px] font-bold text-neutral-600 mb-1">심볼 선택</div>
+                        <div className="grid grid-cols-5 gap-1">
+                          {Object.entries(SYMBOL_CONFIG).map(([key, val]) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setNewSchedSymbol(key)}
+                              className={`py-1.5 rounded-xl text-[11px] font-bold border flex flex-col items-center gap-0.5 transition ${
+                                newSchedSymbol === key
+                                  ? "border-indigo-600 bg-indigo-50 text-indigo-950 font-black shadow-2xs"
+                                  : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
+                              }`}
+                            >
+                              <span className="text-sm">{val.icon}</span>
+                              <span>{val.label}</span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2 pt-2">
+                      {/* 파스텔톤 5가지 색상 선택 */}
+                      <div>
+                        <div className="text-[11px] font-bold text-neutral-600 mb-1">파스텔 태그 색상</div>
+                        <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
+                          {Object.entries(COLOR_CONFIG).map(([key, val]) => (
+                            <label key={key} className="flex items-center gap-1.5 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="tagColor"
+                                value={key}
+                                checked={newSchedColor === key}
+                                onChange={() => setNewSchedColor(key)}
+                                className="hidden"
+                              />
+                              <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${
+                                newSchedColor === key ? "border-indigo-800 scale-110 shadow-xs" : "border-transparent opacity-70"
+                              }`}>
+                                {newSchedColor === key && <Check className="w-3 h-3 text-indigo-950 stroke-[3]" />}
+                              </span>
+                              <span className="text-[11px] font-semibold text-neutral-700">{val.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
                         <button
                           type="button"
-                          onClick={() => setModalDate(null)}
+                          onClick={() => {
+                            setModalDate(null);
+                            setPopupEditingId(null);
+                          }}
                           className="flex-1 py-2 rounded-xl border border-neutral-300 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 transition"
                         >
-                          취소
+                          닫기
                         </button>
                         <button
                           type="submit"
                           className="flex-1 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition"
                         >
-                          추가하기
+                          일정 추가
                         </button>
                       </div>
                     </form>
+
                   </div>
                 </div>
               )}
