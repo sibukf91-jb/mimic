@@ -394,6 +394,7 @@ export default function Home() {
 
   const [songList, setSongList] = useState<any[]>([]);
   const [isSongDataLoaded, setIsSongDataLoaded] = useState(false);
+  const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
 
   const getGenreIcon = (genre: string) => {
     const g = (genre || "").trim().toLowerCase();
@@ -1758,7 +1759,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== 2. [노래책] 탭 화면 (완전 정상 복구) ==================== */}
+          {/* ==================== 2. [노래책] 탭 화면 ==================== */}
           {currentTab === "songs" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               <form onSubmit={handleAddSong} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
