@@ -51,7 +51,10 @@ import {
   Copy,
   Bookmark,
   BookOpen,
-  ArrowUpDown
+  ArrowUpDown,
+  Package,
+  ShoppingBag,
+  Truck
 } from "lucide-react";
 
 export default function Home() {
@@ -60,10 +63,31 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("songs"); // 기본 진입 탭: 노래책
+  const [currentTab, setCurrentTab] = useState("orders"); // 기본 진입 탭: 구매물품
 
   // ================= 1. 테마 색상 동적 매핑 =================
   const themeClasses = useMemo(() => {
+    // 1. 구매물품 탭 (파스텔 인디고/블루)
+    if (currentTab === "orders") {
+      return {
+        borderDashed: "border-indigo-400/90",
+        borderSolid: "border-indigo-400/90",
+        borderSubtle: "border-indigo-200/90",
+        bgLight: "bg-indigo-50/40",
+        bgHeader: "bg-indigo-100/70",
+        textPrimary: "text-indigo-950",
+        textSecondary: "text-indigo-800",
+        accentBtn: "bg-indigo-600 hover:bg-indigo-700 text-white",
+        accentBtnSub: "bg-indigo-100 hover:bg-indigo-200 text-indigo-800",
+        accentActive: "border-indigo-500 bg-indigo-100 text-indigo-900 font-bold",
+        rangeAccent: "accent-indigo-600",
+        rangeBg: "bg-indigo-100",
+        activeTrack: "bg-indigo-100/90 border-indigo-400",
+        playIcon: "text-indigo-600 fill-indigo-600",
+        navActive: "bg-indigo-100/90 text-indigo-900 border-indigo-300 shadow-sm",
+      };
+    }
+    // 2. 책갈피 탭 (파스텔톤 짙은 노랑색)
     if (currentTab === "bookmarks") {
       return {
         borderDashed: "border-amber-400/90",
@@ -83,6 +107,7 @@ export default function Home() {
         navActive: "bg-amber-100/90 text-amber-900 border-amber-300 shadow-sm",
       };
     }
+    // 3. 즐겨찾기 탭 (파스텔톤 짙은 보라색)
     if (currentTab === "favorites") {
       return {
         borderDashed: "border-purple-400/80",
@@ -102,6 +127,7 @@ export default function Home() {
         navActive: "bg-purple-100/90 text-purple-900 border-purple-300 shadow-sm",
       };
     }
+    // 4. 가계부 탭 (파스텔톤 짙은 하늘색)
     if (currentTab === "ledger") {
       return {
         borderDashed: "border-sky-400/80",
@@ -121,6 +147,7 @@ export default function Home() {
         navActive: "bg-sky-100/90 text-sky-900 border-sky-300 shadow-sm",
       };
     }
+    // 5. 일정 탭 (파스텔톤 짙은 핑크색)
     if (currentTab === "schedule") {
       return {
         borderDashed: "border-pink-400/80",
@@ -140,6 +167,7 @@ export default function Home() {
         navActive: "bg-pink-100/90 text-pink-900 border-pink-300 shadow-sm",
       };
     }
+    // 6. 노래책 탭 등 기본 (에메랄드)
     return {
       borderDashed: "border-emerald-400/90",
       borderSolid: "border-emerald-400/90",
@@ -167,7 +195,171 @@ export default function Home() {
   const TODAY_STR = "2026-09-20";
   const todayDateObj = new Date(TODAY_STR);
 
-  // ================= 2. 노래책 탭 데이터 =================
+  // ================= 2. 구매물품 탭 데이터 & 상태 (신규 구현) =================
+  const getOrderCategoryIcon = (category: string) => {
+    const c = (category || "").trim().toLowerCase();
+    if (c.includes("전자") || c.includes("디지털") || c.includes("it") || c.includes("기기")) return "📱";
+    if (c.includes("패션") || c.includes("의류") || c.includes("옷") || c.includes("신발")) return "👕";
+    if (c.includes("생활") || c.includes("가구") || c.includes("인테리어") || c.includes("욕실")) return "🧴";
+    if (c.includes("식품") || c.includes("음식") || c.includes("간식") || c.includes("마트")) return "🍔";
+    if (c.includes("도서") || c.includes("책") || c.includes("취미") || c.includes("문구")) return "📚";
+    if (c.includes("뷰티") || c.includes("화장품")) return "💄";
+    return "📦";
+  };
+
+  const defaultOrders = [
+    {
+      id: 1,
+      category: "전자기기",
+      platform: "쿠팡",
+      name: "로지텍 무선 키보드 MX Keys",
+      price: 139000,
+      orderDate: "2026-09-15",
+      status: "배송완료",
+      memo: "로켓배송 수령 완료"
+    },
+    {
+      id: 2,
+      category: "패션",
+      platform: "무신사",
+      name: "오버핏 드롭숄더 맨투맨",
+      price: 49000,
+      orderDate: "2026-09-18",
+      status: "배송중",
+      memo: "송장 등록됨"
+    }
+  ];
+
+  const [orderList, setOrderList] = useState<any[]>([]);
+  const [isOrderLoaded, setIsOrderLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("jb_bookmark_orders_list_v1");
+      setOrderList(saved ? JSON.parse(saved) : defaultOrders);
+      setIsOrderLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOrderLoaded && typeof window !== "undefined") {
+      localStorage.setItem("jb_bookmark_orders_list_v1", JSON.stringify(orderList));
+    }
+  }, [orderList, isOrderLoaded]);
+
+  // 등록 상태
+  const [newOrderCategory, setNewOrderCategory] = useState("");
+  const [newOrderPlatform, setNewOrderPlatform] = useState("");
+  const [newOrderName, setNewOrderName] = useState("");
+  const [newOrderPrice, setNewOrderPrice] = useState("");
+  const [newOrderDate, setNewOrderDate] = useState(TODAY_STR);
+  const [newOrderStatus, setNewOrderStatus] = useState("배송완료");
+  const [newOrderMemo, setNewOrderMemo] = useState("");
+
+  const [selectedOrderCategory, setSelectedOrderCategory] = useState("전체");
+  const [orderSearchQuery, setOrderSearchQuery] = useState("");
+
+  // 수정 상태
+  const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
+  const [editOrderCategory, setEditOrderCategory] = useState("");
+  const [editOrderPlatform, setEditOrderPlatform] = useState("");
+  const [editOrderName, setEditOrderName] = useState("");
+  const [editOrderPrice, setEditOrderPrice] = useState("");
+  const [editOrderDate, setEditOrderDate] = useState("");
+  const [editOrderStatus, setEditOrderStatus] = useState("배송완료");
+  const [editOrderMemo, setEditOrderMemo] = useState("");
+
+  const existingOrderCategories = useMemo(() => {
+    const set = new Set<string>();
+    (orderList || []).forEach((o) => {
+      if (o.category && o.category.trim()) set.add(o.category.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [orderList]);
+
+  const handleAddOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOrderName.trim()) return;
+
+    const newEntry = {
+      id: Date.now(),
+      category: newOrderCategory.trim() || "생활용품",
+      platform: newOrderPlatform.trim() || "온라인",
+      name: newOrderName.trim(),
+      price: Number(newOrderPrice) || 0,
+      orderDate: newOrderDate || TODAY_STR,
+      status: newOrderStatus || "배송완료",
+      memo: newOrderMemo.trim()
+    };
+
+    setOrderList([newEntry, ...orderList]);
+    setNewOrderCategory("");
+    setNewOrderPlatform("");
+    setNewOrderName("");
+    setNewOrderPrice("");
+    setNewOrderDate(TODAY_STR);
+    setNewOrderStatus("배송완료");
+    setNewOrderMemo("");
+  };
+
+  const startEditOrder = (item: any) => {
+    setEditingOrderId(item.id);
+    setEditOrderCategory(item.category || "");
+    setEditOrderPlatform(item.platform || "");
+    setEditOrderName(item.name || "");
+    setEditOrderPrice(String(item.price || ""));
+    setEditOrderDate(item.orderDate || "");
+    setEditOrderStatus(item.status || "배송완료");
+    setEditOrderMemo(item.memo || "");
+  };
+
+  const cancelEditOrder = () => setEditingOrderId(null);
+
+  const saveEditOrder = (id: number) => {
+    if (!editOrderName.trim()) return;
+
+    setOrderList((prev) =>
+      prev.map((o) =>
+        o.id === id
+          ? {
+              ...o,
+              category: editOrderCategory.trim() || "생활용품",
+              platform: editOrderPlatform.trim() || "온라인",
+              name: editOrderName.trim(),
+              price: Number(editOrderPrice) || 0,
+              orderDate: editOrderDate || TODAY_STR,
+              status: editOrderStatus || "배송완료",
+              memo: editOrderMemo.trim()
+            }
+          : o
+      )
+    );
+    setEditingOrderId(null);
+  };
+
+  const handleDeleteOrder = (id: number) => {
+    setOrderList((prev) => prev.filter((o) => o.id !== id));
+  };
+
+  const filteredOrders = useMemo(() => {
+    return (orderList || [])
+      .filter((o) => {
+        const matchCategory = selectedOrderCategory === "전체" || o.category === selectedOrderCategory;
+        const matchSearch =
+          (o.name || "").toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+          (o.platform || "").toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+          (o.category || "").toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+          (o.memo || "").toLowerCase().includes(orderSearchQuery.toLowerCase());
+        return matchCategory && matchSearch;
+      })
+      .sort((a, b) => (b.orderDate || "").localeCompare(a.orderDate || ""));
+  }, [orderList, selectedOrderCategory, orderSearchQuery]);
+
+  const totalOrderAmount = useMemo(() => {
+    return filteredOrders.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+  }, [filteredOrders]);
+
+  // ================= 3. 노래책 탭 데이터 =================
   const defaultSongs = [
     { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
     { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
@@ -206,6 +398,16 @@ export default function Home() {
   };
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && videoModalUrl) {
+        setVideoModalUrl(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [videoModalUrl]);
+
+  useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("jb_bookmark_song_list");
       setSongList(saved ? JSON.parse(saved) : defaultSongs);
@@ -220,35 +422,35 @@ export default function Home() {
   }, [songList, isSongDataLoaded]);
 
   const [editingSongId, setEditingSongId] = useState<number | null>(null);
-  const [editSongGenre, setEditSongGenre] = useState("");
-  const [editSongArtist, setEditSongArtist] = useState("");
-  const [editSongTitle, setEditSongTitle] = useState("");
-  const [editSongUrl, setEditSongUrl] = useState("");
-  const [editSongTypeState, setEditSongTypeState] = useState<"none" | "Original" | "Cover">("none");
+  const [editGenre, setEditGenre] = useState("");
+  const [editArtist, setEditArtist] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+  const [editSongType, setEditSongType] = useState<"none" | "Original" | "Cover">("none");
 
   const startEditSong = (song: any) => {
     setEditingSongId(song.id);
-    setEditSongGenre(song.genre || "");
-    setEditSongArtist(song.artist || "");
-    setEditSongTitle(song.title || "");
-    setEditSongUrl(song.url || "");
-    setEditSongTypeState(song.songType || "none");
+    setEditGenre(song.genre || "");
+    setEditArtist(song.artist || "");
+    setEditTitle(song.title || "");
+    setEditUrl(song.url || "");
+    setEditSongType(song.songType || "none");
   };
 
   const cancelEditSong = () => setEditingSongId(null);
 
   const saveEditSong = (id: number) => {
-    if (!editSongTitle.trim()) return;
+    if (!editTitle.trim()) return;
     setSongList((prev) =>
       prev.map((s) =>
         s.id === id
           ? {
               ...s,
-              genre: editSongGenre.trim() || "기타",
-              artist: editSongArtist.trim() || "미상",
-              title: editSongTitle.trim(),
-              url: editSongUrl.trim(),
-              songType: editSongTypeState
+              genre: editGenre.trim() || "기타",
+              artist: editArtist.trim() || "미상",
+              title: editTitle.trim(),
+              url: editUrl.trim(),
+              songType: editSongType
             }
           : s
       )
@@ -317,7 +519,7 @@ export default function Home() {
       });
   }, [songList, selectedGenre, searchQuery]);
 
-  // ================= 3. 책갈피 탭 데이터 =================
+  // ================= 4. 책갈피 탭 데이터 =================
   const calculateAutoFinalEpisode = (releaseDateStr: string) => {
     if (!releaseDateStr) return "1회";
     let targetDate: Date;
@@ -531,21 +733,7 @@ export default function Home() {
     return list.sort((a, b) => (a.title || "").localeCompare(b.title || "", "ko"));
   }, [bookmarkList, selectedBmarkCategory, bmarkSearchQuery, bmarkSortOrder]);
 
-  // ================= 4. 즐겨찾기 탭 데이터 =================
-  const getCategoryIcon = (category: string) => {
-    const cat = (category || "").toLowerCase();
-    if (cat.includes("포털") || cat.includes("웹") || cat.includes("인터넷")) return "🌐";
-    if (cat.includes("검색") || cat.includes("구글")) return "🔍";
-    if (cat.includes("영상") || cat.includes("동영상") || cat.includes("유튜브") || cat.includes("ott")) return "🎬";
-    if (cat.includes("쇼핑") || cat.includes("구매") || cat.includes("마트")) return "🛒";
-    if (cat.includes("개발") || cat.includes("코딩") || cat.includes("깃")) return "💻";
-    if (cat.includes("음악") || cat.includes("노래") || cat.includes("뮤직")) return "🎵";
-    if (cat.includes("커뮤니티") || cat.includes("카페") || cat.includes("sns") || cat.includes("블로그")) return "💬";
-    if (cat.includes("게임")) return "🎮";
-    if (cat.includes("금융") || cat.includes("은행") || cat.includes("증권") || cat.includes("페이")) return "🏦";
-    return "⭐";
-  };
-
+  // ================= 5. 즐겨찾기 탭 데이터 =================
   const defaultFavorites = [
     { id: 1, category: "포털", name: "네이버", url: "https://www.naver.com", memo: "뉴스, 지도, 블로그", username: "my_naver_id", pwHint: "초록창12#$" },
   ];
@@ -685,7 +873,7 @@ export default function Home() {
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
   }, [favList, selectedFavCategory, favSearchQuery]);
 
-  // ================= 5. 일정 탭 데이터 =================
+  // ================= 6. 일정 탭 데이터 =================
   const SCHEDULE_SYMBOL_CONFIG = {
     leave: { label: "연차", icon: "🌴", badge: "연차" },
     half_leave: { label: "반차", icon: "🌓", badge: "반차" },
@@ -845,7 +1033,7 @@ export default function Home() {
 
   const hasAnyScheduleSummary = leaveSummary || birthdaySummary || hairSummary || upcomingAppointments.length > 0;
 
-  // 가계부 설정
+  // ================= 7. 가계부 탭 데이터 =================
   const LEDGER_SYMBOL_CONFIG = {
     taxi: { label: "택시", icon: "🚕", badge: "택시" },
     delivery: { label: "배달", icon: "🛵", badge: "배달" },
@@ -1049,7 +1237,7 @@ export default function Home() {
     }
   };
 
-  // ================= 7. 플레이리스트 & 시계 =================
+  // ================= 8. 플레이리스트 & 시계 =================
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [repeatMode, setRepeatMode] = useState<"none" | "all" | "one">("all");
@@ -1451,11 +1639,263 @@ export default function Home() {
         {/* [2] 중앙 내용 영역 (세로 높이 h-[760px] 고정) */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
-          {/* ==================== 1. [책갈피] 탭 화면 ==================== */}
-          {currentTab === "bookmarks" && (
+          {/* ==================== A. [구매물품] 탭 화면 (신규 구현) ==================== */}
+          {currentTab === "orders" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               
               {/* 등록 바 */}
+              <form onSubmit={handleAddOrder} className="border-2 border-indigo-400/90 rounded-2xl p-3 flex flex-wrap items-center gap-1.5 bg-indigo-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
+                <input
+                  type="text"
+                  list="order-category-suggestions"
+                  value={newOrderCategory}
+                  onChange={(e) => setNewOrderCategory(e.target.value)}
+                  placeholder="분류 (예: 전자기기)"
+                  className="w-24 border border-indigo-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-medium text-indigo-950 focus:outline-none focus:border-indigo-500 placeholder-neutral-400"
+                />
+                <datalist id="order-category-suggestions">
+                  {existingOrderCategories.map((c) => (<option key={c} value={c} />))}
+                </datalist>
+
+                <input
+                  type="text"
+                  value={newOrderPlatform}
+                  onChange={(e) => setNewOrderPlatform(e.target.value)}
+                  placeholder="구매처/플랫폼"
+                  className="w-24 border border-indigo-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  required
+                  value={newOrderName}
+                  onChange={(e) => setNewOrderName(e.target.value)}
+                  placeholder="품목명 *"
+                  className="flex-1 min-w-[140px] border border-indigo-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 placeholder-neutral-500 font-bold"
+                />
+
+                <input
+                  type="date"
+                  value={newOrderDate}
+                  onChange={(e) => setNewOrderDate(e.target.value)}
+                  className="w-28 border border-indigo-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-medium text-neutral-800 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                />
+
+                <input
+                  type="number"
+                  min="0"
+                  value={newOrderPrice}
+                  onChange={(e) => setNewOrderPrice(e.target.value)}
+                  placeholder="가격(원)"
+                  className="w-24 border border-indigo-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-500 placeholder-neutral-500 font-mono"
+                />
+
+                <select
+                  value={newOrderStatus}
+                  onChange={(e) => setNewOrderStatus(e.target.value)}
+                  className="w-24 border border-indigo-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-bold text-indigo-950 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                >
+                  <option value="배송완료">배송완료</option>
+                  <option value="배송중">배송중</option>
+                  <option value="구매예정">구매예정</option>
+                  <option value="취소·반품">취소·반품</option>
+                </select>
+
+                <input
+                  type="text"
+                  value={newOrderMemo}
+                  onChange={(e) => setNewOrderMemo(e.target.value)}
+                  placeholder="메모 / 링크"
+                  className="w-36 border border-indigo-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-500 placeholder-neutral-500 font-medium"
+                />
+
+                <button
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1 ml-auto"
+                >
+                  <Plus className="w-3.5 h-3.5" /> 추가
+                </button>
+              </form>
+
+              {/* 검색 및 필터 */}
+              <div className="border-2 border-indigo-400/90 rounded-2xl p-3 bg-indigo-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    value={orderSearchQuery}
+                    onChange={(e) => setOrderSearchQuery(e.target.value)}
+                    placeholder="품목명, 플랫폼, 카테고리, 메모를 검색해보세요..."
+                    className="w-full border border-indigo-300 bg-white/90 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-indigo-500 placeholder-neutral-500 font-medium"
+                  />
+                  <Search className="w-3.5 h-3.5 text-indigo-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
+                  <span className="text-indigo-950 font-semibold text-[11px] mr-1">분류:</span>
+                  <button
+                    onClick={() => setSelectedOrderCategory("전체")}
+                    className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                      selectedOrderCategory === "전체"
+                        ? "border-indigo-500 bg-indigo-200 text-indigo-950 font-bold shadow-2xs"
+                        : "border-indigo-300/80 bg-white/70 text-neutral-700 hover:bg-white"
+                    }`}
+                  >
+                    전체
+                  </button>
+                  {existingOrderCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedOrderCategory(cat)}
+                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                        selectedOrderCategory === cat
+                          ? "border-indigo-500 bg-indigo-200 text-indigo-950 font-bold shadow-2xs"
+                          : "border-indigo-300/80 bg-white/70 text-neutral-700 hover:bg-white"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                  <span className="ml-auto text-[11px] text-indigo-800/80 font-bold">
+                    총 {filteredOrders.length}건 / 합계: {totalOrderAmount.toLocaleString()}원
+                  </span>
+                </div>
+              </div>
+
+              {/* 헤더 박스 */}
+              <div className="border-2 border-indigo-400/90 rounded-xl px-3 py-2.5 bg-indigo-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="grid grid-cols-12 gap-1 text-[11px] font-extrabold text-indigo-950 items-center text-center">
+                  <span className="col-span-2">분류 / 구매처</span>
+                  <span className="col-span-3">품목명</span>
+                  <span className="col-span-2">구매일자</span>
+                  <span className="col-span-2">구매금액</span>
+                  <span className="col-span-1">상태</span>
+                  <span className="col-span-1">메모</span>
+                  <span className="col-span-1">관리</span>
+                </div>
+              </div>
+
+              {/* 리스트 */}
+              <div className="flex flex-col gap-2">
+                {filteredOrders.map((order) => {
+                  const isEditing = editingOrderId === order.id;
+                  const catIcon = getOrderCategoryIcon(order.category);
+
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={`edit-order-${order.id}`}
+                        className="grid grid-cols-12 gap-1 items-center p-2.5 rounded-2xl border-2 border-indigo-400 bg-indigo-50/90 shadow-md text-center"
+                      >
+                        <div className="col-span-2 flex flex-col gap-1 px-1">
+                          <input type="text" value={editOrderCategory} onChange={(e) => setEditOrderCategory(e.target.value)} placeholder="분류" className="w-full border border-indigo-300 bg-white rounded px-1.5 py-1 text-[11px] font-bold" />
+                          <input type="text" value={editOrderPlatform} onChange={(e) => setEditOrderPlatform(e.target.value)} placeholder="구매처" className="w-full border border-indigo-300 bg-white rounded px-1.5 py-1 text-[10px]" />
+                        </div>
+                        <div className="col-span-3 px-1">
+                          <input type="text" required value={editOrderName} onChange={(e) => setEditOrderName(e.target.value)} placeholder="품목명" className="w-full border border-indigo-300 bg-white rounded px-2 py-1 text-[11px] font-bold" />
+                        </div>
+                        <div className="col-span-2 px-1">
+                          <input type="date" value={editOrderDate} onChange={(e) => setEditOrderDate(e.target.value)} className="w-full border border-indigo-300 bg-white rounded px-1.5 py-1 text-[11px] font-medium cursor-pointer" />
+                        </div>
+                        <div className="col-span-2 px-1 flex items-center gap-0.5">
+                          <input type="number" min="0" value={editOrderPrice} onChange={(e) => setEditOrderPrice(e.target.value)} placeholder="금액" className="w-full border border-indigo-300 bg-white rounded px-1.5 py-1 text-[11px] font-mono" />
+                          <span className="text-[10px] font-bold">원</span>
+                        </div>
+                        <div className="col-span-1 px-0.5">
+                          <select value={editOrderStatus} onChange={(e) => setEditOrderStatus(e.target.value)} className="w-full border border-indigo-300 bg-white rounded px-0.5 py-1 text-[10px] font-bold">
+                            <option value="배송완료">배송완료</option>
+                            <option value="배송중">배송중</option>
+                            <option value="구매예정">구매예정</option>
+                            <option value="취소·반품">취소·반품</option>
+                          </select>
+                        </div>
+                        <div className="col-span-1 px-0.5">
+                          <input type="text" value={editOrderMemo} onChange={(e) => setEditOrderMemo(e.target.value)} placeholder="메모" className="w-full border border-indigo-300 bg-white rounded px-1 py-1 text-[10px]" />
+                        </div>
+                        <div className="col-span-1 flex items-center justify-center gap-1">
+                          <button onClick={() => saveEditOrder(order.id)} title="저장" className="p-1 rounded bg-indigo-600 text-white font-bold text-[10px]"><Check className="w-3 h-3" /></button>
+                          <button onClick={cancelEditOrder} title="취소" className="p-1 rounded border border-neutral-300 bg-white text-neutral-600 text-[10px]"><X className="w-3 h-3" /></button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={order.id}
+                      className="grid grid-cols-12 gap-1 items-center text-[11px] p-2.5 rounded-2xl border-2 border-indigo-400/90 bg-indigo-50/40 hover:bg-indigo-50/70 transition shadow-2xs text-center"
+                    >
+                      {/* 1. 분류 / 구매처 */}
+                      <div className="col-span-2 flex flex-col items-center justify-center">
+                        <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-900 border border-indigo-300 font-bold shadow-2xs flex items-center gap-1">
+                          <span>{catIcon}</span>
+                          <span>{order.category}</span>
+                        </span>
+                        <span className="text-[10px] text-neutral-500 font-medium mt-0.5">{order.platform}</span>
+                      </div>
+
+                      {/* 2. 품목명 */}
+                      <div className="col-span-3 text-neutral-900 font-black truncate px-1 text-center" title={order.name}>
+                        {order.name}
+                      </div>
+
+                      {/* 3. 구매일자 */}
+                      <div className="col-span-2 text-neutral-600 font-mono font-medium truncate px-1">
+                        {order.orderDate}
+                      </div>
+
+                      {/* 4. 구매금액 */}
+                      <div className="col-span-2 text-indigo-950 font-black font-mono truncate px-1">
+                        {Number(order.price).toLocaleString()}원
+                      </div>
+
+                      {/* 5. 상태 */}
+                      <div className="col-span-1 flex justify-center">
+                        <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${
+                          order.status === "배송완료"
+                            ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                            : order.status === "배송중"
+                            ? "bg-blue-100 text-blue-800 border-blue-300 animate-pulse"
+                            : order.status === "구매예정"
+                            ? "bg-amber-100 text-amber-800 border-amber-300"
+                            : "bg-neutral-100 text-neutral-600 border-neutral-300"
+                        }`}>
+                          {order.status}
+                        </span>
+                      </div>
+
+                      {/* 6. 메모 / 링크 */}
+                      <div className="col-span-1 text-neutral-500 truncate px-1 italic text-[10px]" title={order.memo}>
+                        {order.memo ? (
+                          order.memo.startsWith("http") ? (
+                            <a href={order.memo} target="_blank" rel="noreferrer" className="text-indigo-600 underline font-semibold">링크</a>
+                          ) : (
+                            order.memo
+                          )
+                        ) : "-"}
+                      </div>
+
+                      {/* 7. 관리 */}
+                      <div className="col-span-1 flex items-center justify-center gap-1">
+                        <button onClick={() => startEditOrder(order)} title="수정" className="p-1 rounded text-neutral-500 hover:text-indigo-900 hover:bg-white transition"><Pencil className="w-3 h-3" /></button>
+                        <button onClick={() => handleDeleteOrder(order.id)} title="삭제" className="p-1 rounded text-neutral-500 hover:text-rose-600 hover:bg-white transition"><Trash2 className="w-3 h-3" /></button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredOrders.length === 0 && (
+                  <div className="border-2 border-dashed border-indigo-300 rounded-2xl p-12 text-center text-xs font-medium text-indigo-800/70 bg-indigo-50/20">
+                    등록되었거나 조건에 맞는 구매물품 내역이 없습니다.
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+
+          {/* ==================== B. [책갈피] 탭 화면 ==================== */}
+          {currentTab === "bookmarks" && (
+            <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               <form onSubmit={handleAddBookmark} className="border-2 border-amber-400/90 rounded-2xl p-3 flex flex-wrap items-center gap-1.5 bg-amber-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
                 <input
                   type="text"
@@ -1540,7 +1980,6 @@ export default function Home() {
                 </button>
               </form>
 
-              {/* 검색 및 분류 필터 */}
               <div className="border-2 border-amber-400/90 rounded-2xl p-3 bg-amber-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
                 <div className="relative w-full">
                   <input
@@ -1584,7 +2023,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 헤더 박스 */}
               <div className="border-2 border-amber-400/90 rounded-xl px-3 py-2.5 bg-amber-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
                 <div className="grid grid-cols-12 gap-1 text-[11px] font-extrabold text-amber-950 items-center text-center">
                   <span 
@@ -1605,7 +2043,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 리스트 */}
               <div className="flex flex-col gap-2">
                 {filteredBookmarks.map((bmark) => {
                   const isEditing = editingBmarkId === bmark.id;
@@ -1675,7 +2112,6 @@ export default function Home() {
                       key={bmark.id}
                       className={`grid grid-cols-12 gap-1 items-center text-[11px] p-2.5 rounded-2xl border-2 transition shadow-2xs text-center ${cardBgClass}`}
                     >
-                      {/* 1. 분류 / 플랫폼 */}
                       <div className="col-span-2 flex flex-col items-center justify-center">
                         <span className="px-2 py-0.5 rounded-md bg-amber-100/90 text-amber-950 border border-amber-300 font-bold shadow-2xs">
                           {bmark.category}
@@ -1683,32 +2119,26 @@ export default function Home() {
                         <span className="text-[10px] text-neutral-600 font-semibold mt-0.5">{bmark.platform}</span>
                       </div>
 
-                      {/* 2. 제목 */}
                       <div className="col-span-3 text-neutral-900 font-black truncate px-1" title={bmark.title}>
                         {bmark.title}
                       </div>
 
-                      {/* 3. 정기업데이트 */}
                       <div className="col-span-2 text-neutral-800 truncate px-1 font-semibold">
                         {bmark.regularUpdate}
                       </div>
 
-                      {/* 4. 공개일 */}
                       <div className="col-span-1 text-neutral-600 truncate font-mono font-medium">
                         {bmark.releaseDate}
                       </div>
 
-                      {/* 5. 주간편성 */}
                       <div className="col-span-1 text-neutral-700 truncate font-bold">
                         {bmark.weeklySchedule}
                       </div>
 
-                      {/* 6. 최종회차 */}
                       <div className="col-span-1 text-neutral-900 font-black truncate font-mono">
                         {bmark.finalEpisode || calculateAutoFinalEpisode(bmark.releaseDate)}
                       </div>
 
-                      {/* 7. 책갈피 (+ / - 회차 조절) */}
                       <div className="col-span-1 flex items-center justify-center gap-0.5 font-mono font-bold">
                         <button
                           onClick={(e) => handleUpdateBookmarkCount(bmark.id, -1, e)}
@@ -1729,7 +2159,6 @@ export default function Home() {
                         </button>
                       </div>
 
-                      {/* 8. 완결 버튼 및 관리 */}
                       <div className="col-span-1 flex items-center justify-center gap-1">
                         <button
                           onClick={(e) => handleToggleCompleted(bmark.id, e)}
@@ -1759,7 +2188,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== 2. [노래책] 탭 화면 (완전 정상 복구) ==================== */}
+          {/* ==================== C. [노래책] 탭 화면 ==================== */}
           {currentTab === "songs" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               <form onSubmit={handleAddSong} className="border-2 border-emerald-400/90 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
@@ -1899,36 +2328,36 @@ export default function Home() {
                       >
                         <input
                           type="text"
-                          value={editSongGenre}
-                          onChange={(e) => setEditSongGenre(e.target.value)}
+                          value={editGenre}
+                          onChange={(e) => setEditGenre(e.target.value)}
                           placeholder="장르"
                           className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-600"
                         />
                         <input
                           type="text"
-                          value={editSongArtist}
-                          onChange={(e) => setEditSongArtist(e.target.value)}
+                          value={editArtist}
+                          onChange={(e) => setEditArtist(e.target.value)}
                           placeholder="가수"
                           className="w-32 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
                         />
                         <input
                           type="text"
                           required
-                          value={editSongTitle}
-                          onChange={(e) => setEditSongTitle(e.target.value)}
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
                           placeholder="곡 제목"
                           className="w-44 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-bold"
                         />
                         <input
                           type="text"
-                          value={editSongUrl}
-                          onChange={(e) => setEditSongUrl(e.target.value)}
+                          value={editUrl}
+                          onChange={(e) => setEditUrl(e.target.value)}
                           placeholder="유튜브 링크"
                           className="flex-1 min-w-[140px] border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
                         />
                         <select
-                          value={editSongTypeState}
-                          onChange={(e) => setEditSongTypeState(e.target.value as "none" | "Original" | "Cover")}
+                          value={editSongType}
+                          onChange={(e) => setEditSongType(e.target.value as "none" | "Original" | "Cover")}
                           className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none cursor-pointer"
                         >
                           <option value="none">선택 안함</option>
@@ -1961,7 +2390,7 @@ export default function Home() {
                       className={`grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border-2 transition shadow-sm ${
                         isPlayingThis
                           ? "bg-emerald-100/90 border-emerald-500 ring-2 ring-emerald-300"
-                          : "bg-emerald-50/40 border-emerald-400 hover:border-emerald-500 hover:bg-emerald-50/70"
+                          : "bg-emerald-50/40 border-emerald-400/90 hover:border-emerald-500 hover:bg-emerald-50/70"
                       }`}
                     >
                       <div className="col-span-2 flex justify-center">
@@ -2037,7 +2466,7 @@ export default function Home() {
                 })}
 
                 {filteredSongs.length === 0 && (
-                  <div className="border border-dashed border-emerald-300 rounded-2xl p-12 text-center text-xs font-medium text-emerald-800/70 bg-emerald-50/20">
+                  <div className="border-2 border-dashed border-emerald-300 rounded-2xl p-12 text-center text-xs font-medium text-emerald-800/70 bg-emerald-50/20">
                     등록되었거나 조건에 맞는 노래가 없습니다.
                   </div>
                 )}
@@ -2080,7 +2509,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== 3. [즐겨찾기] 탭 화면 ==================== */}
+          {/* ==================== D. [즐겨찾기] 탭 화면 ==================== */}
           {currentTab === "favorites" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               <form onSubmit={handleAddFav} className="border-2 border-purple-400/80 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-purple-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
@@ -2278,587 +2707,8 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== 4. [일정] 탭 화면 ==================== */}
-          {currentTab === "schedule" && (
-            <div className="h-full flex flex-col gap-3">
-              <div className="border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
-                <div className="flex-1 flex items-center justify-between pr-6 border-r border-pink-200">
-                  <button onClick={prevMonth} className="px-4 py-1.5 rounded-xl border border-pink-400 text-pink-700 hover:bg-pink-50 font-bold text-xs transition">&lt; 이전달</button>
-                  <h2 className="text-lg font-black text-pink-950 tracking-tight flex items-center gap-2">
-                    <span>🗓️</span>
-                    <span>{calYear}년 {calMonth}월 일정표</span>
-                  </h2>
-                  <button onClick={nextMonth} className="px-4 py-1.5 rounded-xl border border-pink-400 text-pink-700 hover:bg-pink-50 font-bold text-xs transition">다음달 &gt;</button>
-                </div>
-                <div className="w-[280px] pl-6 flex items-center gap-1.5 text-sm font-extrabold text-pink-900">
-                  <span>📌</span>
-                  <span>일정 요약</span>
-                </div>
-              </div>
-
-              <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 items-stretch">
-                <div className="flex-1 h-full border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between overflow-hidden">
-                  <div className="grid grid-cols-7 text-center font-bold text-xs pb-2 border-b border-pink-100 text-neutral-700 shrink-0">
-                    <span className="text-rose-600 font-extrabold">일</span>
-                    <span>월</span>
-                    <span>화</span>
-                    <span>수</span>
-                    <span>목</span>
-                    <span>금</span>
-                    <span className="text-blue-600 font-extrabold">토</span>
-                  </div>
-
-                  <div className="flex-1 grid grid-cols-7 grid-rows-5 gap-2 pt-2 min-h-0">
-                    {calendarGrid.map((cell, idx) => {
-                      if (!cell.day) return <div key={`empty-sch-${idx}`} className="h-full rounded-xl" />;
-                      const isSunday = idx % 7 === 0;
-                      const isSaturday = idx % 7 === 6;
-                      const isToday = cell.dateStr === TODAY_STR;
-                      const holidayName = holidays[cell.dateStr];
-                      const daySchedules = (scheduleList || []).filter((s) => s.date === cell.dateStr);
-
-                      return (
-                        <div
-                          key={cell.dateStr}
-                          onClick={() => setModalDate(cell.dateStr)}
-                          className={`h-full border rounded-xl p-1.5 flex flex-col justify-between transition group relative cursor-pointer min-h-0 ${
-                            isToday ? "border-amber-400 bg-amber-50/70" : "border-pink-200/90 bg-white hover:border-pink-400 hover:bg-pink-50/20"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between text-[11px] font-bold leading-tight">
-                            <span className={isSunday || holidayName ? "text-rose-600" : isSaturday ? "text-blue-600" : "text-neutral-800"}>
-                              {cell.day}
-                            </span>
-                            {holidayName && (
-                              <span className="text-[9px] font-bold text-rose-500 truncate max-w-[55px]">{holidayName}</span>
-                            )}
-                          </div>
-
-                          <div className="flex-1 overflow-y-auto space-y-1 my-0.5 pr-0.5 scrollbar-none">
-                            {daySchedules.map((item) => {
-                              const symbolInfo = SCHEDULE_SYMBOL_CONFIG[item.symbol] || SCHEDULE_SYMBOL_CONFIG.appointment;
-                              const colorInfo = SCHEDULE_COLOR_CONFIG[item.color] || SCHEDULE_COLOR_CONFIG.pink;
-                              return (
-                                <div
-                                  key={item.id}
-                                  className={`flex items-center justify-between px-1.5 py-0.5 rounded border text-[10px] font-semibold leading-none shadow-2xs ${colorInfo.class}`}
-                                >
-                                  <span className="truncate flex items-center gap-1">
-                                    <span className="text-[9px]">{symbolInfo.icon}</span>
-                                    <span>{item.title}</span>
-                                  </span>
-                                  <button onClick={(e) => handleDeleteSchedule(item.id, e)} title="삭제" className="text-neutral-400 hover:text-rose-500 ml-1 shrink-0">
-                                    <X className="w-2.5 h-2.5" />
-                                  </button>
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          <div className="text-[9px] text-neutral-400 text-right opacity-0 group-hover:opacity-100 transition leading-none">+추가</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="w-full lg:w-[280px] h-full shrink-0 border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-start gap-3.5 overflow-y-auto">
-                  {leaveSummary && (
-                    <div className="border border-blue-200 bg-blue-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
-                      <div className="flex items-center justify-between text-xs font-bold text-blue-900">
-                        <span>남은 연차 (총 16개 기준)</span>
-                        <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full font-bold">1월 1일 리셋</span>
-                      </div>
-                      <div className="text-3xl font-black text-blue-600 tracking-tight my-2">{leaveSummary.remaining} 개</div>
-                      <div className="text-[11px] text-neutral-500 font-medium">사용: {leaveSummary.used}개 (등록 {leaveSummary.count}건)</div>
-                    </div>
-                  )}
-
-                  {birthdaySummary && (
-                    <div className="border border-rose-200 bg-rose-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900">
-                        <span>🎂</span>
-                        <span>{birthdaySummary.title}</span>
-                      </div>
-                      <div className="text-3xl font-black text-rose-600 tracking-tight my-2">{birthdaySummary.dDayText}</div>
-                      <div className="text-[11px] text-neutral-500 font-medium">({birthdaySummary.date} 기준)</div>
-                    </div>
-                  )}
-
-                  {hairSummary && (
-                    <div className="border border-purple-200 bg-purple-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900">
-                        <span>✂️</span>
-                        <span>{hairSummary.title}</span>
-                      </div>
-                      <div className="text-3xl font-black text-purple-600 tracking-tight my-2">{hairSummary.displayText}</div>
-                      <div className="text-[11px] text-neutral-500 font-medium">{hairSummary.subText}</div>
-                    </div>
-                  )}
-
-                  {upcomingAppointments.map((app) => (
-                    <div key={`app-${app.id}`} className="border border-amber-200 bg-amber-50/80 rounded-2xl p-3.5 shadow-xs flex flex-col justify-between shrink-0">
-                      <div className="flex items-center justify-between text-xs font-bold text-amber-900">
-                        <span className="flex items-center gap-1">📌 약속: {app.title}</span>
-                        <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-md font-bold">D-Day</span>
-                      </div>
-                      <div className="text-[11px] text-neutral-500 font-medium mt-1">날짜: {app.date}</div>
-                    </div>
-                  ))}
-
-                  {!hasAnyScheduleSummary && (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-6 text-neutral-400">
-                      <CalendarDays className="w-8 h-8 mb-2 text-pink-300" />
-                      <span className="text-xs font-bold text-neutral-500 mb-1">일정 요약 없음</span>
-                      <p className="text-[11px] text-neutral-400 leading-relaxed">
-                        달력에 <span className="font-semibold text-pink-600">연차, 반차, 헤어, 생일</span> 일정을 등록하면 이곳에 자동으로 요약 카드가 생성됩니다.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 일정 팝업 모달 */}
-              {modalDate && (
-                <div 
-                  className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
-                  onClick={() => { setModalDate(null); setPopupEditingId(null); }}
-                >
-                  <div className="bg-white rounded-3xl p-6 border border-pink-300 shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-between pb-3 border-b border-neutral-200 shrink-0">
-                      <h3 className="text-base font-black text-neutral-900 flex items-center gap-2">
-                        <CalendarIcon className="w-5 h-5 text-pink-500" />
-                        <span>{modalDate} 일정 관리</span>
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-neutral-400 font-medium bg-neutral-100 px-2 py-0.5 rounded-md">ESC로 닫기</span>
-                        <button onClick={() => { setModalDate(null); setPopupEditingId(null); }} className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg">
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="my-3 overflow-y-auto space-y-2 max-h-[220px] pr-1">
-                      <div className="text-[11px] font-bold text-neutral-500 mb-1">
-                        등록된 일정 ({(scheduleList || []).filter((s) => s.date === modalDate).length}건)
-                      </div>
-
-                      {(scheduleList || []).filter((s) => s.date === modalDate).map((item) => {
-                        const isEditingThis = popupEditingId === item.id;
-                        const symbolObj = SCHEDULE_SYMBOL_CONFIG[item.symbol] || SCHEDULE_SYMBOL_CONFIG.appointment;
-                        const colorObj = SCHEDULE_COLOR_CONFIG[item.color] || SCHEDULE_COLOR_CONFIG.pink;
-
-                        if (isEditingThis) {
-                          return (
-                            <div key={`pop-edit-${item.id}`} className="p-3 rounded-2xl border-2 border-pink-400 bg-pink-50/50 space-y-2">
-                              <input type="text" value={editPopupTitle} onChange={(e) => setEditPopupTitle(e.target.value)} className="w-full border border-pink-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-neutral-900 bg-white focus:outline-none focus:border-pink-500" />
-                              <div className="flex gap-1 flex-wrap">
-                                {Object.entries(SCHEDULE_SYMBOL_CONFIG).map(([key, val]) => (
-                                  <button key={key} type="button" onClick={() => setEditPopupSymbol(key)} className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition ${editPopupSymbol === key ? "border-pink-500 bg-pink-50 text-pink-900 font-black" : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"}`}>
-                                    {val.icon} {val.label}
-                                  </button>
-                                ))}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-neutral-600">색상:</span>
-                                {Object.entries(SCHEDULE_COLOR_CONFIG).map(([key, val]) => (
-                                  <button key={key} type="button" onClick={() => setEditPopupColor(key)} className={`w-5 h-5 rounded-full ${val.chip} border-2 transition ${editPopupColor === key ? "border-pink-600 scale-110" : "border-white"}`} />
-                                ))}
-                              </div>
-                              <div className="flex justify-end gap-1.5 pt-1">
-                                <button onClick={() => savePopupEdit(item.id)} className="px-3 py-1 bg-pink-500 text-white text-xs font-bold rounded-lg hover:bg-pink-600">저장</button>
-                                <button onClick={() => setPopupEditingId(null)} className="px-3 py-1 bg-white border border-neutral-300 text-neutral-600 text-xs rounded-lg hover:bg-neutral-50">취소</button>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div key={item.id} className={`flex items-center justify-between p-2 rounded-xl border text-xs font-semibold ${colorObj.class}`}>
-                            <div className="flex items-center gap-1.5 min-w-0 pr-2">
-                              <span className="text-sm">{symbolObj.icon}</span>
-                              <span className="truncate">{item.title}</span>
-                              <span className="text-[10px] opacity-75 font-normal">({symbolObj.label})</span>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button onClick={() => startPopupEdit(item)} title="수정" className="p-1 rounded-md hover:bg-black/10 text-neutral-600"><Pencil className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => handleDeleteSchedule(item.id)} title="삭제" className="p-1 rounded-md hover:bg-rose-100 text-neutral-600 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {(scheduleList || []).filter((s) => s.date === modalDate).length === 0 && (
-                        <div className="text-center py-4 text-neutral-400 text-xs">등록된 일정이 없습니다.</div>
-                      )}
-                    </div>
-
-                    <form onSubmit={handleAddPopupSchedule} className="pt-3 border-t border-neutral-200 shrink-0 space-y-3">
-                      <div className="text-xs font-bold text-neutral-800">새 일정 추가</div>
-                      <div>
-                        <input type="text" required value={newSchedTitle} onChange={(e) => setNewSchedTitle(e.target.value)} placeholder="일정 제목을 입력하세요 (예: 치과, 생일파티 등)" className="w-full border border-pink-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-pink-500 font-medium" />
-                      </div>
-                      <div>
-                        <div className="text-[11px] font-bold text-neutral-600 mb-1">심볼 선택</div>
-                        <div className="grid grid-cols-5 gap-1">
-                          {Object.entries(SCHEDULE_SYMBOL_CONFIG).map(([key, val]) => (
-                            <button key={key} type="button" onClick={() => setNewSchedSymbol(key)} className={`py-1.5 rounded-xl text-[11px] font-bold border flex flex-col items-center gap-0.5 transition ${newSchedSymbol === key ? "border-pink-500 bg-pink-50 text-pink-900 font-black shadow-2xs" : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"}`}>
-                              <span className="text-sm">{val.icon}</span>
-                              <span>{val.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-[11px] font-bold text-neutral-600 mb-1">파스텔 태그 색상</div>
-                        <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
-                          {Object.entries(SCHEDULE_COLOR_CONFIG).map(([key, val]) => (
-                            <label key={key} className="flex items-center gap-1.5 cursor-pointer">
-                              <input type="radio" name="tagColor" value={key} checked={newSchedColor === key} onChange={() => setNewSchedColor(key)} className="hidden" />
-                              <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${newSchedColor === key ? "border-pink-600 scale-110 shadow-xs" : "border-transparent opacity-70"}`}>
-                                {newSchedColor === key && <Check className="w-3 h-3 text-pink-950 stroke-[3]" />}
-                              </span>
-                              <span className="text-[11px] font-semibold text-neutral-700">{val.label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 pt-1">
-                        <button type="button" onClick={() => { setModalDate(null); setPopupEditingId(null); }} className="flex-1 py-2 rounded-xl border border-neutral-300 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 transition">닫기 (ESC)</button>
-                        <button type="submit" className="flex-1 py-2 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold shadow-sm transition">일정 추가</button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ==================== 5. [가계부] 탭 화면 ==================== */}
-          {currentTab === "ledger" && (
-            <div className="h-full flex flex-col gap-3">
-              <div className="border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
-                <div className="flex-1 flex items-center justify-between pr-6 border-r border-sky-200">
-                  <button onClick={prevLedgerMonth} className="px-4 py-1.5 rounded-xl border border-sky-400 text-sky-700 hover:bg-sky-50 font-bold text-xs transition">&lt; 이전달</button>
-                  <h2 className="text-lg font-black text-sky-950 tracking-tight flex items-center gap-2">
-                    <Wallet className="w-5 h-5 text-sky-600" />
-                    <span>{ledgerYear}년 {ledgerMonth}월 가계부</span>
-                  </h2>
-                  <button onClick={nextLedgerMonth} className="px-4 py-1.5 rounded-xl border border-sky-400 text-sky-700 hover:bg-sky-50 font-bold text-xs transition">다음달 &gt;</button>
-                </div>
-                <div className="w-[280px] pl-6 flex items-center gap-1.5 text-sm font-extrabold text-sky-900">
-                  <PiggyBank className="w-4 h-4 text-sky-600" />
-                  <span>재정 요약</span>
-                </div>
-              </div>
-
-              <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 items-stretch">
-                <div className="flex-1 h-full border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between overflow-hidden">
-                  <div className="grid grid-cols-7 text-center font-bold text-xs pb-2 border-b border-sky-100 text-neutral-700 shrink-0">
-                    <span className="text-rose-600 font-extrabold">일</span>
-                    <span>월</span>
-                    <span>화</span>
-                    <span>수</span>
-                    <span>목</span>
-                    <span>금</span>
-                    <span className="text-blue-600 font-extrabold">토</span>
-                  </div>
-
-                  <div className="flex-1 grid grid-cols-7 grid-rows-5 gap-2 pt-2 min-h-0">
-                    {ledgerCalendarGrid.map((cell, idx) => {
-                      if (!cell.day) return <div key={`empty-led-${idx}`} className="h-full rounded-xl" />;
-                      const isSunday = idx % 7 === 0;
-                      const isSaturday = idx % 7 === 6;
-                      const isToday = cell.dateStr === TODAY_STR;
-                      const holidayName = holidays[cell.dateStr];
-                      const dayEntries = (ledgerEntries || []).filter((s) => s.date === cell.dateStr);
-
-                      let dayIncome = 0;
-                      let dayExpense = 0;
-                      dayEntries.forEach(e => {
-                        if (e.type === "income") dayIncome += Number(e.amount || 0);
-                        else dayExpense += Number(e.amount || 0);
-                      });
-
-                      return (
-                        <div
-                          key={cell.dateStr}
-                          onClick={() => { setLedgerEditingId(null); setLedgerModalDate(cell.dateStr); }}
-                          className={`h-full border rounded-xl p-1.5 flex flex-col justify-between transition group relative cursor-pointer min-h-0 ${
-                            isToday ? "border-amber-400 bg-amber-50/70" : "border-sky-200/90 bg-white hover:border-sky-400 hover:bg-sky-50/20"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between text-[11px] font-bold leading-tight">
-                            <span className={isSunday || holidayName ? "text-rose-600" : isSaturday ? "text-blue-600" : "text-neutral-800"}>{cell.day}</span>
-                            {holidayName ? (
-                              <span className="text-[9px] font-bold text-rose-500 truncate max-w-[55px]">{holidayName}</span>
-                            ) : (dayIncome > 0 || dayExpense > 0) ? (
-                              <span className="text-[9px] font-mono font-bold text-sky-800">
-                                {dayExpense > 0 && <span className="text-rose-500 mr-1">-{dayExpense.toLocaleString()}</span>}
-                                {dayIncome > 0 && <span className="text-blue-600">+{dayIncome.toLocaleString()}</span>}
-                              </span>
-                            ) : null}
-                          </div>
-
-                          <div className="flex-1 overflow-y-auto space-y-1 my-0.5 pr-0.5 scrollbar-none">
-                            {dayEntries.map((item) => {
-                              const isIncome = item.type === "income";
-                              const colorObj = LEDGER_COLOR_CONFIG[item.color] || LEDGER_COLOR_CONFIG.pink;
-                              const symbolObj = LEDGER_SYMBOL_CONFIG[item.symbol] || LEDGER_SYMBOL_CONFIG.fixed;
-
-                              return (
-                                <div key={item.id} className={`flex items-start justify-between p-1 rounded border text-[10px] font-semibold leading-tight shadow-2xs ${colorObj.class}`}>
-                                  <div className="flex items-start gap-1 min-w-0 break-all flex-1 pr-1">
-                                    <span className="text-[10px] shrink-0">{symbolObj.icon}</span>
-                                    <div className="flex flex-wrap items-baseline gap-x-1">
-                                      <span className="font-bold">{item.title}</span>
-                                      <span className="font-mono text-[9px] font-bold opacity-85 whitespace-nowrap">{isIncome ? "+" : "-"}{Number(item.amount).toLocaleString()}원</span>
-                                    </div>
-                                  </div>
-                                  <button onClick={(e) => handleDeleteLedgerEntry(item.id, e)} title="삭제" className="text-neutral-400 hover:text-rose-500 p-0.5 shrink-0"><X className="w-2.5 h-2.5" /></button>
-                                </div>
-                              );
-                            })}
-                          </div>
-
-                          <div className="text-[9px] text-neutral-400 text-right opacity-0 group-hover:opacity-100 transition leading-none">+추가</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="w-full lg:w-[280px] h-full shrink-0 border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-start gap-3 overflow-y-auto">
-                  <div className="border border-blue-200 bg-blue-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
-                    <div className="flex items-center justify-between text-xs font-bold text-blue-900">
-                      <span className="flex items-center gap-1"><ArrowDownLeft className="w-3.5 h-3.5 text-blue-600" /> 총 수입</span>
-                      <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full font-bold">수입</span>
-                    </div>
-                    <div className="text-xl font-black text-blue-600 tracking-tight my-1.5">+{currentMonthLedgerSummary.income.toLocaleString()}원</div>
-                  </div>
-
-                  <div className="border border-rose-200 bg-rose-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
-                    <div className="flex items-center justify-between text-xs font-bold text-rose-900">
-                      <span className="flex items-center gap-1"><ArrowUpRight className="w-3.5 h-3.5 text-rose-600" /> 총 지출</span>
-                      <span className="text-[10px] text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded-full font-bold">지출</span>
-                    </div>
-                    <div className="text-xl font-black text-rose-600 tracking-tight my-1.5">-{currentMonthLedgerSummary.expense.toLocaleString()}원</div>
-                  </div>
-
-                  <div className="border border-sky-200 bg-sky-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
-                    <div className="flex items-center justify-between text-xs font-bold text-sky-900">
-                      <span className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5 text-sky-600" /> 정산 잔액</span>
-                      <span className="text-[10px] text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded-full font-bold">잔액</span>
-                    </div>
-                    <div className={`text-xl font-black tracking-tight my-1.5 ${currentMonthLedgerSummary.balance >= 0 ? "text-sky-700" : "text-rose-600"}`}>
-                      {currentMonthLedgerSummary.balance >= 0 ? "+" : ""}{currentMonthLedgerSummary.balance.toLocaleString()}원
-                    </div>
-                  </div>
-
-                  <div className="border-t border-sky-200/80 my-0.5 shrink-0" />
-
-                  <div className="border border-amber-200 bg-amber-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
-                    <div className="flex items-center justify-between text-xs font-bold text-amber-900">
-                      <span className="flex items-center gap-1">🚕 택시 지출 합산</span>
-                      <span className="text-[10px] text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-md font-bold">택시</span>
-                    </div>
-                    <div className="text-xl font-black text-amber-900 tracking-tight my-1.5">{currentMonthLedgerSummary.taxiTotal.toLocaleString()}원</div>
-                  </div>
-
-                  <div className="border border-pink-200 bg-pink-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
-                    <div className="flex items-center justify-between text-xs font-bold text-pink-900">
-                      <span className="flex items-center gap-1">🛵 배달 지출 합산</span>
-                      <span className="text-[10px] text-pink-800 bg-pink-100 px-1.5 py-0.5 rounded-md font-bold">배달</span>
-                    </div>
-                    <div className="text-xl font-black text-pink-900 tracking-tight my-1.5">{currentMonthLedgerSummary.deliveryTotal.toLocaleString()}원</div>
-                  </div>
-
-                  <div className="border border-purple-200 bg-purple-50/80 rounded-2xl p-3 shadow-xs flex flex-col gap-2 shrink-0">
-                    <div className="flex items-center justify-between text-xs font-bold text-purple-900">
-                      <span className="flex items-center gap-1">📌 고정 지출 목록</span>
-                      <button onClick={() => openFixedExpenseModal()} className="p-1 rounded bg-purple-100 hover:bg-purple-200 text-purple-800 text-[10px] font-bold flex items-center gap-0.5 transition" title="새 고정 지출 추가">
-                        <Plus className="w-3 h-3" /> 추가
-                      </button>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      {currentMonthLedgerSummary.fixedItems.map((item) => (
-                        <div
-                          key={`fixed-tpl-${item.tplTitle}`}
-                          onClick={() => openFixedExpenseModal(item)}
-                          className="flex items-center justify-between bg-white/90 p-2 rounded-xl border border-purple-200 text-xs hover:border-purple-400 cursor-pointer transition group"
-                        >
-                          <div className="min-w-0 pr-1">
-                            <div className="font-bold text-neutral-800 truncate leading-tight flex items-center gap-1">
-                              <span>📌</span>
-                              <span>{item.tplTitle}</span>
-                            </div>
-                            <div className="text-[10px] font-mono font-bold mt-0.5">
-                              {item.entry ? (
-                                <span className="text-purple-700 font-black">-{Number(item.entry.amount).toLocaleString()}원</span>
-                              ) : (
-                                <span className="text-rose-500 italic font-semibold">금액 미입력 (클릭하여 입력)</span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button onClick={(e) => { e.stopPropagation(); openFixedExpenseModal(item); }} className="p-1 rounded-md text-neutral-400 hover:text-purple-700 hover:bg-purple-100 transition" title="수정하기">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={(e) => handleDeleteFixedTemplate(item.tplTitle, e)} className="p-1 rounded-md text-neutral-400 hover:text-rose-600 hover:bg-rose-50 transition" title="고정 목록에서 완전 삭제">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-
-                      {currentMonthLedgerSummary.fixedItems.length === 0 && (
-                        <div className="text-center py-2 text-[10px] text-neutral-400">등록된 고정 지출이 없습니다.</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {ledgerModalDate && (
-                <div 
-                  className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
-                  onClick={() => { setLedgerModalDate(null); setLedgerEditingId(null); }}
-                >
-                  <div className="bg-white rounded-3xl p-6 border border-sky-300 shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-between pb-3 border-b border-neutral-200 shrink-0">
-                      <div className="flex items-center gap-2">
-                        <Wallet className="w-5 h-5 text-sky-500" />
-                        <h3 className="text-base font-black text-neutral-900">가계부 관리</h3>
-                        <input type="date" value={ledgerModalDate} onChange={(e) => setLedgerModalDate(e.target.value)} className="border border-sky-200 bg-sky-50/50 rounded-lg px-2 py-0.5 text-xs font-bold text-sky-900 focus:outline-none focus:border-sky-500 cursor-pointer" />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-neutral-400 font-medium bg-neutral-100 px-2 py-0.5 rounded-md">ESC로 닫기</span>
-                        <button onClick={() => { setLedgerModalDate(null); setLedgerEditingId(null); }} className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg">
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="my-3 overflow-y-auto space-y-2 max-h-[220px] pr-1">
-                      <div className="text-[11px] font-bold text-neutral-500 mb-1">
-                        선택 날짜({ledgerModalDate}) 등록 내역 ({(ledgerEntries || []).filter((s) => s.date === ledgerModalDate).length}건)
-                      </div>
-
-                      {(ledgerEntries || []).filter((s) => s.date === ledgerModalDate).map((item) => {
-                        const isEditingThis = ledgerEditingId === item.id;
-                        const isIncome = item.type === "income";
-                        const colorObj = LEDGER_COLOR_CONFIG[item.color] || LEDGER_COLOR_CONFIG.pink;
-                        const symbolObj = LEDGER_SYMBOL_CONFIG[item.symbol] || LEDGER_SYMBOL_CONFIG.fixed;
-
-                        if (isEditingThis) {
-                          return (
-                            <div key={`pop-ledger-edit-${item.id}`} className="p-3 rounded-2xl border-2 border-sky-400 bg-sky-50/50 space-y-2">
-                              <div className="flex gap-2">
-                                <select value={editLedgerType} onChange={(e) => setEditLedgerType(e.target.value as "expense" | "income")} className="border border-sky-300 rounded-lg px-2 py-1 text-xs font-bold bg-white">
-                                  <option value="expense">지출 (-)</option>
-                                  <option value="income">수입 (+)</option>
-                                </select>
-                                <input type="text" value={editLedgerTitle} onChange={(e) => setEditLedgerTitle(e.target.value)} placeholder="항목 내용" className="flex-1 border border-sky-300 rounded-lg px-2.5 py-1 text-xs font-bold text-neutral-900 bg-white" />
-                                <select value={editLedgerSymbol} onChange={(e) => setEditLedgerSymbol(e.target.value)} className="border border-sky-300 rounded-lg px-2 py-1 text-xs font-bold bg-white cursor-pointer">
-                                  {Object.entries(LEDGER_SYMBOL_CONFIG).map(([key, val]) => (
-                                    <option key={key} value={key}>{val.icon} {val.label}</option>
-                                  ))}
-                                </select>
-                              </div>
-
-                              <input type="number" value={editLedgerAmount} onChange={(e) => setEditLedgerAmount(e.target.value)} placeholder="금액 (원)" className="w-full border border-sky-300 rounded-lg px-2.5 py-1 text-xs font-bold text-neutral-900 bg-white" />
-
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-neutral-600">색상:</span>
-                                {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
-                                  <button key={key} type="button" onClick={() => setEditLedgerColor(key)} className={`w-5 h-5 rounded-full ${val.chip} border-2 transition ${editLedgerColor === key ? "border-sky-800 scale-110" : "border-white"}`} />
-                                ))}
-                              </div>
-
-                              <div className="flex justify-end gap-1.5 pt-1">
-                                <button onClick={() => saveLedgerEdit(item.id)} className="px-3 py-1 bg-sky-500 text-white text-xs font-bold rounded-lg hover:bg-sky-600">저장</button>
-                                <button onClick={() => setLedgerEditingId(null)} className="px-3 py-1 bg-white border border-neutral-300 text-neutral-600 text-xs rounded-lg hover:bg-neutral-50">취소</button>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div key={item.id} className={`flex items-center justify-between p-2 rounded-xl border text-xs font-semibold ${colorObj.class}`}>
-                            <div className="flex items-center gap-2 min-w-0 pr-2">
-                              <span className="text-base">{symbolObj.icon}</span>
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${isIncome ? "bg-blue-200 text-blue-900" : "bg-rose-200 text-rose-900"}`}>
-                                {isIncome ? "수입" : "지출"}
-                              </span>
-                              <span className="font-bold truncate">{item.title}</span>
-                              <span className="font-mono font-bold whitespace-nowrap">{isIncome ? "+" : "-"}{Number(item.amount).toLocaleString()}원</span>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button onClick={() => startLedgerEdit(item)} title="수정" className="p-1 rounded-md hover:bg-black/10 text-neutral-600"><Pencil className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => handleDeleteLedgerEntry(item.id)} title="삭제" className="p-1 rounded-md hover:bg-rose-100 text-neutral-600 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {(ledgerEntries || []).filter((s) => s.date === ledgerModalDate).length === 0 && (
-                        <div className="text-center py-4 text-neutral-400 text-xs">해당 일자에 등록된 내역이 없습니다.</div>
-                      )}
-                    </div>
-
-                    <form onSubmit={handleAddLedgerEntry} className="pt-3 border-t border-neutral-200 shrink-0 space-y-3">
-                      <div className="text-xs font-bold text-neutral-800">새 내역 추가</div>
-                      <div className="flex gap-2">
-                        <select value={newLedgerType} onChange={(e) => setNewLedgerType(e.target.value as "expense" | "income")} className="border border-sky-300 rounded-xl px-2.5 py-2 text-xs font-bold bg-white focus:outline-none focus:border-sky-500 cursor-pointer">
-                          <option value="expense">지출 (-)</option>
-                          <option value="income">수입 (+)</option>
-                        </select>
-                        <input type="text" required value={newLedgerTitle} onChange={(e) => setNewLedgerTitle(e.target.value)} placeholder="항목 내용" className="flex-1 border border-sky-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500 font-medium" />
-                        <select value={newLedgerSymbol} onChange={(e) => setNewLedgerSymbol(e.target.value)} className="border border-sky-300 rounded-xl px-2 py-2 text-xs font-bold bg-white focus:outline-none focus:border-sky-500 cursor-pointer">
-                          {Object.entries(LEDGER_SYMBOL_CONFIG).map(([key, val]) => (
-                            <option key={key} value={key}>{val.icon} {val.label}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <input type="number" required min="0" value={newLedgerAmount} onChange={(e) => setNewLedgerAmount(e.target.value)} placeholder="금액을 입력하세요 (예: 15000)" className="w-full border border-sky-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500 font-medium" />
-                      </div>
-
-                      <div>
-                        <div className="text-[11px] font-bold text-neutral-600 mb-1">파스텔 태그 색상</div>
-                        <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
-                          {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
-                            <label key={key} className="flex items-center gap-1.5 cursor-pointer">
-                              <input type="radio" name="tagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
-                              <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${newLedgerColor === key ? "border-sky-800 scale-110 shadow-xs" : "border-transparent opacity-70"}`}>
-                                {newLedgerColor === key && <Check className="w-3 h-3 text-sky-950 stroke-[3]" />}
-                              </span>
-                              <span className="text-[11px] font-semibold text-neutral-700">{val.label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 pt-1">
-                        <button type="button" onClick={() => { setLedgerModalDate(null); setLedgerEditingId(null); }} className="flex-1 py-2 rounded-xl border border-neutral-300 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 transition">
-                          닫기 (ESC)
-                        </button>
-                        <button type="submit" className="flex-1 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-sm transition">
-                          내역 추가
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ==================== 6. 그 외 미구현 탭 ==================== */}
-          {currentTab !== "songs" && currentTab !== "schedule" && currentTab !== "ledger" && currentTab !== "favorites" && currentTab !== "bookmarks" && (
+          {/* ==================== E. 그 외 미구현 탭 ==================== */}
+          {currentTab !== "songs" && currentTab !== "schedule" && currentTab !== "ledger" && currentTab !== "favorites" && currentTab !== "bookmarks" && currentTab !== "orders" && (
             <div className="h-full border border-dashed border-emerald-300 rounded-2xl p-20 flex flex-col items-center justify-center text-center bg-emerald-50/20 backdrop-blur-[2px]">
               <span className="text-3xl mb-2 block">🚧</span>
               <h3 className="text-sm font-bold text-emerald-900 mb-1">{menuItems.find((m) => m.id === currentTab)?.label} 준비 중</h3>
@@ -2905,7 +2755,7 @@ export default function Home() {
                   <span>{isTimerRunning ? "정지" : "시작"}</span>
                 </button>
                 <button onClick={resetTimer} title="타이머 초기화" className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60 ${themeClasses.textSecondary} transition`}>
-                  <RotateCcw className="w-3 h-3" />
+                  <RotateCcw className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
