@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Lock,
+  Unlock,
   KeyRound,
   ArrowRight,
   Clock,
@@ -19,7 +20,8 @@ import {
   SkipForward,
   Repeat,
   Volume2,
-  VolumeX
+  VolumeX,
+  Settings
 } from "lucide-react";
 
 import ScheduleTab from "@/components/tabs/ScheduleTab";
@@ -33,11 +35,65 @@ import RecipesTab from "@/components/tabs/RecipesTab";
 
 export default function Home() {
   const [pin, setPin] = useState("");
-  const [isUnlocked, setIsUnlocked] = useState(true);
+  const [isUnlocked, setIsUnlocked] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  
+  // 비밀번호 등록/변경 관련 상태
+  const [storedPassword, setStoredPassword] = useState<string | null>(null);
+  const [isSettingNewPassword, setIsSettingNewPassword] = useState(false);
+  const [newPasswordInput, setNewPasswordInput] = useState("");
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
 
-  const CORRECT_PIN = "1234";
   const [currentTab, setCurrentTab] = useState("schedule");
+
+  // 초기 로딩 시 저장된 비밀번호 확인
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedPw = localStorage.getItem("jb_space_custom_password");
+      if (savedPw) {
+        setStoredPassword(savedPw);
+        setIsSettingNewPassword(false);
+      } else {
+        // 등록된 비밀번호가 없으면 최초 설정 모드로 진입
+        setIsSettingNewPassword(true);
+      }
+    }
+  }, []);
+
+  // 비밀번호 등록 처리 (최최초 또는 설정에서 변경 시)
+  const handleRegisterPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPasswordInput.trim()) {
+      setErrorMsg("비밀번호를 입력해주세요.");
+      return;
+    }
+    if (newPasswordInput !== confirmPasswordInput) {
+      setErrorMsg("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    localStorage.setItem("jb_space_custom_password", newPasswordInput);
+    setStoredPassword(newPasswordInput);
+    setIsSettingNewPassword(false);
+    setIsUnlocked(true);
+    setPin("");
+    setErrorMsg("");
+    setNewPasswordInput("");
+    setConfirmPasswordInput("");
+  };
+
+  // 기존 비밀번호로 입장 처리
+  const handleUnlock = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (pin === storedPassword) {
+      setErrorMsg("");
+      setIsUnlocked(true);
+      setPin("");
+    } else {
+      setErrorMsg("비밀번호가 일치하지 않습니다.");
+      setPin("");
+    }
+  };
 
   // ================= 1. 테마 색상 동적 매핑 =================
   const themeClasses = useMemo(() => {
@@ -428,17 +484,6 @@ export default function Home() {
     setIsTimerRunning(!isTimerRunning);
   };
 
-  const handleUnlock = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (pin === CORRECT_PIN) {
-      setErrorMsg("");
-      setIsUnlocked(true);
-    } else {
-      setErrorMsg("비밀번호가 일치하지 않습니다.");
-      setPin("");
-    }
-  };
-
   const menuItems = [
     { id: "schedule", label: "일정", icon: "📅" },
     { id: "ledger", label: "가계부", icon: "💰" },
@@ -450,40 +495,107 @@ export default function Home() {
     { id: "recipes", label: "레시피", icon: "🍳" }
   ];
 
+  // 잠금 화면 / 비밀번호 등록 화면 렌더링
   if (!isUnlocked) {
     return (
       <main className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4 relative select-none">
         <div className="w-full max-w-sm bg-neutral-900/90 backdrop-blur-xl border border-neutral-800 rounded-3xl p-8 shadow-2xl flex flex-col items-center text-center">
           <div className="w-16 h-16 bg-neutral-800 border border-neutral-700 rounded-2xl flex items-center justify-center mb-6">
-            <Lock className="w-7 h-7 text-emerald-400 animate-pulse" />
+            {isSettingNewPassword ? (
+              <Settings className="w-7 h-7 text-amber-400 animate-spin" />
+            ) : (
+              <Lock className="w-7 h-7 text-emerald-400 animate-pulse" />
+            )}
           </div>
+          
           <h1 className="text-xl font-bold text-white mb-1">JB's Bookmark Space</h1>
-          <p className="text-xs text-neutral-400 mb-6">보관함 입장을 위해 비밀번호를 입력해주세요</p>
-          <form onSubmit={handleUnlock} className="w-full space-y-4">
-            <div className="relative">
-              <input
-                type="password"
-                maxLength={8}
-                value={pin}
-                autoFocus
-                onChange={(e) => {
-                  setPin(e.target.value);
-                  if (errorMsg) setErrorMsg("");
+          <p className="text-xs text-neutral-400 mb-6">
+            {isSettingNewPassword 
+              ? "사용하실 새로운 비밀번호를 설정해주세요" 
+              : "설정하신 비밀번호를 입력해주세요"}
+          </p>
+
+          {isSettingNewPassword ? (
+            // 최초 비밀번호 등록 폼
+            <form onSubmit={handleRegisterPassword} className="w-full space-y-3">
+              <div className="relative">
+                <input
+                  type="password"
+                  value={newPasswordInput}
+                  autoFocus
+                  onChange={(e) => {
+                    setNewPasswordInput(e.target.value);
+                    if (errorMsg) setErrorMsg("");
+                  }}
+                  placeholder="새 비밀번호 입력"
+                  className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-center text-white tracking-widest text-sm focus:outline-none focus:border-amber-500"
+                />
+              </div>
+              <div className="relative">
+                <input
+                  type="password"
+                  value={confirmPasswordInput}
+                  onChange={(e) => {
+                    setConfirmPasswordInput(e.target.value);
+                    if (errorMsg) setErrorMsg("");
+                  }}
+                  placeholder="비밀번호 확인"
+                  className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-center text-white tracking-widest text-sm focus:outline-none focus:border-amber-500"
+                />
+              </div>
+              {errorMsg && <p className="text-xs text-rose-400 font-medium">{errorMsg}</p>}
+              <button
+                type="submit"
+                className="w-full bg-amber-600 hover:bg-amber-500 text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition duration-200"
+              >
+                <span>비밀번호 등록 및 입장</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+          ) : (
+            // 기존 등록된 비밀번호 로그인 폼
+            <form onSubmit={handleUnlock} className="w-full space-y-4">
+              <div className="relative">
+                <input
+                  type="password"
+                  maxLength={12}
+                  value={pin}
+                  autoFocus
+                  onChange={(e) => {
+                    setPin(e.target.value);
+                    if (errorMsg) setErrorMsg("");
+                  }}
+                  placeholder="비밀번호 입력"
+                  className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-center text-white tracking-widest text-lg focus:outline-none focus:border-emerald-500"
+                />
+                <KeyRound className="w-4 h-4 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
+              </div>
+              {errorMsg && <p className="text-xs text-rose-400 font-medium">{errorMsg}</p>}
+              <button
+                type="submit"
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition duration-200"
+              >
+                <span>입장하기</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+              
+              {/* 비밀번호 재설정(초기화) 버튼 */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm("비밀번호를 새로 등록하시겠습니까? (기존 비밀번호가 초기화됩니다)")) {
+                    localStorage.removeItem("jb_space_custom_password");
+                    setStoredPassword(null);
+                    setIsSettingNewPassword(true);
+                    setErrorMsg("");
+                  }
                 }}
-                placeholder="비밀번호 입력"
-                className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-center text-white tracking-widest text-lg focus:outline-none focus:border-emerald-500"
-              />
-              <KeyRound className="w-4 h-4 text-neutral-500 absolute left-4 top-1/2 -translate-y-1/2" />
-            </div>
-            {errorMsg && <p className="text-xs text-rose-400 font-medium">{errorMsg}</p>}
-            <button
-              type="submit"
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition duration-200"
-            >
-              <span>입장하기</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
+                className="text-[11px] text-neutral-500 hover:text-neutral-300 underline pt-2"
+              >
+                비밀번호를 잊으셨나요? (재설정)
+              </button>
+            </form>
+          )}
         </div>
       </main>
     );
