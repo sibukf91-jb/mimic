@@ -59,7 +59,7 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("bookmarks"); // 'bookmarks', 'songs', 'favorites', 'schedule', 'ledger'
+  const [currentTab, setCurrentTab] = useState("bookmarks"); // 기본 진입 탭: 책갈피
 
   // ================= 1. 테마 색상 동적 매핑 =================
   const themeClasses = useMemo(() => {
@@ -171,23 +171,30 @@ export default function Home() {
   const TODAY_STR = "2026-09-20";
   const todayDateObj = new Date(TODAY_STR);
 
-  // ================= 2. 책갈피 탭 데이터 (신규: 파스텔톤 짙은 노랑) =================
-  const getBookmarkCategoryIcon = (category: string) => {
-    const c = (category || "").trim().toLowerCase();
-    if (c.includes("독서") || c.includes("책") || c.includes("도서")) return "📚";
-    if (c.includes("기사") || c.includes("뉴스") || c.includes("칼럼") || c.includes("아티클")) return "📰";
-    if (c.includes("개발") || c.includes("코딩") || c.includes("기술")) return "💻";
-    if (c.includes("공부") || c.includes("학습") || c.includes("강의")) return "✏️";
-    if (c.includes("아이디어") || c.includes("영감") || c.includes("레퍼런스")) return "💡";
-    if (c.includes("시") || c.includes("문학") || c.includes("에세이")) return "✍️";
-    return "🔖";
-  };
-
+  // ================= 2. 책갈피 탭 데이터 (분류, 장르, 제목, 정기업데이트, 공개일, 주간편성, 최종회차, 책갈피 등록) =================
   const defaultBookmarks = [
-    { id: 1, category: "독서", author: "무라카미 하루키", title: "상실의 시대", url: "", memo: "어떤 진리로도 사랑하는 것을 잃은 슬픔을 치유할 수는 없다." },
-    { id: 2, category: "칼럼", author: "롱블랙", title: "감각을 깨우는 기록의 힘", url: "https://www.longblack.co", memo: "생각을 문장으로 남길 때 비로소 내 것이 된다." },
-    { id: 3, category: "개발", author: "Dan Abramov", title: "Overreacted", url: "https://overreacted.io", memo: "리액트의 동작 철학을 다룬 명문 아티클" },
-    { id: 4, category: "에세이", author: "김영하", title: "여행의 이유", url: "", memo: "인간은 늘 길 위에서 새로운 자신을 발견한다." },
+    {
+      id: 1,
+      category: "웹툰",
+      genre: "판타지",
+      title: "전지적 독자 시점",
+      regularUpdate: "매주 화요일",
+      releaseDate: "2020-05-26",
+      weeklySchedule: "화요일",
+      finalEpisode: "185화",
+      memo: "멸망한 세계에서 살아남는 단 하나의 방법."
+    },
+    {
+      id: 2,
+      category: "독서",
+      genre: "인문",
+      title: "모비 딕",
+      regularUpdate: "완결",
+      releaseDate: "1851-10-18",
+      weeklySchedule: "-",
+      finalEpisode: "전체 완결",
+      memo: "바다의 거대한 고래를 좇는 인간의 집념."
+    }
   ];
 
   const [bookmarkList, setBookmarkList] = useState<any[]>([]);
@@ -195,7 +202,7 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("jb_bookmark_reading_list_v1");
+      const saved = localStorage.getItem("jb_bookmark_reading_list_v2");
       setBookmarkList(saved ? JSON.parse(saved) : defaultBookmarks);
       setIsBookmarkLoaded(true);
     }
@@ -203,25 +210,32 @@ export default function Home() {
 
   useEffect(() => {
     if (isBookmarkLoaded && typeof window !== "undefined") {
-      localStorage.setItem("jb_bookmark_reading_list_v1", JSON.stringify(bookmarkList));
+      localStorage.setItem("jb_bookmark_reading_list_v2", JSON.stringify(bookmarkList));
     }
   }, [bookmarkList, isBookmarkLoaded]);
 
   // 책갈피 등록 폼 상태
   const [newBmarkCategory, setNewBmarkCategory] = useState("");
-  const [newBmarkAuthor, setNewBmarkAuthor] = useState("");
+  const [newBmarkGenre, setNewBmarkGenre] = useState("");
   const [newBmarkTitle, setNewBmarkTitle] = useState("");
-  const [newBmarkUrl, setNewBmarkUrl] = useState("");
+  const [newBmarkUpdate, setNewBmarkUpdate] = useState("");
+  const [newBmarkRelease, setNewBmarkRelease] = useState("");
+  const [newBmarkSchedule, setNewBmarkSchedule] = useState("");
+  const [newBmarkEpisode, setNewBmarkEpisode] = useState("");
   const [newBmarkMemo, setNewBmarkMemo] = useState("");
+
   const [selectedBmarkCategory, setSelectedBmarkCategory] = useState("전체");
   const [bmarkSearchQuery, setBmarkSearchQuery] = useState("");
 
   // 책갈피 수정 상태
   const [editingBmarkId, setEditingBmarkId] = useState<number | null>(null);
   const [editBmarkCategory, setEditBmarkCategory] = useState("");
-  const [editBmarkAuthor, setEditBmarkAuthor] = useState("");
+  const [editBmarkGenre, setEditBmarkGenre] = useState("");
   const [editBmarkTitle, setEditBmarkTitle] = useState("");
-  const [editBmarkUrl, setEditBmarkUrl] = useState("");
+  const [editBmarkUpdate, setEditBmarkUpdate] = useState("");
+  const [editBmarkRelease, setEditBmarkRelease] = useState("");
+  const [editBmarkSchedule, setEditBmarkSchedule] = useState("");
+  const [editBmarkEpisode, setEditBmarkEpisode] = useState("");
   const [editBmarkMemo, setEditBmarkMemo] = useState("");
 
   const existingBmarkCategories = useMemo(() => {
@@ -236,34 +250,38 @@ export default function Home() {
     e.preventDefault();
     if (!newBmarkTitle.trim()) return;
 
-    let formattedUrl = newBmarkUrl.trim();
-    if (formattedUrl && !formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
-      formattedUrl = "https://" + formattedUrl;
-    }
-
     const newEntry = {
       id: Date.now(),
       category: newBmarkCategory.trim() || "기타",
-      author: newBmarkAuthor.trim() || "미상",
+      genre: newBmarkGenre.trim() || "일반",
       title: newBmarkTitle.trim(),
-      url: formattedUrl,
+      regularUpdate: newBmarkUpdate.trim() || "-",
+      releaseDate: newBmarkRelease.trim() || "-",
+      weeklySchedule: newBmarkSchedule.trim() || "-",
+      finalEpisode: newBmarkEpisode.trim() || "-",
       memo: newBmarkMemo.trim()
     };
 
     setBookmarkList([newEntry, ...bookmarkList]);
     setNewBmarkCategory("");
-    setNewBmarkAuthor("");
+    setNewBmarkGenre("");
     setNewBmarkTitle("");
-    setNewBmarkUrl("");
+    setNewBmarkUpdate("");
+    setNewBmarkRelease("");
+    setNewBmarkSchedule("");
+    setNewBmarkEpisode("");
     setNewBmarkMemo("");
   };
 
   const startEditBookmark = (item: any) => {
     setEditingBmarkId(item.id);
     setEditBmarkCategory(item.category || "기타");
-    setEditBmarkAuthor(item.author || "");
+    setEditBmarkGenre(item.genre || "일반");
     setEditBmarkTitle(item.title || "");
-    setEditBmarkUrl(item.url || "");
+    setEditBmarkUpdate(item.regularUpdate || "");
+    setEditBmarkRelease(item.releaseDate || "");
+    setEditBmarkSchedule(item.weeklySchedule || "");
+    setEditBmarkEpisode(item.finalEpisode || "");
     setEditBmarkMemo(item.memo || "");
   };
 
@@ -272,20 +290,18 @@ export default function Home() {
   const saveEditBookmark = (id: number) => {
     if (!editBmarkTitle.trim()) return;
 
-    let formattedUrl = editBmarkUrl.trim();
-    if (formattedUrl && !formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
-      formattedUrl = "https://" + formattedUrl;
-    }
-
     setBookmarkList((prev) =>
       prev.map((b) =>
         b.id === id
           ? {
               ...b,
               category: editBmarkCategory.trim() || "기타",
-              author: editBmarkAuthor.trim() || "미상",
+              genre: editBmarkGenre.trim() || "일반",
               title: editBmarkTitle.trim(),
-              url: formattedUrl,
+              regularUpdate: editBmarkUpdate.trim() || "-",
+              releaseDate: editBmarkRelease.trim() || "-",
+              weeklySchedule: editBmarkSchedule.trim() || "-",
+              finalEpisode: editBmarkEpisode.trim() || "-",
               memo: editBmarkMemo.trim()
             }
           : b
@@ -304,19 +320,29 @@ export default function Home() {
         const matchCategory = selectedBmarkCategory === "전체" || b.category === selectedBmarkCategory;
         const matchSearch =
           (b.title || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase()) ||
-          (b.author || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase()) ||
+          (b.genre || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase()) ||
           (b.category || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase()) ||
-          (b.memo || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase());
+          (b.memo || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase()) ||
+          (b.regularUpdate || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase());
         return matchCategory && matchSearch;
       })
-      .sort((a, b) => {
-        const authorCompare = (a.author || "").localeCompare(b.author || "", "ko");
-        if (authorCompare !== 0) return authorCompare;
-        return (a.title || "").localeCompare(b.title || "", "ko");
-      });
+      .sort((a, b) => (a.title || "").localeCompare(b.title || "", "ko"));
   }, [bookmarkList, selectedBmarkCategory, bmarkSearchQuery]);
 
-  // ================= 3. 노래책 탭 데이터 & 장르별 자동 심볼 =================
+  // ================= 3. 노래책 탭 데이터 =================
+  const defaultSongs = [
+    { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
+    { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
+    { id: 3, genre: "K-POP", title: "만개화", artist: "안예은", url: "", songType: "none", liked: false },
+    { id: 4, genre: "J-POP", title: "베텔기우스 (Betelgeuse)", artist: "Yuuri", url: "https://www.youtube.com/watch?v=cbqvxDTLMPS", songType: "Cover", liked: true },
+    { id: 5, genre: "OST", title: "그대라는 시", artist: "태연", url: "", songType: "Original", liked: false },
+    { id: 6, genre: "POP", title: "Love Story", artist: "Taylor Swift", url: "", songType: "Original", liked: false },
+    { id: 7, genre: "K-POP", title: "사건의 지평선", artist: "윤하", url: "", songType: "Original", liked: false },
+  ];
+
+  const [songList, setSongList] = useState<any[]>([]);
+  const [isSongDataLoaded, setIsSongDataLoaded] = useState(false);
+
   const getGenreIcon = (genre: string) => {
     const g = (genre || "").trim().toLowerCase();
     if (g.includes("k-pop") || g.includes("kpop") || g.includes("가요")) return "🇰🇷";
@@ -333,36 +359,12 @@ export default function Home() {
     return "🎵";
   };
 
-  const defaultSongs = [
-    { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
-    { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
-    { id: 3, genre: "K-POP", title: "만개화", artist: "안예은", url: "", songType: "none", liked: false },
-    { id: 4, genre: "J-POP", title: "베텔기우스 (Betelgeuse)", artist: "Yuuri", url: "https://www.youtube.com/watch?v=cbqvxDTLMPS", songType: "Cover", liked: true },
-    { id: 5, genre: "OST", title: "그대라는 시", artist: "태연", url: "", songType: "Original", liked: false },
-    { id: 6, genre: "POP", title: "Love Story", artist: "Taylor Swift", url: "", songType: "Original", liked: false },
-    { id: 7, genre: "K-POP", title: "사건의 지평선", artist: "윤하", url: "", songType: "Original", liked: false },
-  ];
-
-  const [songList, setSongList] = useState<any[]>([]);
-  const [isSongDataLoaded, setIsSongDataLoaded] = useState(false);
-  const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
-
   const getYouTubeId = (url: string) => {
     if (!url) return null;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
     const match = url.match(regExp);
     return match && match[2].length === 11 ? match[2] : null;
   };
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && videoModalUrl) {
-        setVideoModalUrl(null);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [videoModalUrl]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -431,27 +433,18 @@ export default function Home() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
   }, [songList]);
 
-  useEffect(() => {
-    if (selectedGenre !== "전체" && !existingGenres.includes(selectedGenre)) {
-      setSelectedGenre("전체");
-    }
-  }, [existingGenres, selectedGenre]);
-
   const handleAddSong = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
-
-    const formattedGenre = newGenre.trim() || "기타";
     const newSong = {
       id: Date.now(),
-      genre: formattedGenre,
+      genre: newGenre.trim() || "기타",
       artist: newArtist.trim() || "미상",
       title: newTitle.trim(),
       url: newUrl.trim(),
       songType: newSongType,
       liked: false
     };
-
     setSongList([newSong, ...songList]);
     setNewGenre("");
     setNewArtist("");
@@ -461,9 +454,7 @@ export default function Home() {
   };
 
   const toggleLike = (id: number) => {
-    setSongList((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, liked: !s.liked } : s))
-    );
+    setSongList((prev) => prev.map((s) => (s.id === id ? { ...s, liked: !s.liked } : s)));
   };
 
   const handleDeleteSong = (id: number) => {
@@ -488,12 +479,23 @@ export default function Home() {
   }, [songList, selectedGenre, searchQuery]);
 
   // ================= 4. 즐겨찾기 탭 데이터 =================
+  const getCategoryIcon = (category: string) => {
+    const cat = (category || "").toLowerCase();
+    if (cat.includes("포털") || cat.includes("웹") || cat.includes("인터넷")) return "🌐";
+    if (cat.includes("검색") || cat.includes("구글")) return "🔍";
+    if (cat.includes("영상") || cat.includes("동영상") || cat.includes("유튜브") || cat.includes("ott")) return "🎬";
+    if (cat.includes("쇼핑") || cat.includes("구매") || cat.includes("마트")) return "🛒";
+    if (cat.includes("개발") || cat.includes("코딩") || cat.includes("깃")) return "💻";
+    if (cat.includes("음악") || cat.includes("노래") || cat.includes("뮤직")) return "🎵";
+    if (cat.includes("커뮤니티") || cat.includes("카페") || cat.includes("sns") || cat.includes("블로그")) return "💬";
+    if (cat.includes("게임")) return "🎮";
+    if (cat.includes("금융") || cat.includes("은행") || cat.includes("증권") || cat.includes("페이")) return "🏦";
+    return "⭐";
+  };
+
   const defaultFavorites = [
     { id: 1, category: "포털", name: "네이버", url: "https://www.naver.com", memo: "뉴스, 지도, 블로그", username: "my_naver_id", pwHint: "초록창12#$" },
     { id: 2, category: "검색", name: "구글", url: "https://www.google.com", memo: "검색 및 지메일", username: "user@gmail.com", pwHint: "구글영문+특수" },
-    { id: 3, category: "영상", name: "유튜브", url: "https://www.youtube.com", memo: "음악 및 동영상 시청", username: "youtube_acc", pwHint: "구글연동" },
-    { id: 4, category: "개발", name: "GitHub", url: "https://github.com", memo: "코드 저장소", username: "dev_user", pwHint: "깃허브토큰!" },
-    { id: 5, category: "쇼핑", name: "쿠팡", url: "https://www.coupang.com", memo: "로켓배송", username: "coupang_01", pwHint: "생일뒤자리@!" },
   ];
 
   const [favList, setFavList] = useState<any[]>([]);
@@ -504,12 +506,8 @@ export default function Home() {
     e.stopPropagation();
     if (!username) return;
     try {
-      if (navigator && navigator.clipboard) {
-        navigator.clipboard.writeText(username);
-      }
-    } catch (err) {
-      console.error(err);
-    }
+      if (navigator && navigator.clipboard) navigator.clipboard.writeText(username);
+    } catch (err) {}
     setCopiedId(id);
     setTimeout(() => {
       setCopiedId((prev) => (prev === id ? null : prev));
@@ -558,12 +556,10 @@ export default function Home() {
   const handleAddFav = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFavName.trim() || !newFavUrl.trim()) return;
-
     let formattedUrl = newFavUrl.trim();
     if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
       formattedUrl = "https://" + formattedUrl;
     }
-
     const newFav = {
       id: Date.now(),
       category: newFavCategory.trim() || "기타",
@@ -573,7 +569,6 @@ export default function Home() {
       username: newFavUsername.trim(),
       pwHint: newFavPwHint.trim()
     };
-
     setFavList([newFav, ...favList]);
     setNewFavCategory("");
     setNewFavName("");
@@ -597,12 +592,10 @@ export default function Home() {
 
   const saveEditFav = (id: number) => {
     if (!editFavName.trim() || !editFavUrl.trim()) return;
-
     let formattedUrl = editFavUrl.trim();
     if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
       formattedUrl = "https://" + formattedUrl;
     }
-
     setFavList((prev) =>
       prev.map((f) =>
         f.id === id
@@ -640,7 +633,7 @@ export default function Home() {
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
   }, [favList, selectedFavCategory, favSearchQuery]);
 
-  // ================= 5. 일정 탭 데이터 =================
+  // ================= 5. 일정 및 가계부 데이터 =================
   const SCHEDULE_SYMBOL_CONFIG = {
     leave: { label: "연차", icon: "🌴", badge: "연차" },
     half_leave: { label: "반차", icon: "🌓", badge: "반차" },
@@ -667,27 +660,14 @@ export default function Home() {
   const [isScheduleLoaded, setIsScheduleLoaded] = useState(false);
   const [calYear, setCalYear] = useState(2026);
   const [calMonth, setCalMonth] = useState(9);
-
   const [modalDate, setModalDate] = useState<string | null>(null);
   const [newSchedTitle, setNewSchedTitle] = useState("");
   const [newSchedSymbol, setNewSchedSymbol] = useState("appointment");
   const [newSchedColor, setNewSchedColor] = useState("pink");
-
   const [popupEditingId, setPopupEditingId] = useState<number | null>(null);
   const [editPopupTitle, setEditPopupTitle] = useState("");
   const [editPopupSymbol, setEditPopupSymbol] = useState("appointment");
   const [editPopupColor, setEditPopupColor] = useState("pink");
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && modalDate) {
-        setModalDate(null);
-        setPopupEditingId(null);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [modalDate]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -753,9 +733,7 @@ export default function Home() {
   const savePopupEdit = (id: number) => {
     if (!editPopupTitle.trim()) return;
     setScheduleList((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, title: editPopupTitle.trim(), symbol: editPopupSymbol, color: editPopupColor } : item
-      )
+      prev.map((item) => (item.id === id ? { ...item, title: editPopupTitle.trim(), symbol: editPopupSymbol, color: editPopupColor } : item))
     );
     setPopupEditingId(null);
   };
@@ -763,7 +741,6 @@ export default function Home() {
   const handleDeleteSchedule = (id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setScheduleList((prev) => prev.filter((item) => item.id !== id));
-    if (popupEditingId === id) setPopupEditingId(null);
   };
 
   const leaveSummary = useMemo(() => {
@@ -786,11 +763,7 @@ export default function Home() {
     let nextBday = birthdays.find((s) => s.date >= TODAY_STR) || birthdays[birthdays.length - 1];
     const bdayDate = new Date(nextBday.date);
     const diffDays = Math.ceil((bdayDate.getTime() - todayDateObj.getTime()) / (1000 * 60 * 60 * 24));
-    return {
-      title: nextBday.title || "생일",
-      date: nextBday.date,
-      dDayText: diffDays === 0 ? "D-Day" : diffDays > 0 ? `D-${diffDays}` : `D+${Math.abs(diffDays)}`
-    };
+    return { title: nextBday.title || "생일", date: nextBday.date, dDayText: diffDays === 0 ? "D-Day" : diffDays > 0 ? `D-${diffDays}` : `D+${Math.abs(diffDays)}` };
   }, [scheduleList]);
 
   const hairSummary = useMemo(() => {
@@ -818,7 +791,7 @@ export default function Home() {
 
   const hasAnyScheduleSummary = leaveSummary || birthdaySummary || hairSummary || upcomingAppointments.length > 0;
 
-  // ================= 6. 가계부 탭 데이터 =================
+  // 가계부 설정
   const LEDGER_SYMBOL_CONFIG = {
     taxi: { label: "택시", icon: "🚕", badge: "택시" },
     delivery: { label: "배달", icon: "🛵", badge: "배달" },
@@ -842,7 +815,6 @@ export default function Home() {
     { id: 4, date: "2026-09-01", type: "expense", title: "인터넷", amount: 34000, symbol: "fixed", color: "pink" },
     { id: 5, date: "2026-09-17", type: "expense", title: "GS25 편의점", amount: 6200, symbol: "convenience", color: "green" },
   ];
-
   const defaultFixedTemplates = [{ id: "fixed_tpl_1", title: "인터넷", color: "pink" }];
 
   const [ledgerEntries, setLedgerEntries] = useState<any[]>([]);
@@ -850,31 +822,18 @@ export default function Home() {
   const [isLedgerLoaded, setIsLedgerLoaded] = useState(false);
   const [ledgerYear, setLedgerYear] = useState(2026);
   const [ledgerMonth, setLedgerMonth] = useState(9);
-
   const [ledgerModalDate, setLedgerModalDate] = useState<string | null>(null);
   const [newLedgerTitle, setNewLedgerTitle] = useState("");
   const [newLedgerAmount, setNewLedgerAmount] = useState("");
   const [newLedgerType, setNewLedgerType] = useState<"expense" | "income">("expense");
   const [newLedgerSymbol, setNewLedgerSymbol] = useState("fixed");
   const [newLedgerColor, setNewLedgerColor] = useState("pink");
-
   const [ledgerEditingId, setLedgerEditingId] = useState<number | null>(null);
   const [editLedgerTitle, setEditLedgerTitle] = useState("");
   const [editLedgerAmount, setEditLedgerAmount] = useState("");
   const [editLedgerType, setEditLedgerType] = useState<"expense" | "income">("expense");
   const [editLedgerSymbol, setEditLedgerSymbol] = useState("fixed");
   const [editLedgerColor, setEditLedgerColor] = useState("pink");
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && ledgerModalDate) {
-        setLedgerModalDate(null);
-        setLedgerEditingId(null);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [ledgerModalDate]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -965,9 +924,7 @@ export default function Home() {
     const trimmedTitle = editLedgerTitle.trim();
     setLedgerEntries((prev) =>
       prev.map((item) =>
-        item.id === id
-          ? { ...item, title: trimmedTitle, amount: Number(editLedgerAmount), type: editLedgerType, symbol: editLedgerSymbol, color: editLedgerColor }
-          : item
+        item.id === id ? { ...item, title: trimmedTitle, amount: Number(editLedgerAmount), type: editLedgerType, symbol: editLedgerSymbol, color: editLedgerColor } : item
       )
     );
     if (editLedgerSymbol === "fixed") {
@@ -984,7 +941,6 @@ export default function Home() {
   const handleDeleteLedgerEntry = (id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setLedgerEntries((prev) => prev.filter((item) => item.id !== id));
-    if (ledgerEditingId === id) setLedgerEditingId(null);
   };
 
   const handleDeleteFixedTemplate = (titleToDelete: string, e: React.MouseEvent) => {
@@ -1039,7 +995,7 @@ export default function Home() {
     }
   };
 
-  // ================= 7. 플레이리스트 & 시계 =================
+  // ================= 6. 플레이리스트 & 시계 =================
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [repeatMode, setRepeatMode] = useState<"none" | "all" | "one">("all");
@@ -1234,7 +1190,6 @@ export default function Home() {
     return `${m}:${String(s).padStart(2, "0")}`;
   };
 
-  // 시계 & 타이머 상태
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [timerMinutes, setTimerMinutes] = useState(4);
   const [timeLeft, setTimeLeft] = useState(4 * 60);
@@ -1442,32 +1397,30 @@ export default function Home() {
         {/* [2] 중앙 내용 영역 (세로 높이 h-[760px] 고정) */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
-          {/* ==================== 1. [책갈피] 탭 화면 (신규: 파스텔톤 짙은 노랑) ==================== */}
+          {/* ==================== 1. [책갈피] 탭 화면 (신규: 분류, 장르, 제목, 정기업데이트, 공개일, 주간편성, 최종회차, 책갈피 등록) ==================== */}
           {currentTab === "bookmarks" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               
               {/* 등록 바 */}
               <form onSubmit={handleAddBookmark} className="border-2 border-amber-400/90 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-amber-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
-                <div className="relative">
-                  <input
-                    type="text"
-                    list="bmark-category-suggestions"
-                    value={newBmarkCategory}
-                    onChange={(e) => setNewBmarkCategory(e.target.value)}
-                    placeholder="분류 (예: 독서)"
-                    className="w-24 border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs font-medium text-amber-950 focus:outline-none focus:border-amber-500 placeholder-neutral-400"
-                  />
-                  <datalist id="bmark-category-suggestions">
-                    {existingBmarkCategories.map((c) => (<option key={c} value={c} />))}
-                  </datalist>
-                </div>
+                <input
+                  type="text"
+                  list="bmark-category-suggestions"
+                  value={newBmarkCategory}
+                  onChange={(e) => setNewBmarkCategory(e.target.value)}
+                  placeholder="분류 (예: 웹툰)"
+                  className="w-20 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-medium text-amber-950 focus:outline-none focus:border-amber-500 placeholder-neutral-400"
+                />
+                <datalist id="bmark-category-suggestions">
+                  {existingBmarkCategories.map((c) => (<option key={c} value={c} />))}
+                </datalist>
 
                 <input
                   type="text"
-                  value={newBmarkAuthor}
-                  onChange={(e) => setNewBmarkAuthor(e.target.value)}
-                  placeholder="저자 / 출처"
-                  className="w-32 border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                  value={newBmarkGenre}
+                  onChange={(e) => setNewBmarkGenre(e.target.value)}
+                  placeholder="장르"
+                  className="w-20 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
                 />
 
                 <input
@@ -1475,31 +1428,55 @@ export default function Home() {
                   required
                   value={newBmarkTitle}
                   onChange={(e) => setNewBmarkTitle(e.target.value)}
-                  placeholder="도서 / 글 제목 *"
-                  className="w-44 border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-bold"
+                  placeholder="제목 *"
+                  className="w-32 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-bold"
                 />
 
                 <input
                   type="text"
-                  value={newBmarkUrl}
-                  onChange={(e) => setNewBmarkUrl(e.target.value)}
-                  placeholder="원문 링크 (선택)"
-                  className="flex-1 min-w-[140px] border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                  value={newBmarkUpdate}
+                  onChange={(e) => setNewBmarkUpdate(e.target.value)}
+                  placeholder="정기업데이트"
+                  className="w-28 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  value={newBmarkRelease}
+                  onChange={(e) => setNewBmarkRelease(e.target.value)}
+                  placeholder="공개일"
+                  className="w-24 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  value={newBmarkSchedule}
+                  onChange={(e) => setNewBmarkSchedule(e.target.value)}
+                  placeholder="주간편성"
+                  className="w-24 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  value={newBmarkEpisode}
+                  onChange={(e) => setNewBmarkEpisode(e.target.value)}
+                  placeholder="최종회차"
+                  className="w-20 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
                 />
 
                 <input
                   type="text"
                   value={newBmarkMemo}
                   onChange={(e) => setNewBmarkMemo(e.target.value)}
-                  placeholder="인상 깊은 구절 및 메모"
-                  className="w-48 border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                  placeholder="책갈피 등록 (메모/구절)"
+                  className="flex-1 min-w-[140px] border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
                 />
 
                 <button
                   type="submit"
                   className="bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1"
                 >
-                  <Plus className="w-3.5 h-3.5" /> 책갈피 추가
+                  <Plus className="w-3.5 h-3.5" /> 추가
                 </button>
               </form>
 
@@ -1510,7 +1487,7 @@ export default function Home() {
                     type="text"
                     value={bmarkSearchQuery}
                     onChange={(e) => setBmarkSearchQuery(e.target.value)}
-                    placeholder="제목, 저자/출처, 구절 메모, 분류를 검색해보세요..."
+                    placeholder="제목, 장르, 분류, 정기업데이트, 책갈피 메모를 검색해보세요..."
                     className="w-full border border-amber-300 bg-white/90 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
                   />
                   <Search className="w-3.5 h-3.5 text-amber-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -1532,30 +1509,32 @@ export default function Home() {
                     <button
                       key={cat}
                       onClick={() => setSelectedBmarkCategory(cat)}
-                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium flex items-center gap-1 ${
+                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
                         selectedBmarkCategory === cat
                           ? "border-amber-500 bg-amber-200 text-amber-950 font-bold shadow-2xs"
                           : "border-amber-300/80 bg-white/70 text-neutral-700 hover:bg-white"
                       }`}
                     >
-                      <span>{getBookmarkCategoryIcon(cat)}</span>
-                      <span>{cat}</span>
+                      {cat}
                     </button>
                   ))}
                   <span className="ml-auto text-[11px] text-amber-800/80 font-medium">
-                    총 {filteredBookmarks.length}개의 기록
+                    총 {filteredBookmarks.length}개의 항목
                   </span>
                 </div>
               </div>
 
               {/* 헤더 박스 */}
-              <div className="border-2 border-amber-400/90 rounded-xl px-4 py-2.5 bg-amber-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
-                <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-amber-950 items-center text-center">
-                  <span className="col-span-2">🏷️ 분류</span>
-                  <span className="col-span-3">✍️ 저자 / 출처</span>
-                  <span className="col-span-4">📖 제목 및 인상 깊은 글귀</span>
-                  <span className="col-span-1">🔗 원문</span>
-                  <span className="col-span-2">관리</span>
+              <div className="border-2 border-amber-400/90 rounded-xl px-3 py-2.5 bg-amber-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="grid grid-cols-12 gap-1 text-[11px] font-extrabold text-amber-950 items-center text-center">
+                  <span className="col-span-2">분류 / 장르</span>
+                  <span className="col-span-2">제목</span>
+                  <span className="col-span-2">정기업데이트</span>
+                  <span className="col-span-1">공개일</span>
+                  <span className="col-span-1">주간편성</span>
+                  <span className="col-span-1">최종회차</span>
+                  <span className="col-span-2">책갈피 등록</span>
+                  <span className="col-span-1">관리</span>
                 </div>
               </div>
 
@@ -1563,22 +1542,24 @@ export default function Home() {
               <div className="flex flex-col gap-2">
                 {filteredBookmarks.map((bmark) => {
                   const isEditing = editingBmarkId === bmark.id;
-                  const catIcon = getBookmarkCategoryIcon(bmark.category);
 
                   if (isEditing) {
                     return (
                       <div
                         key={`edit-bmark-${bmark.id}`}
-                        className="p-3 rounded-2xl border-2 border-amber-400 bg-amber-50/90 shadow-md flex flex-wrap items-center gap-2"
+                        className="p-3 rounded-2xl border-2 border-amber-400 bg-amber-50/90 shadow-md flex flex-wrap items-center gap-1.5"
                       >
-                        <input type="text" value={editBmarkCategory} onChange={(e) => setEditBmarkCategory(e.target.value)} placeholder="분류" className="w-20 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-amber-950 focus:outline-none focus:border-amber-600" />
-                        <input type="text" value={editBmarkAuthor} onChange={(e) => setEditBmarkAuthor(e.target.value)} placeholder="저자/출처" className="w-28 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium" />
-                        <input type="text" required value={editBmarkTitle} onChange={(e) => setEditBmarkTitle(e.target.value)} placeholder="글/도서 제목" className="w-36 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-bold" />
-                        <input type="text" value={editBmarkUrl} onChange={(e) => setEditBmarkUrl(e.target.value)} placeholder="원문 링크" className="flex-1 min-w-[140px] border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium" />
-                        <input type="text" value={editBmarkMemo} onChange={(e) => setEditBmarkMemo(e.target.value)} placeholder="글귀/메모" className="w-48 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium" />
+                        <input type="text" value={editBmarkCategory} onChange={(e) => setEditBmarkCategory(e.target.value)} placeholder="분류" className="w-16 border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs font-medium" />
+                        <input type="text" value={editBmarkGenre} onChange={(e) => setEditBmarkGenre(e.target.value)} placeholder="장르" className="w-16 border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs font-medium" />
+                        <input type="text" required value={editBmarkTitle} onChange={(e) => setEditBmarkTitle(e.target.value)} placeholder="제목" className="w-28 border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs font-bold" />
+                        <input type="text" value={editBmarkUpdate} onChange={(e) => setEditBmarkUpdate(e.target.value)} placeholder="정기업데이트" className="w-24 border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs" />
+                        <input type="text" value={editBmarkRelease} onChange={(e) => setEditBmarkRelease(e.target.value)} placeholder="공개일" className="w-20 border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs" />
+                        <input type="text" value={editBmarkSchedule} onChange={(e) => setEditBmarkSchedule(e.target.value)} placeholder="주간편성" className="w-20 border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs" />
+                        <input type="text" value={editBmarkEpisode} onChange={(e) => setEditBmarkEpisode(e.target.value)} placeholder="최종회차" className="w-16 border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs" />
+                        <input type="text" value={editBmarkMemo} onChange={(e) => setEditBmarkMemo(e.target.value)} placeholder="책갈피 등록" className="flex-1 min-w-[120px] border border-amber-300 bg-white rounded-lg px-2 py-1 text-xs" />
                         <div className="flex items-center gap-1 shrink-0 ml-auto">
-                          <button onClick={() => saveEditBookmark(bmark.id)} title="저장" className="p-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"><Check className="w-3.5 h-3.5" /> 저장</button>
-                          <button onClick={cancelEditBookmark} title="취소" className="p-1.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-600 text-xs flex items-center gap-1 shadow-sm transition"><X className="w-3.5 h-3.5" /> 취소</button>
+                          <button onClick={() => saveEditBookmark(bmark.id)} className="p-1.5 rounded-lg bg-amber-500 text-white font-bold text-xs flex items-center gap-0.5"><Check className="w-3.5 h-3.5" /> 저장</button>
+                          <button onClick={cancelEditBookmark} className="p-1.5 rounded-lg border border-neutral-300 bg-white text-neutral-600 text-xs"><X className="w-3.5 h-3.5" /> 취소</button>
                         </div>
                       </div>
                     );
@@ -1587,56 +1568,50 @@ export default function Home() {
                   return (
                     <div
                       key={bmark.id}
-                      className="grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border-2 border-amber-400/90 bg-amber-50/40 hover:bg-amber-50/70 transition shadow-2xs"
+                      className="grid grid-cols-12 gap-1 items-center text-[11px] p-2.5 rounded-2xl border-2 border-amber-400/90 bg-amber-50/40 hover:bg-amber-50/70 transition shadow-2xs text-center"
                     >
-                      {/* 1. 분류 */}
-                      <div className="col-span-2 flex justify-center">
-                        <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-bold text-center flex items-center gap-1 shadow-2xs">
-                          <span>{catIcon}</span>
-                          <span>{bmark.category}</span>
+                      {/* 1. 분류 / 장르 */}
+                      <div className="col-span-2 flex flex-col items-center justify-center">
+                        <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 font-bold">
+                          {bmark.category}
                         </span>
+                        <span className="text-[10px] text-neutral-500 mt-0.5">{bmark.genre}</span>
                       </div>
 
-                      {/* 2. 저자 / 출처 */}
-                      <div className="col-span-3 text-neutral-800 truncate font-bold text-[12px] text-center px-1">
-                        {bmark.author}
+                      {/* 2. 제목 */}
+                      <div className="col-span-2 text-neutral-900 font-black truncate px-1" title={bmark.title}>
+                        {bmark.title}
                       </div>
 
-                      {/* 3. 제목 및 글귀 */}
-                      <div className="col-span-4 flex flex-col justify-center px-1 overflow-hidden">
-                        <div className="flex items-center gap-1 text-neutral-900 font-black text-[13px] truncate">
-                          <BookOpen className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                          <span className="truncate">{bmark.title}</span>
-                        </div>
-                        {bmark.memo && (
-                          <div className="text-[11px] text-neutral-500 font-normal italic truncate mt-0.5">
-                            "{bmark.memo}"
-                          </div>
-                        )}
+                      {/* 3. 정기업데이트 */}
+                      <div className="col-span-2 text-neutral-700 truncate px-1">
+                        {bmark.regularUpdate}
                       </div>
 
-                      {/* 4. 원문 링크 바로가기 */}
-                      <div className="col-span-1 flex justify-center">
-                        {bmark.url ? (
-                          <a
-                            href={bmark.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] flex items-center gap-1 shadow-2xs transition active:scale-95"
-                            title="원문 바로가기"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                            <span>열기</span>
-                          </a>
-                        ) : (
-                          <span className="text-[10px] text-neutral-400 font-medium">-</span>
-                        )}
+                      {/* 4. 공개일 */}
+                      <div className="col-span-1 text-neutral-600 truncate font-mono">
+                        {bmark.releaseDate}
                       </div>
 
-                      {/* 5. 관리 버튼 */}
-                      <div className="col-span-2 flex items-center justify-center gap-1.5">
-                        <button onClick={() => startEditBookmark(bmark)} title="수정" className="p-1.5 rounded-lg text-neutral-400 hover:text-amber-800 hover:bg-white transition"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleDeleteBookmark(bmark.id)} title="삭제" className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                      {/* 5. 주간편성 */}
+                      <div className="col-span-1 text-neutral-600 truncate">
+                        {bmark.weeklySchedule}
+                      </div>
+
+                      {/* 6. 최종회차 */}
+                      <div className="col-span-1 text-neutral-800 font-bold truncate">
+                        {bmark.finalEpisode}
+                      </div>
+
+                      {/* 7. 책갈피 등록 (메모) */}
+                      <div className="col-span-2 text-neutral-600 truncate italic px-1" title={bmark.memo}>
+                        {bmark.memo || <span className="text-neutral-300">-</span>}
+                      </div>
+
+                      {/* 8. 관리 */}
+                      <div className="col-span-1 flex items-center justify-center gap-1">
+                        <button onClick={() => startEditBookmark(bmark)} title="수정" className="p-1 rounded text-neutral-400 hover:text-amber-800 hover:bg-white transition"><Pencil className="w-3 h-3" /></button>
+                        <button onClick={() => handleDeleteBookmark(bmark.id)} title="삭제" className="p-1 rounded text-neutral-400 hover:text-rose-500 hover:bg-white transition"><Trash2 className="w-3 h-3" /></button>
                       </div>
                     </div>
                   );
@@ -1644,7 +1619,7 @@ export default function Home() {
 
                 {filteredBookmarks.length === 0 && (
                   <div className="border-2 border-dashed border-amber-300 rounded-2xl p-12 text-center text-xs font-medium text-amber-800/70 bg-amber-50/20">
-                    등록되었거나 조건에 맞는 책갈피가 없습니다.
+                    등록되었거나 조건에 맞는 책갈피 기록이 없습니다.
                   </div>
                 )}
               </div>
@@ -2614,7 +2589,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 가계부 모달 */}
               {ledgerModalDate && (
                 <div 
                   className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -2726,7 +2700,7 @@ export default function Home() {
                         <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
                           {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
                             <label key={key} className="flex items-center gap-1.5 cursor-pointer">
-                              <input type="radio" name="ledgerTagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
+                              <input type="radio" name="tagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
                               <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${newLedgerColor === key ? "border-sky-800 scale-110 shadow-xs" : "border-transparent opacity-70"}`}>
                                 {newLedgerColor === key && <Check className="w-3 h-3 text-sky-950 stroke-[3]" />}
                               </span>
@@ -2751,7 +2725,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== 6. 그 외 미구현 탭 ==================== */}
+          {/* ==================== 7. 그 외 미구현 탭 ==================== */}
           {currentTab !== "songs" && currentTab !== "schedule" && currentTab !== "ledger" && currentTab !== "favorites" && currentTab !== "bookmarks" && (
             <div className="h-full border border-dashed border-emerald-300 rounded-2xl p-20 flex flex-col items-center justify-center text-center bg-emerald-50/20 backdrop-blur-[2px]">
               <span className="text-3xl mb-2 block">🚧</span>
@@ -2857,7 +2831,7 @@ export default function Home() {
               </div>
 
               <div className={`flex items-center gap-1.5 pt-1 border-t ${themeClasses.borderSubtle} px-0.5`}>
-                <button onClick={toggleMute} className={`${themeClasses.textSecondary} hover:text-neutral-950 p-0.5 transition shrink-0`}>
+                <button onClick={toggleMute} title="음소거 해제" className={`${themeClasses.textSecondary} hover:text-neutral-950 p-0.5 transition shrink-0`}>
                   {isMuted || volume === 0 ? <VolumeX className="w-3.5 h-3.5 text-neutral-400" /> : <Volume2 className="w-3.5 h-3.5" />}
                 </button>
                 <input type="range" min={0} max={100} value={isMuted ? 0 : volume} onChange={handleVolumeChange} className={`w-full h-1 ${themeClasses.rangeBg} rounded-lg appearance-none cursor-pointer ${themeClasses.rangeAccent}`} />
