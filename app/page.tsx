@@ -65,7 +65,7 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("schedule"); // 기본 진입 탭: 일정
+  const [currentTab, setCurrentTab] = useState("orders"); // 기본 진입 탭: 구매물품
 
   // ================= 1. 테마 색상 동적 매핑 =================
   const themeClasses = useMemo(() => {
@@ -603,18 +603,168 @@ export default function Home() {
     }
   };
 
-  // ================= 4. 장바구니 탭 데이터 =================
-  const getCartCategoryIcon = (category: string) => {
+  // ================= 4. 구매물품 탭 데이터 =================
+  const getOrderCategoryIcon = (category: string) => {
     const c = (category || "").trim().toLowerCase();
-    if (c.includes("전자") || c.includes("디지털") || c.includes("it") || c.includes("기기") || c.includes("가전")) return "🎧";
-    if (c.includes("패션") || c.includes("의류") || c.includes("옷") || c.includes("신발") || c.includes("모자")) return "👟";
-    if (c.includes("인테리어") || c.includes("생활") || c.includes("가구") || c.includes("방")) return "🛋️";
-    if (c.includes("취미") || c.includes("게임") || c.includes("도서") || c.includes("책")) return "🎮";
-    if (c.includes("뷰티") || c.includes("향수") || c.includes("화장품")) return "✨";
-    if (c.includes("식품") || c.includes("음식") || c.includes("간식")) return "☕";
-    return "🛒";
+    if (c.includes("전자") || c.includes("디지털") || c.includes("it") || c.includes("기기")) return "📱";
+    if (c.includes("패션") || c.includes("의류") || c.includes("옷") || c.includes("신발")) return "👕";
+    if (c.includes("생활") || c.includes("가구") || c.includes("인테리어") || c.includes("욕실")) return "🧴";
+    if (c.includes("식품") || c.includes("음식") || c.includes("간식") || c.includes("마트")) return "🍔";
+    if (c.includes("도서") || c.includes("책") || c.includes("취미") || c.includes("문구")) return "📚";
+    return "📦";
   };
 
+  const defaultOrders = [
+    {
+      id: 1,
+      category: "전자기기",
+      platform: "쿠팡",
+      name: "로지텍 무선 키보드 MX Keys",
+      price: 139000,
+      orderDate: "2026-09-15",
+      status: "배송완료",
+      memo: "로켓배송 수령 완료"
+    },
+    {
+      id: 2,
+      category: "패션",
+      platform: "무신사",
+      name: "오버핏 맨투맨",
+      price: 49000,
+      orderDate: "2026-09-18",
+      status: "배송중",
+      memo: "송장 확인 완료"
+    }
+  ];
+
+  const [orderList, setOrderList] = useState<any[]>([]);
+  const [isOrderLoaded, setIsOrderLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("jb_bookmark_orders_list_v1");
+      setOrderList(saved ? JSON.parse(saved) : defaultOrders);
+      setIsOrderLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOrderLoaded && typeof window !== "undefined") {
+      localStorage.setItem("jb_bookmark_orders_list_v1", JSON.stringify(orderList));
+    }
+  }, [orderList, isOrderLoaded]);
+
+  const [newOrderCategory, setNewOrderCategory] = useState("");
+  const [newOrderPlatform, setNewOrderPlatform] = useState("");
+  const [newOrderName, setNewOrderName] = useState("");
+  const [newOrderPrice, setNewOrderPrice] = useState("");
+  const [newOrderDate, setNewOrderDate] = useState(TODAY_STR);
+  const [newOrderStatus, setNewOrderStatus] = useState("배송완료");
+  const [newOrderMemo, setNewOrderMemo] = useState("");
+
+  const [selectedOrderCategory, setSelectedOrderCategory] = useState("전체");
+  const [orderSearchQuery, setOrderSearchQuery] = useState("");
+
+  const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
+  const [editOrderCategory, setEditOrderCategory] = useState("");
+  const [editOrderPlatform, setEditOrderPlatform] = useState("");
+  const [editOrderName, setEditOrderName] = useState("");
+  const [editOrderPrice, setEditOrderPrice] = useState("");
+  const [editOrderDate, setEditOrderDate] = useState("");
+  const [editOrderStatus, setEditOrderStatus] = useState("배송완료");
+  const [editOrderMemo, setEditOrderMemo] = useState("");
+
+  const existingOrderCategories = useMemo(() => {
+    const set = new Set<string>();
+    (orderList || []).forEach((o) => {
+      if (o.category && o.category.trim()) set.add(o.category.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [orderList]);
+
+  const handleAddOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOrderName.trim()) return;
+
+    const newEntry = {
+      id: Date.now(),
+      category: newOrderCategory.trim() || "생활용품",
+      platform: newOrderPlatform.trim() || "온라인",
+      name: newOrderName.trim(),
+      price: Number(newOrderPrice) || 0,
+      orderDate: newOrderDate || TODAY_STR,
+      status: newOrderStatus || "배송완료",
+      memo: newOrderMemo.trim()
+    };
+
+    setOrderList([newEntry, ...orderList]);
+    setNewOrderCategory("");
+    setNewOrderPlatform("");
+    setNewOrderName("");
+    setNewOrderPrice("");
+    setNewOrderDate(TODAY_STR);
+    setNewOrderStatus("배송완료");
+    setNewOrderMemo("");
+  };
+
+  const startEditOrder = (item: any) => {
+    setEditingOrderId(item.id);
+    setEditOrderCategory(item.category || "");
+    setEditOrderPlatform(item.platform || "");
+    setEditOrderName(item.name || "");
+    setEditOrderPrice(String(item.price || ""));
+    setEditOrderDate(item.orderDate || "");
+    setEditOrderStatus(item.status || "배송완료");
+    setEditOrderMemo(item.memo || "");
+  };
+
+  const cancelEditOrder = () => setEditingOrderId(null);
+
+  const saveEditOrder = (id: number) => {
+    if (!editOrderName.trim()) return;
+
+    setOrderList((prev) =>
+      prev.map((o) =>
+        o.id === id
+          ? {
+              ...o,
+              category: editOrderCategory.trim() || "생활용품",
+              platform: editOrderPlatform.trim() || "온라인",
+              name: editOrderName.trim(),
+              price: Number(editOrderPrice) || 0,
+              orderDate: editOrderDate || TODAY_STR,
+              status: editOrderStatus || "배송완료",
+              memo: editOrderMemo.trim()
+            }
+          : o
+      )
+    );
+    setEditingOrderId(null);
+  };
+
+  const handleDeleteOrder = (id: number) => {
+    setOrderList((prev) => prev.filter((o) => o.id !== id));
+  };
+
+  const filteredOrders = useMemo(() => {
+    return (orderList || [])
+      .filter((o) => {
+        const matchCategory = selectedOrderCategory === "전체" || o.category === selectedOrderCategory;
+        const matchSearch =
+          (o.name || "").toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+          (o.platform || "").toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+          (o.category || "").toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+          (o.memo || "").toLowerCase().includes(orderSearchQuery.toLowerCase());
+        return matchCategory && matchSearch;
+      })
+      .sort((a, b) => (b.orderDate || "").localeCompare(a.orderDate || ""));
+  }, [orderList, selectedOrderCategory, orderSearchQuery]);
+
+  const totalOrderAmount = useMemo(() => {
+    return filteredOrders.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
+  }, [filteredOrders]);
+
+  // ================= 5. 장바구니 탭 데이터 =================
   const defaultCartItems = [
     {
       id: 1,
@@ -785,177 +935,7 @@ export default function Home() {
     return filteredCartItems.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
   }, [filteredCartItems]);
 
-  // ================= 5. 구매물품 탭 데이터 =================
-  const getOrderCategoryIcon = (category: string) => {
-    const c = (category || "").trim().toLowerCase();
-    if (c.includes("전자") || c.includes("디지털") || c.includes("it") || c.includes("기기")) return "📱";
-    if (c.includes("패션") || c.includes("의류") || c.includes("옷") || c.includes("신발")) return "👕";
-    if (c.includes("생활") || c.includes("가구") || c.includes("인테리어") || c.includes("욕실")) return "🧴";
-    if (c.includes("식품") || c.includes("음식") || c.includes("간식") || c.includes("마트")) return "🍔";
-    if (c.includes("도서") || c.includes("책") || c.includes("취미") || c.includes("문구")) return "📚";
-    return "📦";
-  };
-
-  const defaultOrders = [
-    {
-      id: 1,
-      category: "전자기기",
-      platform: "쿠팡",
-      name: "로지텍 무선 키보드 MX Keys",
-      price: 139000,
-      orderDate: "2026-09-15",
-      status: "배송완료",
-      memo: "로켓배송 수령 완료"
-    }
-  ];
-
-  const [orderList, setOrderList] = useState<any[]>([]);
-  const [isOrderLoaded, setIsOrderLoaded] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("jb_bookmark_orders_list_v1");
-      setOrderList(saved ? JSON.parse(saved) : defaultOrders);
-      setIsOrderLoaded(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isOrderLoaded && typeof window !== "undefined") {
-      localStorage.setItem("jb_bookmark_orders_list_v1", JSON.stringify(orderList));
-    }
-  }, [orderList, isOrderLoaded]);
-
-  const [newOrderCategory, setNewOrderCategory] = useState("");
-  const [newOrderPlatform, setNewOrderPlatform] = useState("");
-  const [newOrderName, setNewOrderName] = useState("");
-  const [newOrderPrice, setNewOrderPrice] = useState("");
-  const [newOrderDate, setNewOrderDate] = useState(TODAY_STR);
-  const [newOrderStatus, setNewOrderStatus] = useState("배송완료");
-  const [newOrderMemo, setNewOrderMemo] = useState("");
-
-  const [selectedOrderCategory, setSelectedOrderCategory] = useState("전체");
-  const [orderSearchQuery, setOrderSearchQuery] = useState("");
-
-  const [editingOrderId, setEditingOrderId] = useState<number | null>(null);
-  const [editOrderCategory, setEditOrderCategory] = useState("");
-  const [editOrderPlatform, setEditOrderPlatform] = useState("");
-  const [editOrderName, setEditOrderName] = useState("");
-  const [editOrderPrice, setEditOrderPrice] = useState("");
-  const [editOrderDate, setEditOrderDate] = useState("");
-  const [editOrderStatus, setEditOrderStatus] = useState("배송완료");
-  const [editOrderMemo, setEditOrderMemo] = useState("");
-
-  const existingOrderCategories = useMemo(() => {
-    const set = new Set<string>();
-    (orderList || []).forEach((o) => {
-      if (o.category && o.category.trim()) set.add(o.category.trim());
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
-  }, [orderList]);
-
-  const handleAddOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newOrderName.trim()) return;
-
-    const newEntry = {
-      id: Date.now(),
-      category: newOrderCategory.trim() || "생활용품",
-      platform: newOrderPlatform.trim() || "온라인",
-      name: newOrderName.trim(),
-      price: Number(newOrderPrice) || 0,
-      orderDate: newOrderDate || TODAY_STR,
-      status: newOrderStatus || "배송완료",
-      memo: newOrderMemo.trim()
-    };
-
-    setOrderList([newEntry, ...orderList]);
-    setNewOrderCategory("");
-    setNewOrderPlatform("");
-    setNewOrderName("");
-    setNewOrderPrice("");
-    setNewOrderDate(TODAY_STR);
-    setNewOrderStatus("배송완료");
-    setNewOrderMemo("");
-  };
-
-  const startEditOrder = (item: any) => {
-    setEditingOrderId(item.id);
-    setEditOrderCategory(item.category || "");
-    setEditOrderPlatform(item.platform || "");
-    setEditOrderName(item.name || "");
-    setEditOrderPrice(String(item.price || ""));
-    setEditOrderDate(item.orderDate || "");
-    setEditOrderStatus(item.status || "배송완료");
-    setEditOrderMemo(item.memo || "");
-  };
-
-  const cancelEditOrder = () => setEditingOrderId(null);
-
-  const saveEditOrder = (id: number) => {
-    if (!editOrderName.trim()) return;
-
-    setOrderList((prev) =>
-      prev.map((o) =>
-        o.id === id
-          ? {
-              ...o,
-              category: editOrderCategory.trim() || "생활용품",
-              platform: editOrderPlatform.trim() || "온라인",
-              name: editOrderName.trim(),
-              price: Number(editOrderPrice) || 0,
-              orderDate: editOrderDate || TODAY_STR,
-              status: editOrderStatus || "배송완료",
-              memo: editOrderMemo.trim()
-            }
-          : o
-      )
-    );
-    setEditingOrderId(null);
-  };
-
-  const handleDeleteOrder = (id: number) => {
-    setOrderList((prev) => prev.filter((o) => o.id !== id));
-  };
-
-  const filteredOrders = useMemo(() => {
-    return (orderList || [])
-      .filter((o) => {
-        const matchCategory = selectedOrderCategory === "전체" || o.category === selectedOrderCategory;
-        const matchSearch =
-          (o.name || "").toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
-          (o.platform || "").toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
-          (o.category || "").toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
-          (o.memo || "").toLowerCase().includes(orderSearchQuery.toLowerCase());
-        return matchCategory && matchSearch;
-      })
-      .sort((a, b) => (b.orderDate || "").localeCompare(a.orderDate || ""));
-  }, [orderList, selectedOrderCategory, orderSearchQuery]);
-
-  const totalOrderAmount = useMemo(() => {
-    return filteredOrders.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
-  }, [filteredOrders]);
-
   // ================= 6. 책갈피 탭 데이터 =================
-  const calculateAutoFinalEpisode = (releaseDateStr: string) => {
-    if (!releaseDateStr) return "1회";
-    let targetDate: Date;
-    if (releaseDateStr.length === 6 && !releaseDateStr.includes("-")) {
-      const yy = "20" + releaseDateStr.slice(0, 2);
-      const mm = releaseDateStr.slice(2, 4);
-      const dd = releaseDateStr.slice(4, 6);
-      targetDate = new Date(`${yy}-${mm}-${dd}`);
-    } else {
-      targetDate = new Date(releaseDateStr);
-    }
-    if (isNaN(targetDate.getTime())) return "1회";
-    const diffTime = todayDateObj.getTime() - targetDate.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) return "1회";
-    const weeks = Math.floor(diffDays / 7) + 1;
-    return `${weeks}회`;
-  };
-
   const defaultBookmarks = [
     {
       id: 1,
@@ -1165,22 +1145,6 @@ export default function Home() {
   const [isSongDataLoaded, setIsSongDataLoaded] = useState(false);
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
 
-  const getGenreIcon = (genre: string) => {
-    const g = (genre || "").trim().toLowerCase();
-    if (g.includes("k-pop") || g.includes("kpop") || g.includes("가요")) return "🇰🇷";
-    if (g.includes("j-pop") || g.includes("jpop") || g.includes("애니")) return "🇯🇵";
-    if (g.includes("pop") || g.includes("팝")) return "🌎";
-    if (g.includes("발라드") || g.includes("어쿠스틱")) return "🎻";
-    if (g.includes("ost")) return "🎬";
-    if (g.includes("힙합") || g.includes("랩")) return "🎧";
-    if (g.includes("락") || g.includes("밴드") || g.includes("록")) return "🎸";
-    if (g.includes("r&b") || g.includes("소울") || g.includes("재즈")) return "🎷";
-    if (g.includes("인디")) return "🌿";
-    if (g.includes("댄스")) return "💃";
-    if (g.includes("트로트")) return "🪗";
-    return "🎵";
-  };
-
   const getYouTubeId = (url: string) => {
     if (!url) return null;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
@@ -1311,20 +1275,6 @@ export default function Home() {
   }, [songList, selectedGenre, searchQuery]);
 
   // ================= 8. 즐겨찾기 탭 데이터 =================
-  const getCategoryIcon = (category: string) => {
-    const cat = (category || "").toLowerCase();
-    if (cat.includes("포털") || cat.includes("웹") || cat.includes("인터넷")) return "🌐";
-    if (cat.includes("검색") || cat.includes("구글")) return "🔍";
-    if (cat.includes("영상") || cat.includes("동영상") || cat.includes("유튜브") || cat.includes("ott")) return "🎬";
-    if (cat.includes("쇼핑") || cat.includes("구매") || cat.includes("마트")) return "🛒";
-    if (cat.includes("개발") || cat.includes("코딩") || cat.includes("깃")) return "💻";
-    if (cat.includes("음악") || cat.includes("노래") || cat.includes("뮤직")) return "🎵";
-    if (cat.includes("커뮤니티") || cat.includes("카페") || cat.includes("sns") || cat.includes("블로그")) return "💬";
-    if (cat.includes("게임")) return "🎮";
-    if (cat.includes("금융") || cat.includes("은행") || cat.includes("증권") || cat.includes("페이")) return "🏦";
-    return "⭐";
-  };
-
   const defaultFavorites = [
     { id: 1, category: "포털", name: "네이버", url: "https://www.naver.com", memo: "뉴스, 지도, 블로그", username: "my_naver_id", pwHint: "초록창12#$" },
   ];
@@ -1866,7 +1816,7 @@ export default function Home() {
         {/* [2] 중앙 내용 영역 (세로 높이 h-[760px] 고정) */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
-          {/* ==================== 1. [일정] 탭 화면 (복구 완료) ==================== */}
+          {/* ==================== 1. [일정] 탭 화면 ==================== */}
           {currentTab === "schedule" && (
             <div className="h-full flex flex-col gap-3">
               <div className="border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
@@ -2006,7 +1956,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 일정 팝업 모달 */}
               {modalDate && (
                 <div 
                   className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -2122,7 +2071,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== 2. [가계부] 탭 화면 (복구 완료) ==================== */}
+          {/* ==================== 2. [가계부] 탭 화면 ==================== */}
           {currentTab === "ledger" && (
             <div className="h-full flex flex-col gap-3">
               <div className="border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
@@ -2309,7 +2258,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 가계부 모달 */}
               {ledgerModalDate && (
                 <div 
                   className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -2421,7 +2369,7 @@ export default function Home() {
                         <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
                           {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
                             <label key={key} className="flex items-center gap-1.5 cursor-pointer">
-                              <input type="radio" name="ledgerTagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
+                              <input type="radio" name="tagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
                               <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${newLedgerColor === key ? "border-sky-800 scale-110 shadow-xs" : "border-transparent opacity-70"}`}>
                                 {newLedgerColor === key && <Check className="w-3 h-3 text-sky-950 stroke-[3]" />}
                               </span>
@@ -2446,413 +2394,422 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== 3. [즐겨찾기] 탭 화면 ==================== */}
-          {currentTab === "favorites" && (
+          {/* ==================== 4. [구매물품] 탭 화면 (완벽 복구) ==================== */}
+          {currentTab === "orders" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
-              <form onSubmit={handleAddFav} className="border-2 border-purple-400/80 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-purple-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
-                <div className="relative">
-                  <input
-                    type="text"
-                    list="fav-category-suggestions"
-                    value={newFavCategory}
-                    onChange={(e) => setNewFavCategory(e.target.value)}
-                    placeholder="분류 (예: 포털)"
-                    className="w-24 border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs font-medium text-purple-950 focus:outline-none focus:border-purple-500 placeholder-neutral-400"
-                  />
-                  <datalist id="fav-category-suggestions">
-                    {existingFavCategories.map((c) => (<option key={c} value={c} />))}
-                  </datalist>
-                </div>
-
+              {/* 등록 바 */}
+              <form onSubmit={handleAddOrder} className="border-2 border-indigo-400/90 rounded-2xl p-3 flex flex-wrap items-center gap-1.5 bg-indigo-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
                 <input
                   type="text"
-                  required
-                  value={newFavName}
-                  onChange={(e) => setNewFavName(e.target.value)}
-                  placeholder="사이트명 *"
-                  className="w-32 border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-purple-500 placeholder-neutral-500 font-bold"
+                  list="order-category-suggestions"
+                  value={newOrderCategory}
+                  onChange={(e) => setNewOrderCategory(e.target.value)}
+                  placeholder="분류 (예: 전자기기)"
+                  className="w-24 border border-indigo-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-medium text-indigo-950 focus:outline-none focus:border-indigo-500 placeholder-neutral-400"
                 />
-
-                <input
-                  type="text"
-                  required
-                  value={newFavUrl}
-                  onChange={(e) => setNewFavUrl(e.target.value)}
-                  placeholder="URL 주소 (https://...)*"
-                  className="flex-1 min-w-[150px] border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-purple-500 placeholder-neutral-500 font-medium"
-                />
-
-                <input
-                  type="text"
-                  value={newFavMemo}
-                  onChange={(e) => setNewFavMemo(e.target.value)}
-                  placeholder="메모"
-                  className="w-28 border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-purple-500 placeholder-neutral-500 font-medium"
-                />
-
-                <input
-                  type="text"
-                  value={newFavUsername}
-                  onChange={(e) => setNewFavUsername(e.target.value)}
-                  placeholder="아이디"
-                  className="w-24 border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-purple-500 placeholder-neutral-500 font-medium"
-                />
-
-                <input
-                  type="text"
-                  value={newFavPwHint}
-                  onChange={(e) => setNewFavPwHint(e.target.value)}
-                  placeholder="비번 힌트"
-                  className="w-24 border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-purple-500 placeholder-neutral-500 font-medium"
-                />
-
-                <button
-                  type="submit"
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" /> 추가
-                </button>
-              </form>
-
-              <div className="border-2 border-purple-400/80 rounded-2xl p-3 bg-purple-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
-                <div className="relative w-full">
-                  <input
-                    type="text"
-                    value={favSearchQuery}
-                    onChange={(e) => setFavSearchQuery(e.target.value)}
-                    placeholder="사이트명, 분류, 메모, 아이디를 검색해보세요..."
-                    className="w-full border border-purple-200 bg-white/90 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-purple-500 placeholder-neutral-500 font-medium"
-                  />
-                  <Search className="w-3.5 h-3.5 text-purple-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
-                </div>
-
-                <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
-                  <span className="text-purple-950 font-semibold text-[11px] mr-1">분류:</span>
-                  <button
-                    onClick={() => setSelectedFavCategory("전체")}
-                    className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
-                      selectedFavCategory === "전체"
-                        ? "border-purple-500 bg-purple-200 text-purple-950 font-bold shadow-2xs"
-                        : "border-purple-200/80 bg-white/70 text-neutral-700 hover:bg-white"
-                    }`}
-                  >
-                    전체
-                  </button>
-                  {existingFavCategories.map((cat) => (
-                    <button
-                      key={cat}
-                      onClick={() => setSelectedFavCategory(cat)}
-                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
-                        selectedFavCategory === cat
-                          ? "border-purple-500 bg-purple-200 text-purple-950 font-bold shadow-2xs"
-                          : "border-purple-200/80 bg-white/70 text-neutral-700 hover:bg-white"
-                      }`}
-                    >
-                      {getCategoryIcon(cat)} {cat}
-                    </button>
-                  ))}
-                  <span className="ml-auto text-[11px] text-purple-800/80 font-medium">
-                    총 {filteredFavs.length}개 사이트
-                  </span>
-                </div>
-              </div>
-
-              <div className="border-2 border-purple-400/80 rounded-xl px-4 py-2.5 bg-purple-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
-                <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-purple-950 items-center text-center">
-                  <span className="col-span-2">🏷️ 분류</span>
-                  <span className="col-span-3">🌐 사이트명</span>
-                  <span className="col-span-1">바로가기</span>
-                  <span className="col-span-2">📝 메모</span>
-                  <span className="col-span-2">🔐 계정 정보 (클릭시 ID복사 / 힌트)</span>
-                  <span className="col-span-2">관리</span>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                {filteredFavs.map((fav) => {
-                  const isEditing = editingFavId === fav.id;
-                  const isCopied = copiedId === fav.id;
-                  const catIcon = getCategoryIcon(fav.category);
-
-                  if (isEditing) {
-                    return (
-                      <div
-                        key={`edit-fav-${fav.id}`}
-                        className="p-3 rounded-2xl border-2 border-purple-400 bg-purple-50/90 shadow-md flex flex-wrap items-center gap-2"
-                      >
-                        <input type="text" value={editFavCategory} onChange={(e) => setEditFavCategory(e.target.value)} placeholder="분류" className="w-20 border border-purple-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-purple-950 focus:outline-none focus:border-purple-600" />
-                        <input type="text" required value={editFavName} onChange={(e) => setEditFavName(e.target.value)} placeholder="사이트 이름" className="w-28 border border-purple-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-purple-600 font-bold" />
-                        <input type="text" required value={editFavUrl} onChange={(e) => setEditFavUrl(e.target.value)} placeholder="웹사이트 URL" className="flex-1 min-w-[140px] border border-purple-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-purple-600 font-medium" />
-                        <input type="text" value={editFavMemo} onChange={(e) => setEditFavMemo(e.target.value)} placeholder="메모" className="w-28 border border-purple-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-purple-600 font-medium" />
-                        <input type="text" value={editFavUsername} onChange={(e) => setEditFavUsername(e.target.value)} placeholder="아이디" className="w-24 border border-purple-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-purple-600 font-medium" />
-                        <input type="text" value={editFavPwHint} onChange={(e) => setEditFavPwHint(e.target.value)} placeholder="비번 힌트" className="w-24 border border-purple-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-purple-600 font-medium" />
-                        <div className="flex items-center gap-1 shrink-0 ml-auto">
-                          <button onClick={() => saveEditFav(fav.id)} title="저장" className="p-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"><Check className="w-3.5 h-3.5" /> 저장</button>
-                          <button onClick={cancelEditFav} title="취소" className="p-1.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-600 text-xs flex items-center gap-1 shadow-sm transition"><X className="w-3.5 h-3.5" /> 취소</button>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div
-                      key={fav.id}
-                      className="grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border-2 border-purple-400/80 bg-purple-50/40 hover:bg-purple-50/70 transition shadow-2xs"
-                    >
-                      <div className="col-span-2 flex justify-center">
-                        <span className="px-2.5 py-1 rounded-lg bg-purple-100 text-purple-900 border border-purple-300 text-[11px] font-bold text-center flex items-center gap-1 shadow-2xs">
-                          <span>{catIcon}</span>
-                          <span>{fav.category}</span>
-                        </span>
-                      </div>
-                      <div className="col-span-3 text-neutral-900 truncate font-black text-[13px] text-center px-1">{fav.name}</div>
-                      <div className="col-span-1 flex justify-center">
-                        <a href={fav.url} target="_blank" rel="noreferrer" className="px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-2xs transition active:scale-95" title={`${fav.name} 바로가기`}>
-                          <ExternalLink className="w-3 h-3" />
-                          <span>이동</span>
-                        </a>
-                      </div>
-                      <div className="col-span-2 text-neutral-600 truncate text-[11px] px-1 text-center font-medium">{fav.memo || <span className="text-neutral-300">-</span>}</div>
-                      <div className="col-span-2 flex flex-col items-center justify-center gap-1 px-1 overflow-hidden">
-                        {fav.username ? (
-                          <button onClick={(e) => handleCopyUsername(fav.id, fav.username, e)} className={`flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border transition active:scale-95 max-w-full ${isCopied ? "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold" : "bg-white/90 hover:bg-purple-100/80 text-neutral-800 border-purple-200/80"}`} title="클릭하여 아이디 복사">
-                            {isCopied ? (<><Check className="w-3 h-3 text-emerald-600 shrink-0" /><span className="text-emerald-700 font-bold">복사됨!</span></>) : (<><User className="w-2.5 h-2.5 text-purple-700 shrink-0" /><span className="truncate">{fav.username}</span><Copy className="w-2.5 h-2.5 opacity-50 shrink-0 ml-0.5" /></>)}
-                          </button>
-                        ) : null}
-                        {fav.pwHint ? (
-                          <div className="flex items-center gap-1 text-[10px] font-mono text-neutral-600 bg-purple-100/60 px-1.5 py-0.2 rounded border border-purple-200/90 truncate max-w-full cursor-help group" title="마우스를 올리면 비밀번호 힌트가 보입니다">
-                            <Key className="w-2.5 h-2.5 text-purple-700 shrink-0" />
-                            <span className="filter blur-[3px] group-hover:blur-none transition-all duration-200 select-none group-hover:select-text text-purple-950 font-bold">{fav.pwHint}</span>
-                          </div>
-                        ) : null}
-                        {!fav.username && !fav.pwHint && <span className="text-[10px] text-neutral-300">-</span>}
-                      </div>
-                      <div className="col-span-2 flex items-center justify-center gap-1.5">
-                        <button onClick={() => startEditFav(fav)} title="수정" className="p-1.5 rounded-lg text-neutral-400 hover:text-purple-800 hover:bg-white transition"><Pencil className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleDeleteFav(fav.id)} title="삭제" className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {filteredFavs.length === 0 && (
-                  <div className="border-2 border-dashed border-purple-300 rounded-2xl p-12 text-center text-xs font-medium text-purple-800/70 bg-purple-50/20">
-                    등록되었거나 조건에 맞는 즐겨찾기 사이트가 없습니다.
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ==================== 4. [책갈피] 탭 화면 ==================== */}
-          {currentTab === "bookmarks" && (
-            <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
-              <form onSubmit={handleAddBookmark} className="border-2 border-amber-400/90 rounded-2xl p-3 flex flex-wrap items-center gap-1.5 bg-amber-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
-                <input
-                  type="text"
-                  list="bmark-category-suggestions"
-                  value={newBmarkCategory}
-                  onChange={(e) => setNewBmarkCategory(e.target.value)}
-                  placeholder="분류 (예: 웹툰)"
-                  className="w-20 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-medium text-amber-950 focus:outline-none focus:border-amber-500 placeholder-neutral-400"
-                />
-                <datalist id="bmark-category-suggestions">
-                  {existingBmarkCategories.map((c) => (<option key={c} value={c} />))}
+                <datalist id="order-category-suggestions">
+                  {existingOrderCategories.map((c) => (<option key={c} value={c} />))}
                 </datalist>
 
                 <input
                   type="text"
-                  value={newBmarkPlatform}
-                  onChange={(e) => setNewBmarkPlatform(e.target.value)}
-                  placeholder="플랫폼"
-                  className="w-20 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                  value={newOrderPlatform}
+                  onChange={(e) => setNewOrderPlatform(e.target.value)}
+                  placeholder="구매처/플랫폼"
+                  className="w-24 border border-indigo-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-500 placeholder-neutral-500 font-medium"
                 />
 
                 <input
                   type="text"
                   required
-                  value={newBmarkTitle}
-                  onChange={(e) => setNewBmarkTitle(e.target.value)}
-                  placeholder="제목 *"
-                  className="flex-1 min-w-[130px] border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-bold"
+                  value={newOrderName}
+                  onChange={(e) => setNewOrderName(e.target.value)}
+                  placeholder="품목명 *"
+                  className="flex-1 min-w-[140px] border border-indigo-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-indigo-500 placeholder-neutral-500 font-bold"
+                />
+
+                <input
+                  type="date"
+                  value={newOrderDate}
+                  onChange={(e) => setNewOrderDate(e.target.value)}
+                  className="w-28 border border-indigo-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-medium text-neutral-800 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                />
+
+                <input
+                  type="number"
+                  min="0"
+                  value={newOrderPrice}
+                  onChange={(e) => setNewOrderPrice(e.target.value)}
+                  placeholder="가격(원)"
+                  className="w-24 border border-indigo-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-500 placeholder-neutral-500 font-mono"
                 />
 
                 <select
-                  value={newBmarkUpdate}
-                  onChange={(e) => setNewBmarkUpdate(e.target.value)}
-                  className="w-24 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-bold text-amber-950 focus:outline-none focus:border-amber-500 cursor-pointer"
+                  value={newOrderStatus}
+                  onChange={(e) => setNewOrderStatus(e.target.value)}
+                  className="w-24 border border-indigo-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-bold text-indigo-950 focus:outline-none focus:border-indigo-500 cursor-pointer"
                 >
-                  <option value="월요일">월요일</option>
-                  <option value="화요일">화요일</option>
-                  <option value="수요일">수요일</option>
-                  <option value="목요일">목요일</option>
-                  <option value="금요일">금요일</option>
-                  <option value="토요일">토요일</option>
-                  <option value="일요일">일요일</option>
-                  <option value="완결">완결</option>
+                  <option value="배송완료">배송완료</option>
+                  <option value="배송중">배송중</option>
+                  <option value="구매예정">구매예정</option>
+                  <option value="취소·반품">취소·반품</option>
                 </select>
 
                 <input
                   type="text"
-                  value={newBmarkRelease}
-                  onChange={(e) => setNewBmarkRelease(e.target.value)}
-                  placeholder="공개일"
-                  className="w-20 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                  value={newOrderMemo}
+                  onChange={(e) => setNewOrderMemo(e.target.value)}
+                  placeholder="메모 / 링크"
+                  className="w-36 border border-indigo-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-500 placeholder-neutral-500 font-medium"
                 />
-
-                <div className="flex items-center gap-1">
-                  <input
-                    type="text"
-                    value={newBmarkSchedule}
-                    onChange={(e) => setNewBmarkSchedule(e.target.value)}
-                    placeholder="편성"
-                    className="w-16 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
-                  />
-                  <span className="text-xs font-bold text-amber-950">회</span>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    min="0"
-                    value={newBmarkBookmark}
-                    onChange={(e) => setNewBmarkBookmark(Number(e.target.value))}
-                    placeholder="회차"
-                    className="w-14 border border-amber-300 bg-white/90 rounded-lg px-1.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
-                  />
-                  <span className="text-xs font-bold text-amber-950">회</span>
-                </div>
 
                 <button
                   type="submit"
-                  className="bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1 ml-auto"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1 ml-auto"
                 >
                   <Plus className="w-3.5 h-3.5" /> 추가
                 </button>
               </form>
 
-              <div className="border-2 border-amber-400/90 rounded-2xl p-3 bg-amber-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
+              {/* 검색 및 필터 */}
+              <div className="border-2 border-indigo-400/90 rounded-2xl p-3 bg-indigo-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
                 <div className="relative w-full">
                   <input
                     type="text"
-                    value={bmarkSearchQuery}
-                    onChange={(e) => setBmarkSearchQuery(e.target.value)}
-                    placeholder="제목, 플랫폼, 분류, 정기업데이트를 검색해보세요..."
-                    className="w-full border border-amber-300 bg-white/90 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                    value={orderSearchQuery}
+                    onChange={(e) => setOrderSearchQuery(e.target.value)}
+                    placeholder="품목명, 플랫폼, 카테고리, 메모를 검색해보세요..."
+                    className="w-full border border-indigo-300 bg-white/90 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-indigo-500 placeholder-neutral-500 font-medium"
                   />
-                  <Search className="w-3.5 h-3.5 text-amber-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Search className="w-3.5 h-3.5 text-indigo-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
                 </div>
 
                 <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
-                  <span className="text-amber-950 font-semibold text-[11px] mr-1">분류:</span>
+                  <span className="text-indigo-950 font-semibold text-[11px] mr-1">분류:</span>
                   <button
-                    onClick={() => setSelectedBmarkCategory("전체")}
+                    onClick={() => setSelectedOrderCategory("전체")}
                     className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
-                      selectedBmarkCategory === "전체"
-                        ? "border-amber-500 bg-amber-200 text-amber-950 font-bold shadow-2xs"
-                        : "border-amber-300/80 bg-white/70 text-neutral-700 hover:bg-white"
+                      selectedOrderCategory === "전체"
+                        ? "border-indigo-500 bg-indigo-200 text-indigo-950 font-bold shadow-2xs"
+                        : "border-indigo-300/80 bg-white/70 text-neutral-700 hover:bg-white"
                     }`}
                   >
                     전체
                   </button>
-                  {existingBmarkCategories.map((cat) => (
+                  {existingOrderCategories.map((cat) => (
                     <button
                       key={cat}
-                      onClick={() => setSelectedBmarkCategory(cat)}
+                      onClick={() => setSelectedOrderCategory(cat)}
                       className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
-                        selectedBmarkCategory === cat
-                          ? "border-amber-500 bg-amber-200 text-amber-950 font-bold shadow-2xs"
-                          : "border-amber-300/80 bg-white/70 text-neutral-700 hover:bg-white"
+                        selectedOrderCategory === cat
+                          ? "border-indigo-500 bg-indigo-200 text-indigo-950 font-bold shadow-2xs"
+                          : "border-indigo-300/80 bg-white/70 text-neutral-700 hover:bg-white"
                       }`}
                     >
                       {cat}
                     </button>
                   ))}
-                  <span className="ml-auto text-[11px] text-amber-800/80 font-medium">
-                    총 {filteredBookmarks.length}개의 항목
+                  <span className="ml-auto text-[11px] text-indigo-800/80 font-bold">
+                    총 {filteredOrders.length}건 / 합계: {totalOrderAmount.toLocaleString()}원
                   </span>
                 </div>
               </div>
 
-              <div className="border-2 border-amber-400/90 rounded-xl px-3 py-2.5 bg-amber-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
-                <div className="grid grid-cols-12 gap-1 text-[11px] font-extrabold text-amber-950 items-center text-center">
-                  <span 
-                    onClick={() => setBmarkSortOrder((prev) => prev === "default" ? "update_asc" : "default")}
-                    className="col-span-2 cursor-pointer hover:text-amber-700 transition flex items-center justify-center gap-0.5"
-                    title="클릭 시 정기업데이트(월~일) 순서로 정렬됩니다"
+              {/* 헤더 박스 */}
+              <div className="border-2 border-indigo-400/90 rounded-xl px-3 py-2.5 bg-indigo-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="grid grid-cols-12 gap-1 text-[11px] font-extrabold text-indigo-950 items-center text-center">
+                  <span className="col-span-2">분류 / 구매처</span>
+                  <span className="col-span-3">품목명</span>
+                  <span className="col-span-2">구매일자</span>
+                  <span className="col-span-2">구매금액</span>
+                  <span className="col-span-1">상태</span>
+                  <span className="col-span-1">메모</span>
+                  <span className="col-span-1">관리</span>
+                </div>
+              </div>
+
+              {/* 리스트 */}
+              <div className="flex flex-col gap-2">
+                {filteredOrders.map((order) => {
+                  const isEditing = editingOrderId === order.id;
+                  const catIcon = getOrderCategoryIcon(order.category);
+
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={`edit-order-${order.id}`}
+                        className="grid grid-cols-12 gap-1 items-center p-2.5 rounded-2xl border-2 border-indigo-400 bg-indigo-50/90 shadow-md text-center"
+                      >
+                        <div className="col-span-2 flex flex-col gap-1 px-1">
+                          <input type="text" value={editOrderCategory} onChange={(e) => setEditOrderCategory(e.target.value)} placeholder="분류" className="w-full border border-indigo-300 bg-white rounded px-1.5 py-1 text-[11px] font-bold" />
+                          <input type="text" value={editOrderPlatform} onChange={(e) => setEditOrderPlatform(e.target.value)} placeholder="구매처" className="w-full border border-indigo-300 bg-white rounded px-1.5 py-1 text-[10px]" />
+                        </div>
+                        <div className="col-span-3 px-1">
+                          <input type="text" required value={editOrderName} onChange={(e) => setEditOrderName(e.target.value)} placeholder="품목명" className="w-full border border-indigo-300 bg-white rounded px-2 py-1 text-[11px] font-bold" />
+                        </div>
+                        <div className="col-span-2 px-1">
+                          <input type="date" value={editOrderDate} onChange={(e) => setEditOrderDate(e.target.value)} className="w-full border border-indigo-300 bg-white rounded px-1.5 py-1 text-[11px] font-medium cursor-pointer" />
+                        </div>
+                        <div className="col-span-2 px-1 flex items-center gap-0.5">
+                          <input type="number" min="0" value={editOrderPrice} onChange={(e) => setEditOrderPrice(e.target.value)} placeholder="금액" className="w-full border border-indigo-300 bg-white rounded px-1.5 py-1 text-[11px] font-mono" />
+                          <span className="text-[10px] font-bold">원</span>
+                        </div>
+                        <div className="col-span-1 px-0.5">
+                          <select value={editOrderStatus} onChange={(e) => setEditOrderStatus(e.target.value)} className="w-full border border-indigo-300 bg-white rounded px-0.5 py-1 text-[10px] font-bold">
+                            <option value="배송완료">배송완료</option>
+                            <option value="배송중">배송중</option>
+                            <option value="구매예정">구매예정</option>
+                            <option value="취소·반품">취소·반품</option>
+                          </select>
+                        </div>
+                        <div className="col-span-1 px-0.5">
+                          <input type="text" value={editOrderMemo} onChange={(e) => setEditOrderMemo(e.target.value)} placeholder="메모" className="w-full border border-indigo-300 bg-white rounded px-1 py-1 text-[10px]" />
+                        </div>
+                        <div className="col-span-1 flex items-center justify-center gap-1">
+                          <button onClick={() => saveEditOrder(order.id)} title="저장" className="p-1 rounded bg-indigo-600 text-white font-bold text-[10px]"><Check className="w-3 h-3" /></button>
+                          <button onClick={cancelEditOrder} title="취소" className="p-1 rounded border border-neutral-300 bg-white text-neutral-600 text-[10px]"><X className="w-3 h-3" /></button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={order.id}
+                      className="grid grid-cols-12 gap-1 items-center text-[11px] p-2.5 rounded-2xl border-2 border-indigo-400/90 bg-indigo-50/40 hover:bg-indigo-50/70 transition shadow-2xs text-center"
+                    >
+                      <div className="col-span-2 flex flex-col items-center justify-center">
+                        <span className="px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-900 border border-indigo-300 font-bold shadow-2xs flex items-center gap-1">
+                          <span>{catIcon}</span>
+                          <span>{order.category}</span>
+                        </span>
+                        <span className="text-[10px] text-neutral-500 font-medium mt-0.5">{order.platform}</span>
+                      </div>
+
+                      <div className="col-span-3 text-neutral-900 font-black truncate px-1 text-center" title={order.name}>
+                        {order.name}
+                      </div>
+
+                      <div className="col-span-2 text-neutral-600 font-mono font-medium truncate px-1">
+                        {order.orderDate}
+                      </div>
+
+                      <div className="col-span-2 text-indigo-950 font-black font-mono truncate px-1">
+                        {Number(order.price).toLocaleString()}원
+                      </div>
+
+                      <div className="col-span-1 flex justify-center">
+                        <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold border ${
+                          order.status === "배송완료"
+                            ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                            : order.status === "배송중"
+                            ? "bg-blue-100 text-blue-800 border-blue-300 animate-pulse"
+                            : order.status === "구매예정"
+                            ? "bg-amber-100 text-amber-800 border-amber-300"
+                            : "bg-neutral-100 text-neutral-600 border-neutral-300"
+                        }`}>
+                          {order.status}
+                        </span>
+                      </div>
+
+                      <div className="col-span-1 text-neutral-500 truncate px-1 italic text-[10px]" title={order.memo}>
+                        {order.memo ? (
+                          order.memo.startsWith("http") ? (
+                            <a href={order.memo} target="_blank" rel="noreferrer" className="text-indigo-600 underline font-semibold">링크</a>
+                          ) : (
+                            order.memo
+                          )
+                        ) : "-"}
+                      </div>
+
+                      <div className="col-span-1 flex items-center justify-center gap-1">
+                        <button onClick={() => startEditOrder(order)} title="수정" className="p-1 rounded text-neutral-500 hover:text-indigo-900 hover:bg-white transition"><Pencil className="w-3 h-3" /></button>
+                        <button onClick={() => handleDeleteOrder(order.id)} title="삭제" className="p-1 rounded text-neutral-500 hover:text-rose-600 hover:bg-white transition"><Trash2 className="w-3 h-3" /></button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredOrders.length === 0 && (
+                  <div className="border-2 border-dashed border-indigo-300 rounded-2xl p-12 text-center text-xs font-medium text-indigo-800/70 bg-indigo-50/20">
+                    등록되었거나 조건에 맞는 구매물품 내역이 없습니다.
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+
+          {/* ==================== 5. [장바구니] 탭 화면 ==================== */}
+          {currentTab === "cart" && (
+            <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
+              <form onSubmit={handleAddCartItem} className="border-2 border-rose-400/90 rounded-2xl p-3 flex flex-wrap items-center gap-1.5 bg-rose-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
+                <input
+                  type="text"
+                  list="cart-category-suggestions"
+                  value={newCartCategory}
+                  onChange={(e) => setNewCartCategory(e.target.value)}
+                  placeholder="분류 (예: 전자기기)"
+                  className="w-24 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-medium text-rose-950 focus:outline-none focus:border-rose-500 placeholder-neutral-400"
+                />
+                <datalist id="cart-category-suggestions">
+                  {existingCartCategories.map((c) => (<option key={c} value={c} />))}
+                </datalist>
+
+                <select
+                  value={newCartPriority}
+                  onChange={(e) => setNewCartPriority(e.target.value)}
+                  className="w-28 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-bold text-rose-950 focus:outline-none focus:border-rose-500 cursor-pointer shrink-0"
+                  title="구매 우선순위"
+                >
+                  <option value="⭐⭐⭐">⭐⭐⭐ 필수</option>
+                  <option value="⭐⭐">⭐⭐ 고민중</option>
+                  <option value="⭐">⭐ 여유될때</option>
+                </select>
+
+                <input
+                  type="text"
+                  required
+                  value={newCartName}
+                  onChange={(e) => setNewCartName(e.target.value)}
+                  placeholder="사고싶은 물건 이름 *"
+                  className="flex-1 min-w-[110px] border border-rose-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-rose-500 placeholder-neutral-500 font-bold"
+                />
+
+                <input
+                  type="number"
+                  min="0"
+                  value={newCartPrice}
+                  onChange={(e) => setNewCartPrice(e.target.value)}
+                  placeholder="예상 가격(원)"
+                  className="w-24 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-rose-500 placeholder-neutral-500 font-mono"
+                />
+
+                <input
+                  type="text"
+                  value={newCartSpec}
+                  onChange={(e) => setNewCartSpec(e.target.value)}
+                  placeholder="스펙/옵션 (예: 270mm, 실버)"
+                  className="w-36 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-rose-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  value={newCartUrl}
+                  onChange={(e) => setNewCartUrl(e.target.value)}
+                  placeholder="판매처 링크 URL"
+                  className="w-32 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-rose-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  value={newCartMemo}
+                  onChange={(e) => setNewCartMemo(e.target.value)}
+                  placeholder="메모"
+                  className="w-32 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-rose-500 placeholder-neutral-500 font-medium"
+                />
+
+                <button
+                  type="submit"
+                  className="bg-rose-500 hover:bg-rose-600 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1 ml-auto"
+                >
+                  <Plus className="w-3.5 h-3.5" /> 담기
+                </button>
+              </form>
+
+              <div className="border-2 border-rose-400/90 rounded-2xl p-3 bg-rose-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    value={cartSearchQuery}
+                    onChange={(e) => setCartSearchQuery(e.target.value)}
+                    placeholder="품목명, 카테고리, 옵션, 메모를 검색해보세요..."
+                    className="w-full border border-rose-300 bg-white/90 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-rose-500 placeholder-neutral-500 font-medium"
+                  />
+                  <Search className="w-3.5 h-3.5 text-rose-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
+                  <span className="text-rose-950 font-semibold text-[11px] mr-1">분류:</span>
+                  <button
+                    onClick={() => setSelectedCartCategory("전체")}
+                    className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                      selectedCartCategory === "전체"
+                        ? "border-rose-500 bg-rose-200 text-rose-950 font-bold shadow-2xs"
+                        : "border-rose-300/80 bg-white/70 text-neutral-700 hover:bg-white"
+                    }`}
                   >
-                    <span>분류 / 플랫폼</span>
-                    <ArrowUpDown className="w-3 h-3 text-amber-800" />
+                    전체
+                  </button>
+                  {existingCartCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCartCategory(cat)}
+                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                        selectedCartCategory === cat
+                          ? "border-rose-500 bg-rose-200 text-rose-950 font-bold shadow-2xs"
+                          : "border-rose-300/80 bg-white/70 text-neutral-700 hover:bg-white"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                  <span className="ml-auto text-[11px] text-rose-800/80 font-bold">
+                    담아둔 물건: {filteredCartItems.length}개 / 예상 총액: {totalCartAmount.toLocaleString()}원
                   </span>
-                  <span className="col-span-3">제목</span>
-                  <span className="col-span-2">정기업데이트</span>
-                  <span className="col-span-1">공개일</span>
-                  <span className="col-span-1">주간편성</span>
-                  <span className="col-span-1">최종회차</span>
-                  <span className="col-span-1">책갈피 (+/-)</span>
+                </div>
+              </div>
+
+              <div className="border-2 border-rose-400/90 rounded-xl px-3 py-2.5 bg-rose-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="grid grid-cols-12 gap-1 text-[11px] font-extrabold text-rose-950 items-center text-center">
+                  <span className="col-span-2">분류 / 우선순위</span>
+                  <span className="col-span-3">사고싶은 물건명</span>
+                  <span className="col-span-2">예상 가격</span>
+                  <span className="col-span-2">옵션 / 규격</span>
+                  <span className="col-span-1">링크</span>
+                  <span className="col-span-1">메모</span>
                   <span className="col-span-1">관리</span>
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
-                {filteredBookmarks.map((bmark) => {
-                  const isEditing = editingBmarkId === bmark.id;
-
-                  const finalEpNum = parseInt(String(bmark.finalEpisode).replace(/[^0-9]/g, "")) || 0;
-                  const currentBmNum = Number(bmark.currentBookmark) || 0;
-
-                  let cardBgClass = "bg-amber-50/40 hover:bg-amber-50/70 border-amber-400/90 text-neutral-900";
-                  if (bmark.isCompleted) {
-                    cardBgClass = "bg-rose-100/70 hover:bg-rose-100 border-rose-300 text-neutral-900";
-                  } else if (currentBmNum === 0) {
-                    cardBgClass = "bg-amber-100/80 hover:bg-amber-100 border-amber-300 text-neutral-900";
-                  } else if (currentBmNum < finalEpNum) {
-                    cardBgClass = "bg-pink-50/70 hover:bg-pink-50 border-pink-300 text-neutral-900";
-                  }
+                {filteredCartItems.map((item) => {
+                  const isEditing = editingCartId === item.id;
+                  const catIcon = getCartCategoryIcon(item.category);
 
                   if (isEditing) {
                     return (
                       <div
-                        key={`edit-bmark-${bmark.id}`}
-                        className="grid grid-cols-12 gap-1 items-center p-2.5 rounded-2xl border-2 border-amber-400 bg-amber-50/90 shadow-md text-center"
+                        key={`edit-cart-${item.id}`}
+                        className="grid grid-cols-12 gap-1 items-center p-2.5 rounded-2xl border-2 border-rose-400 bg-rose-50/90 shadow-md text-center"
                       >
                         <div className="col-span-2 flex flex-col gap-1 px-1">
-                          <input type="text" value={editBmarkCategory} onChange={(e) => setEditBmarkCategory(e.target.value)} placeholder="분류" className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[11px] font-bold" />
-                          <input type="text" value={editBmarkPlatform} onChange={(e) => setEditBmarkPlatform(e.target.value)} placeholder="플랫폼" className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[10px]" />
-                        </div>
-                        <div className="col-span-3 px-1">
-                          <input type="text" required value={editBmarkTitle} onChange={(e) => setEditBmarkTitle(e.target.value)} placeholder="제목" className="w-full border border-amber-300 bg-white rounded px-2 py-1 text-[11px] font-bold" />
-                        </div>
-                        <div className="col-span-2 px-1">
-                          <select value={editBmarkUpdate} onChange={(e) => setEditBmarkUpdate(e.target.value)} className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[11px] font-bold">
-                            <option value="월요일">월요일</option>
-                            <option value="화요일">화요일</option>
-                            <option value="수요일">수요일</option>
-                            <option value="목요일">목요일</option>
-                            <option value="금요일">금요일</option>
-                            <option value="토요일">토요일</option>
-                            <option value="일요일">일요일</option>
-                            <option value="완결">완결</option>
+                          <input type="text" value={editCartCategory} onChange={(e) => setEditCartCategory(e.target.value)} placeholder="분류" className="w-full border border-rose-300 bg-white rounded px-1.5 py-1 text-[11px] font-bold" />
+                          <select value={editCartPriority} onChange={(e) => setEditCartPriority(e.target.value)} className="w-full border border-rose-300 bg-white rounded px-1 py-0.5 text-[10px] font-bold">
+                            <option value="⭐⭐⭐">⭐⭐⭐</option>
+                            <option value="⭐⭐">⭐⭐</option>
+                            <option value="⭐">⭐</option>
                           </select>
                         </div>
+                        <div className="col-span-3 px-1">
+                          <input type="text" required value={editCartName} onChange={(e) => setEditCartName(e.target.value)} placeholder="품목명" className="w-full border border-rose-300 bg-white rounded px-2 py-1 text-[11px] font-bold" />
+                        </div>
+                        <div className="col-span-2 px-1 flex items-center gap-0.5">
+                          <input type="number" min="0" value={editCartPrice} onChange={(e) => setEditCartPrice(e.target.value)} placeholder="예상가격" className="w-full border border-rose-300 bg-white rounded px-1.5 py-1 text-[11px] font-mono" />
+                          <span className="text-[10px] font-bold">원</span>
+                        </div>
+                        <div className="col-span-2 px-1">
+                          <input type="text" value={editCartSpec} onChange={(e) => setEditCartSpec(e.target.value)} placeholder="옵션/스펙" className="w-full border border-rose-300 bg-white rounded px-1.5 py-1 text-[11px]" />
+                        </div>
                         <div className="col-span-1 px-0.5">
-                          <input type="text" value={editBmarkRelease} onChange={(e) => setEditBmarkRelease(e.target.value)} placeholder="공개일" className="w-full border border-amber-300 bg-white rounded px-1 py-1 text-[11px]" />
+                          <input type="text" value={editCartUrl} onChange={(e) => setEditCartUrl(e.target.value)} placeholder="링크URL" className="w-full border border-rose-300 bg-white rounded px-1 py-1 text-[10px]" />
                         </div>
-                        <div className="col-span-1 flex items-center justify-center gap-0.5 px-0.5">
-                          <input type="text" value={editBmarkSchedule} onChange={(e) => setEditBmarkSchedule(e.target.value)} placeholder="편성" className="w-full border border-amber-300 bg-white rounded px-1 py-1 text-[11px]" />
-                          <span className="text-[10px] font-bold">회</span>
-                        </div>
-                        <div className="col-span-1 flex items-center justify-center gap-0.5 px-0.5">
-                          <input type="text" value={editBmarkEpisode} onChange={(e) => setEditBmarkEpisode(e.target.value)} placeholder="최종" className="w-full border border-amber-300 bg-white rounded px-1 py-1 text-[11px]" />
-                          <span className="text-[10px] font-bold">회</span>
-                        </div>
-                        <div className="col-span-1 flex items-center justify-center gap-0.5 px-0.5">
-                          <input type="number" min="0" value={editBmarkBookmark} onChange={(e) => setEditBmarkBookmark(Number(e.target.value))} placeholder="회" className="w-full border border-amber-300 bg-white rounded px-0.5 py-1 text-[11px]" />
-                          <span className="text-[10px] font-bold">회</span>
+                        <div className="col-span-1 px-0.5">
+                          <input type="text" value={editCartMemo} onChange={(e) => setEditCartMemo(e.target.value)} placeholder="메모" className="w-full border border-rose-300 bg-white rounded px-1 py-1 text-[10px]" />
                         </div>
                         <div className="col-span-1 flex items-center justify-center gap-1">
-                          <button onClick={() => saveEditBookmark(bmark.id)} title="저장" className="p-1 rounded bg-amber-500 text-white font-bold text-[10px]"><Check className="w-3 h-3" /></button>
-                          <button onClick={cancelEditBookmark} title="취소" className="p-1 rounded border border-neutral-300 bg-white text-neutral-600 text-[10px]"><X className="w-3 h-3" /></button>
+                          <button onClick={() => saveEditCartItem(item.id)} title="저장" className="p-1 rounded bg-rose-500 text-white font-bold text-[10px]"><Check className="w-3 h-3" /></button>
+                          <button onClick={cancelEditCartItem} title="취소" className="p-1 rounded border border-neutral-300 bg-white text-neutral-600 text-[10px]"><X className="w-3 h-3" /></button>
                         </div>
                       </div>
                     );
@@ -2860,78 +2817,76 @@ export default function Home() {
 
                   return (
                     <div
-                      key={bmark.id}
-                      className={`grid grid-cols-12 gap-1 items-center text-[11px] p-2.5 rounded-2xl border-2 transition shadow-2xs text-center ${cardBgClass}`}
+                      key={item.id}
+                      className={`grid grid-cols-12 gap-1 items-center text-[11px] p-2.5 rounded-2xl border-2 transition shadow-2xs text-center ${
+                        item.purchased
+                          ? "bg-neutral-100/80 border-neutral-300 opacity-60 line-through text-neutral-500"
+                          : "border-rose-400/90 bg-rose-50/40 hover:bg-rose-50/70 text-neutral-900"
+                      }`}
                     >
                       <div className="col-span-2 flex flex-col items-center justify-center">
-                        <span className="px-2 py-0.5 rounded-md bg-amber-100/90 text-amber-950 border border-amber-300 font-bold shadow-2xs">
-                          {bmark.category}
+                        <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-900 border border-rose-300 font-bold shadow-2xs flex items-center gap-1">
+                          <span>{catIcon}</span>
+                          <span>{item.category}</span>
                         </span>
-                        <span className="text-[10px] text-neutral-600 font-semibold mt-0.5">{bmark.platform}</span>
+                        <span className="text-[10px] font-bold mt-0.5 text-amber-500">{item.priority}</span>
                       </div>
 
-                      <div className="col-span-3 text-neutral-900 font-black truncate px-1" title={bmark.title}>
-                        {bmark.title}
+                      <div className="col-span-3 text-neutral-900 font-black truncate px-1 text-center" title={item.name}>
+                        {item.name}
                       </div>
 
-                      <div className="col-span-2 text-neutral-800 truncate px-1 font-semibold">
-                        {bmark.regularUpdate}
+                      <div className="col-span-2 text-rose-950 font-black font-mono truncate px-1">
+                        {Number(item.price).toLocaleString()}원
                       </div>
 
-                      <div className="col-span-1 text-neutral-600 truncate font-mono font-medium">
-                        {bmark.releaseDate}
+                      <div className="col-span-2 text-neutral-700 font-medium truncate px-1" title={item.specOption}>
+                        {item.specOption}
                       </div>
 
-                      <div className="col-span-1 text-neutral-700 truncate font-bold">
-                        {bmark.weeklySchedule}
+                      <div className="col-span-1 flex justify-center">
+                        {item.url ? (
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="px-2 py-0.5 rounded bg-rose-500 hover:bg-rose-600 text-white font-bold text-[10px] flex items-center gap-0.5 shadow-2xs transition active:scale-95"
+                            title="판매 링크 이동"
+                          >
+                            <ExternalLink className="w-2.5 h-2.5" />
+                            <span>보기</span>
+                          </a>
+                        ) : (
+                          <span className="text-neutral-400 text-[10px]">-</span>
+                        )}
                       </div>
 
-                      <div className="col-span-1 text-neutral-900 font-black truncate font-mono">
-                        {bmark.finalEpisode || calculateAutoFinalEpisode(bmark.releaseDate)}
-                      </div>
-
-                      <div className="col-span-1 flex items-center justify-center gap-0.5 font-mono font-bold">
-                        <button
-                          onClick={(e) => handleUpdateBookmarkCount(bmark.id, -1, e)}
-                          className="w-4 h-4 rounded bg-white/90 border border-amber-300 hover:bg-amber-200 text-amber-950 flex items-center justify-center shadow-2xs transition active:scale-95"
-                          title="1화 감소"
-                        >
-                          <Minus className="w-2.5 h-2.5" />
-                        </button>
-                        <span className="min-w-[20px] text-center text-neutral-900 font-black">
-                          {bmark.currentBookmark ?? 0}
-                        </span>
-                        <button
-                          onClick={(e) => handleUpdateBookmarkCount(bmark.id, 1, e)}
-                          className="w-4 h-4 rounded bg-white/90 border border-amber-300 hover:bg-amber-200 text-amber-950 flex items-center justify-center shadow-2xs transition active:scale-95"
-                          title="1화 증가"
-                        >
-                          <Plus className="w-2.5 h-2.5" />
-                        </button>
+                      <div className="col-span-1 text-neutral-500 truncate px-1 italic text-[10px]" title={item.memo}>
+                        {item.memo || "-"}
                       </div>
 
                       <div className="col-span-1 flex items-center justify-center gap-1">
                         <button
-                          onClick={(e) => handleToggleCompleted(bmark.id, e)}
-                          className={`px-1 py-0.5 rounded text-[10px] font-black border transition ${
-                            bmark.isCompleted
-                              ? "bg-rose-600 text-white border-rose-700 shadow-xs"
-                              : "bg-white/80 text-neutral-700 border-amber-300 hover:bg-amber-100"
+                          onClick={(e) => handleTogglePurchased(item.id, e)}
+                          className={`p-1 rounded transition ${
+                            item.purchased
+                              ? "bg-emerald-500 text-white font-bold"
+                              : "bg-white/80 border border-rose-300 hover:bg-rose-100 text-rose-700"
                           }`}
-                          title="완결 여부 토글"
+                          title={item.purchased ? "구매 취소" : "구매 완료로 표시"}
                         >
-                          완결
+                          <Check className="w-3 h-3" />
                         </button>
-                        <button onClick={() => startEditBookmark(bmark)} title="수정" className="p-1 rounded text-neutral-500 hover:text-amber-900 hover:bg-white transition"><Pencil className="w-3 h-3" /></button>
-                        <button onClick={() => handleDeleteBookmark(bmark.id)} title="삭제" className="p-1 rounded text-neutral-500 hover:text-rose-600 hover:bg-white transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => startEditCartItem(item)} title="수정" className="p-1 rounded text-neutral-500 hover:text-rose-900 hover:bg-white transition"><Pencil className="w-3 h-3" /></button>
+                        <button onClick={() => handleDeleteCartItem(item.id)} title="삭제" className="p-1 rounded text-neutral-500 hover:text-rose-600 hover:bg-white transition"><Trash2 className="w-3 h-3" /></button>
                       </div>
                     </div>
                   );
                 })}
 
-                {filteredBookmarks.length === 0 && (
-                  <div className="border-2 border-dashed border-amber-300 rounded-2xl p-12 text-center text-xs font-medium text-amber-800/70 bg-amber-50/20">
-                    등록되었거나 조건에 맞는 책갈피 기록이 없습니다.
+                {filteredCartItems.length === 0 && (
+                  <div className="border-2 border-dashed border-rose-300 rounded-2xl p-12 text-center text-xs font-medium text-rose-800/70 bg-rose-50/20">
+                    장바구니에 담아둔 물건이 없습니다. 사고 싶은 물건을 등록해보세요!
                   </div>
                 )}
               </div>
@@ -2939,328 +2894,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== 5. [노래책] 탭 화면 ==================== */}
-          {currentTab === "songs" && (
-            <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
-              <form onSubmit={handleAddSong} className="border-2 border-emerald-400/90 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
-                <div className="relative">
-                  <input
-                    type="text"
-                    list="genre-suggestions"
-                    value={newGenre}
-                    onChange={(e) => setNewGenre(e.target.value)}
-                    placeholder="장르 입력"
-                    className="w-24 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-500 placeholder-neutral-400"
-                  />
-                  <datalist id="genre-suggestions">
-                    {existingGenres.map((g) => (
-                      <option key={g} value={g} />
-                    ))}
-                  </datalist>
-                </div>
-
-                <input
-                  type="text"
-                  value={newArtist}
-                  onChange={(e) => setNewArtist(e.target.value)}
-                  placeholder="가수 / 아티스트"
-                  className="w-36 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
-                />
-
-                <input
-                  type="text"
-                  required
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="곡 제목 *"
-                  className="w-44 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
-                />
-
-                <input
-                  type="text"
-                  value={newUrl}
-                  onChange={(e) => setNewUrl(e.target.value)}
-                  placeholder="유튜브 링크"
-                  className="flex-1 min-w-[150px] border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
-                />
-
-                <select
-                  value={newSongType}
-                  onChange={(e) => setNewSongType(e.target.value as "none" | "Original" | "Cover")}
-                  className={`w-28 border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none cursor-pointer transition ${
-                    newSongType === "Cover"
-                      ? "border-amber-400 bg-amber-50 text-amber-800"
-                      : newSongType === "Original"
-                      ? "border-blue-300 bg-blue-50 text-blue-800"
-                      : "border-emerald-200 bg-white/80 text-neutral-600"
-                  }`}
-                >
-                  <option value="none">선택 안함</option>
-                  <option value="Original">Original</option>
-                  <option value="Cover">Cover</option>
-                </select>
-
-                <button
-                  type="submit"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1"
-                >
-                  <Plus className="w-3.5 h-3.5" /> 곡 추가
-                </button>
-              </form>
-
-              <div className="border-2 border-emerald-400/90 rounded-2xl p-3 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
-                <div className="relative w-full">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="곡명, 아티스트, 장르를 검색해보세요..."
-                    className="w-full border border-emerald-200 bg-white/80 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
-                  />
-                  <Search className="w-3.5 h-3.5 text-emerald-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
-                </div>
-
-                <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
-                  <span className="text-emerald-900 font-semibold text-[11px] mr-1">장르:</span>
-                  <button
-                    onClick={() => setSelectedGenre("전체")}
-                    className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
-                      selectedGenre === "전체"
-                        ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
-                        : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
-                    }`}
-                  >
-                    전체
-                  </button>
-                  {existingGenres.map((genre) => (
-                    <button
-                      key={genre}
-                      onClick={() => setSelectedGenre(genre)}
-                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium flex items-center gap-1 ${
-                        selectedGenre === genre
-                          ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
-                          : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
-                      }`}
-                    >
-                      <span>{getGenreIcon(genre)}</span>
-                      <span>{genre}</span>
-                    </button>
-                  ))}
-                  <span className="ml-auto text-[11px] text-emerald-800/80 font-medium">
-                    총 {filteredSongs.length}곡 (가수순 ➔ 제목순)
-                  </span>
-                </div>
-              </div>
-
-              <div className="border-2 border-emerald-400/90 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
-                <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-emerald-900 items-center">
-                  <span className="col-span-2 flex items-center justify-center gap-1 text-center">🏷️ 장르</span>
-                  <span className="col-span-4 flex items-center justify-center gap-1 text-center">🎤 가수 / 아티스트</span>
-                  <span className="col-span-3 flex items-center justify-center gap-1 text-center">🎵 곡명</span>
-                  <span className="col-span-1 flex items-center justify-center gap-1 text-center">🎬 영상</span>
-                  <span className="col-span-2 flex items-center justify-center text-center">관리</span>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                {filteredSongs.map((song) => {
-                  const isPlayingThis = isPlayingAudio && currentSong?.id === song.id;
-                  const isEditing = editingSongId === song.id;
-                  const isCover = song.songType === "Cover";
-                  const isOriginal = song.songType === "Original";
-                  const hasUrl = Boolean(song.url && getYouTubeId(song.url));
-                  const genreIcon = getGenreIcon(song.genre);
-
-                  if (isEditing) {
-                    return (
-                      <div
-                        key={`edit-${song.id}`}
-                        className="p-3 rounded-2xl border-2 border-emerald-500 bg-emerald-50/90 shadow-md flex flex-wrap items-center gap-2"
-                      >
-                        <input
-                          type="text"
-                          value={editGenre}
-                          onChange={(e) => setEditGenre(e.target.value)}
-                          placeholder="장르"
-                          className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-600"
-                        />
-                        <input
-                          type="text"
-                          value={editArtist}
-                          onChange={(e) => setEditArtist(e.target.value)}
-                          placeholder="가수"
-                          className="w-32 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
-                        />
-                        <input
-                          type="text"
-                          required
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          placeholder="곡 제목"
-                          className="w-44 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-bold"
-                        />
-                        <input
-                          type="text"
-                          value={editUrl}
-                          onChange={(e) => setEditUrl(e.target.value)}
-                          placeholder="유튜브 링크"
-                          className="flex-1 min-w-[140px] border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
-                        />
-                        <select
-                          value={editSongType}
-                          onChange={(e) => setEditSongType(e.target.value as "none" | "Original" | "Cover")}
-                          className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none cursor-pointer"
-                        >
-                          <option value="none">선택 안함</option>
-                          <option value="Original">Original</option>
-                          <option value="Cover">Cover</option>
-                        </select>
-                        <div className="flex items-center gap-1 shrink-0 ml-auto">
-                          <button
-                            onClick={() => saveEditSong(song.id)}
-                            title="수정 저장"
-                            className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"
-                          >
-                            <Check className="w-3.5 h-3.5" /> 저장
-                          </button>
-                          <button
-                            onClick={cancelEditSong}
-                            title="취소"
-                            className="p-1.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-600 text-xs flex items-center gap-1 shadow-sm transition"
-                          >
-                            <X className="w-3.5 h-3.5" /> 취소
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div
-                      key={song.id}
-                      className={`grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border-2 transition shadow-sm ${
-                        isPlayingThis
-                          ? "bg-emerald-100/90 border-emerald-500 ring-2 ring-emerald-300"
-                          : "bg-emerald-50/40 border-emerald-400/90 hover:border-emerald-500 hover:bg-emerald-50/70"
-                      }`}
-                    >
-                      <div className="col-span-2 flex justify-center">
-                        <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-[11px] font-bold text-center flex items-center gap-1 shadow-2xs">
-                          <span>{genreIcon}</span>
-                          <span>{song.genre}</span>
-                        </span>
-                      </div>
-
-                      <div className="col-span-4 text-neutral-800 truncate font-bold text-[13px] text-center px-1">
-                        {song.artist}
-                      </div>
-
-                      <div className="col-span-3 flex items-center justify-center gap-2 font-bold text-neutral-900 px-1 overflow-hidden">
-                        <Music className={`w-3.5 h-3.5 shrink-0 ${isPlayingThis ? "text-emerald-600 animate-pulse" : "text-emerald-500"}`} />
-                        <span className="truncate text-sm">{song.title}</span>
-                        {isCover && (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 shadow-xs shrink-0">
-                            <Mic2 className="w-2.5 h-2.5" />
-                            <span>Cover</span>
-                          </span>
-                        )}
-                        {isOriginal && (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-300 shadow-xs shrink-0">
-                            <Disc3 className="w-2.5 h-2.5" />
-                            <span>Original</span>
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="col-span-1 flex items-center justify-center">
-                        {hasUrl ? (
-                          <button
-                            onClick={() => setVideoModalUrl(song.url)}
-                            className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-xs transition active:scale-95"
-                            title="내부 창에서 영상 시청"
-                          >
-                            <Play className="w-3 h-3 fill-white" />
-                            <span>재생</span>
-                          </button>
-                        ) : (
-                          <span className="text-[10px] text-neutral-400 font-medium">-</span>
-                        )}
-                      </div>
-
-                      <div className="col-span-2 flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => startEditSong(song)}
-                          title="곡 내용 수정"
-                          className="p-1.5 rounded-lg text-neutral-400 hover:text-emerald-700 hover:bg-white transition"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => toggleLike(song.id)}
-                          title={song.liked ? "플레이리스트에서 제거" : "플레이리스트에 담기"}
-                          className={`p-1.5 rounded-lg transition ${
-                            song.liked ? "text-rose-500 fill-rose-500 hover:scale-110 bg-rose-50" : "text-neutral-400 hover:text-rose-500 hover:bg-white"
-                          }`}
-                        >
-                          <Heart className={`w-3.5 h-3.5 ${song.liked ? "fill-rose-500" : ""}`} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteSong(song.id)}
-                          title="노래 삭제"
-                          className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {filteredSongs.length === 0 && (
-                  <div className="border-2 border-dashed border-emerald-300 rounded-2xl p-12 text-center text-xs font-medium text-emerald-800/70 bg-emerald-50/20">
-                    등록되었거나 조건에 맞는 노래가 없습니다.
-                  </div>
-                )}
-              </div>
-
-              {videoModalUrl && (
-                <div 
-                  className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-                  onClick={() => setVideoModalUrl(null)}
-                >
-                  <div 
-                    className="bg-neutral-900 rounded-3xl overflow-hidden shadow-2xl border border-neutral-700 w-full max-w-4xl max-h-[720px] flex flex-col relative animate-in fade-in zoom-in-95 duration-150"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex items-center justify-between px-4 py-2 bg-neutral-900/90 border-b border-neutral-800 text-white shrink-0">
-                      <div className="flex items-center gap-2 text-xs font-bold text-neutral-300">
-                        <Tv className="w-4 h-4 text-emerald-400" />
-                        <span>영상 플레이어</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-neutral-400 bg-neutral-800 px-2 py-0.5 rounded-md">ESC로 닫기</span>
-                        <button onClick={() => setVideoModalUrl(null)} className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition">
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="relative w-full aspect-video bg-black flex items-center justify-center">
-                      <iframe
-                        src={`https://www.youtube.com/embed/${getYouTubeId(videoModalUrl)}?autoplay=1`}
-                        title="YouTube video player"
-                        className="w-full h-full border-0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ==================== 9. 그 외 미구현 탭 ==================== */}
+          {/* ==================== 6. 그 외 미구현 탭 ==================== */}
           {currentTab !== "songs" && currentTab !== "schedule" && currentTab !== "ledger" && currentTab !== "favorites" && currentTab !== "bookmarks" && currentTab !== "orders" && currentTab !== "cart" && (
             <div className="h-full border border-dashed border-emerald-300 rounded-2xl p-20 flex flex-col items-center justify-center text-center bg-emerald-50/20 backdrop-blur-[2px]">
               <span className="text-3xl mb-2 block">🚧</span>
