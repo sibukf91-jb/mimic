@@ -31,7 +31,11 @@ import {
   Disc3,
   Pencil,
   Check,
-  X
+  X,
+  Calendar as CalendarIcon,
+  CheckCircle2,
+  Circle,
+  Tag
 } from "lucide-react";
 
 export default function Home() {
@@ -40,9 +44,9 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("songs");
+  const [currentTab, setCurrentTab] = useState("songs"); // 기본 'songs', 'schedule' 등으로 전환
 
-  // ================= 노래책 데이터 (새로고침 시 영구 보존 LocalStorage 연동) =================
+  // ================= 1. 노래책 데이터 (LocalStorage 영구 저장) =================
   const defaultSongs = [
     { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
     { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
@@ -54,9 +58,8 @@ export default function Home() {
   ];
 
   const [songList, setSongList] = useState<any[]>([]);
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [isSongDataLoaded, setIsSongDataLoaded] = useState(false);
 
-  // 브라우저 마운트 시 LocalStorage에서 불러오기
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("jb_bookmark_song_list");
@@ -69,18 +72,17 @@ export default function Home() {
       } else {
         setSongList(defaultSongs);
       }
-      setIsDataLoaded(true);
+      setIsSongDataLoaded(true);
     }
   }, []);
 
-  // 노래 목록 변경 시 LocalStorage에 영구 저장
   useEffect(() => {
-    if (isDataLoaded && typeof window !== "undefined") {
+    if (isSongDataLoaded && typeof window !== "undefined") {
       localStorage.setItem("jb_bookmark_song_list", JSON.stringify(songList));
     }
-  }, [songList, isDataLoaded]);
+  }, [songList, isSongDataLoaded]);
 
-  // ================= 노래 수정 상태 =================
+  // 노래 수정 상태
   const [editingSongId, setEditingSongId] = useState<number | null>(null);
   const [editGenre, setEditGenre] = useState("");
   const [editArtist, setEditArtist] = useState("");
@@ -120,6 +122,210 @@ export default function Home() {
     setEditingSongId(null);
   };
 
+  const [newGenre, setNewGenre] = useState("");
+  const [newArtist, setNewArtist] = useState("");
+  const [newTitle, setNewTitle] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [newSongType, setNewSongType] = useState<"none" | "Original" | "Cover">("none");
+  const [selectedGenre, setSelectedGenre] = useState("전체");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const existingGenres = useMemo(() => {
+    const set = new Set<string>();
+    songList.forEach((s) => {
+      if (s.genre && s.genre.trim()) set.add(s.genre.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [songList]);
+
+  useEffect(() => {
+    if (selectedGenre !== "전체" && !existingGenres.includes(selectedGenre)) {
+      setSelectedGenre("전체");
+    }
+  }, [existingGenres, selectedGenre]);
+
+  const handleAddSong = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+
+    const formattedGenre = newGenre.trim() || "기타";
+    const newSong = {
+      id: Date.now(),
+      genre: formattedGenre,
+      artist: newArtist.trim() || "미상",
+      title: newTitle.trim(),
+      url: newUrl.trim(),
+      songType: newSongType,
+      liked: false
+    };
+
+    setSongList([newSong, ...songList]);
+    setNewGenre("");
+    setNewArtist("");
+    setNewTitle("");
+    setNewUrl("");
+    setNewSongType("none");
+  };
+
+  const toggleLike = (id: number) => {
+    setSongList((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, liked: !s.liked } : s))
+    );
+  };
+
+  const handleDeleteSong = (id: number) => {
+    setSongList((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const filteredSongs = useMemo(() => {
+    return songList
+      .filter((song) => {
+        const matchGenre = selectedGenre === "전체" || song.genre === selectedGenre;
+        const matchSearch =
+          song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          song.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          song.genre.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchGenre && matchSearch;
+      })
+      .sort((a, b) => {
+        const artistCompare = a.artist.localeCompare(b.artist, "ko");
+        if (artistCompare !== 0) return artistCompare;
+        return a.title.localeCompare(b.title, "ko");
+      });
+  }, [songList, selectedGenre, searchQuery]);
+
+  // ================= 2. 일정 관리 데이터 (LocalStorage 영구 저장) =================
+  const defaultSchedules = [
+    { id: 1, date: "2026-09-20", time: "10:00", category: "업무", title: "주간 프로젝트 회의", completed: false },
+    { id: 2, date: "2026-09-20", time: "14:30", category: "개인", title: "치과 정기 검진 예약", completed: true },
+    { id: 3, date: "2026-09-21", time: "19:00", category: "운동", title: "저녁 러닝 5km", completed: false },
+    { id: 4, date: "2026-09-25", time: "12:00", category: "약속", title: "친구들과 점심 식사", completed: false },
+  ];
+
+  const [scheduleList, setScheduleList] = useState<any[]>([]);
+  const [isScheduleLoaded, setIsScheduleLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("jb_bookmark_schedule_list");
+      if (saved) {
+        try {
+          setScheduleList(JSON.parse(saved));
+        } catch (e) {
+          setScheduleList(defaultSchedules);
+        }
+      } else {
+        setScheduleList(defaultSchedules);
+      }
+      setIsScheduleLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isScheduleLoaded && typeof window !== "undefined") {
+      localStorage.setItem("jb_bookmark_schedule_list", JSON.stringify(scheduleList));
+    }
+  }, [scheduleList, isScheduleLoaded]);
+
+  // 일정 입력 폼 상태
+  const [schedDate, setSchedDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [schedTime, setSchedTime] = useState("12:00");
+  const [schedCategory, setSchedCategory] = useState("개인");
+  const [schedTitle, setSchedTitle] = useState("");
+  const [schedSearch, setSchedSearch] = useState("");
+  const [schedCategoryFilter, setSchedCategoryFilter] = useState("전체");
+
+  // 일정 수정 상태
+  const [editingSchedId, setEditingSchedId] = useState<number | null>(null);
+  const [editSchedDate, setEditSchedDate] = useState("");
+  const [editSchedTime, setEditSchedTime] = useState("");
+  const [editSchedCategory, setEditSchedCategory] = useState("");
+  const [editSchedTitle, setEditSchedTitle] = useState("");
+
+  const startEditSchedule = (item: any) => {
+    setEditingSchedId(item.id);
+    setEditSchedDate(item.date);
+    setEditSchedTime(item.time || "");
+    setEditSchedCategory(item.category || "기타");
+    setEditSchedTitle(item.title);
+  };
+
+  const cancelEditSchedule = () => {
+    setEditingSchedId(null);
+  };
+
+  const saveEditSchedule = (id: number) => {
+    if (!editSchedTitle.trim()) return;
+    setScheduleList((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              date: editSchedDate,
+              time: editSchedTime,
+              category: editSchedCategory.trim() || "기타",
+              title: editSchedTitle.trim()
+            }
+          : item
+      )
+    );
+    setEditingSchedId(null);
+  };
+
+  const handleAddSchedule = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!schedTitle.trim()) return;
+
+    const newSched = {
+      id: Date.now(),
+      date: schedDate || new Date().toISOString().split("T")[0],
+      time: schedTime || "00:00",
+      category: schedCategory.trim() || "기타",
+      title: schedTitle.trim(),
+      completed: false
+    };
+
+    setScheduleList([newSched, ...scheduleList]);
+    setSchedTitle("");
+  };
+
+  const toggleScheduleComplete = (id: number) => {
+    setScheduleList((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, completed: !item.completed } : item))
+    );
+  };
+
+  const handleDeleteSchedule = (id: number) => {
+    setScheduleList((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const scheduleCategories = useMemo(() => {
+    const set = new Set<string>();
+    scheduleList.forEach((s) => {
+      if (s.category && s.category.trim()) set.add(s.category.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [scheduleList]);
+
+  const filteredSchedules = useMemo(() => {
+    return scheduleList
+      .filter((item) => {
+        const matchCategory = schedCategoryFilter === "전체" || item.category === schedCategoryFilter;
+        const matchSearch =
+          item.title.toLowerCase().includes(schedSearch.toLowerCase()) ||
+          item.category.toLowerCase().includes(schedSearch.toLowerCase()) ||
+          item.date.includes(schedSearch);
+        return matchCategory && matchSearch;
+      })
+      .sort((a, b) => {
+        // 1차 날짜순(오름차순) -> 2차 시간순(오름차순)
+        const dateComp = a.date.localeCompare(b.date);
+        if (dateComp !== 0) return dateComp;
+        return (a.time || "").localeCompare(b.time || "");
+      });
+  }, [scheduleList, schedCategoryFilter, schedSearch]);
+
+  // ================= 3. 플레이리스트 재생, 게이지 & 볼륨 =================
   const getYouTubeId = (url: string) => {
     if (!url) return null;
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
@@ -127,7 +333,6 @@ export default function Home() {
     return match && match[2].length === 11 ? match[2] : null;
   };
 
-  // ================= 플레이리스트 재생, 게이지 & 볼륨 =================
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [repeatMode, setRepeatMode] = useState<"none" | "all" | "one">("all");
@@ -335,82 +540,7 @@ export default function Home() {
     return `${m}:${String(s).padStart(2, "0")}`;
   };
 
-  // ================= 노래책 입력 폼 & 장르 동적 관리 =================
-  const [newGenre, setNewGenre] = useState("");
-  const [newArtist, setNewArtist] = useState("");
-  const [newTitle, setNewTitle] = useState("");
-  const [newUrl, setNewUrl] = useState("");
-  const [newSongType, setNewSongType] = useState<"none" | "Original" | "Cover">("none");
-
-  const [selectedGenre, setSelectedGenre] = useState("전체");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const existingGenres = useMemo(() => {
-    const set = new Set<string>();
-    songList.forEach((s) => {
-      if (s.genre && s.genre.trim()) set.add(s.genre.trim());
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
-  }, [songList]);
-
-  useEffect(() => {
-    if (selectedGenre !== "전체" && !existingGenres.includes(selectedGenre)) {
-      setSelectedGenre("전체");
-    }
-  }, [existingGenres, selectedGenre]);
-
-  const handleAddSong = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-
-    const formattedGenre = newGenre.trim() || "기타";
-
-    const newSong = {
-      id: Date.now(),
-      genre: formattedGenre,
-      artist: newArtist.trim() || "미상",
-      title: newTitle.trim(),
-      url: newUrl.trim(),
-      songType: newSongType,
-      liked: false
-    };
-
-    setSongList([newSong, ...songList]);
-    setNewGenre("");
-    setNewArtist("");
-    setNewTitle("");
-    setNewUrl("");
-    setNewSongType("none");
-  };
-
-  const toggleLike = (id: number) => {
-    setSongList((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, liked: !s.liked } : s))
-    );
-  };
-
-  const handleDeleteSong = (id: number) => {
-    setSongList((prev) => prev.filter((s) => s.id !== id));
-  };
-
-  const filteredSongs = useMemo(() => {
-    return songList
-      .filter((song) => {
-        const matchGenre = selectedGenre === "전체" || song.genre === selectedGenre;
-        const matchSearch =
-          song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          song.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          song.genre.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchGenre && matchSearch;
-      })
-      .sort((a, b) => {
-        const artistCompare = a.artist.localeCompare(b.artist, "ko");
-        if (artistCompare !== 0) return artistCompare;
-        return a.title.localeCompare(b.title, "ko");
-      });
-  }, [songList, selectedGenre, searchQuery]);
-
-  // ================= 시계 & 타이머 =================
+  // ================= 4. 시계 & 타이머 =================
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [timerMinutes, setTimerMinutes] = useState(4);
   const [timeLeft, setTimeLeft] = useState(4 * 60);
@@ -572,7 +702,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-neutral-100/60 text-neutral-800 flex flex-col font-sans relative">
-      {/* 배경 격자 패턴 (50% 더 희미한 은은한 격자) */}
+      {/* 배경 격자 패턴 (50% 희미한 은은한 격자) */}
       <div 
         className="fixed inset-0 pointer-events-none z-0"
         style={{
@@ -636,7 +766,7 @@ export default function Home() {
       {/* ================= 본문 3단 레이아웃 ================= */}
       <main className="max-w-[1720px] mx-auto w-full px-6 py-6 flex flex-col lg:flex-row gap-5 items-start flex-1 relative z-10">
         
-        {/* [1] 좌측 배너 (sticky 고정 추적) */}
+        {/* [1] 좌측 배너 (어떤 탭에서도 영구 고정) */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px]">
           <div className="border border-dashed border-emerald-400/90 rounded-2xl h-full flex flex-col items-center justify-center p-4 text-center bg-emerald-50/30 backdrop-blur-[2px] shadow-sm">
             <span className="text-xl mb-1">🖼️</span>
@@ -644,309 +774,576 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* [2] 중앙 영역 (스크롤 확장) */}
+        {/* [2] 중앙 가변 영역 (탭 전환 시 중앙 화면만 변경) */}
         <section className="flex-1 w-full flex flex-col gap-2.5 min-w-0 pb-16">
           
-          {/* [박스 1] 상단 노래 등록 바 */}
-          <form onSubmit={handleAddSong} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
-            <div className="relative">
-              <input
-                type="text"
-                list="genre-suggestions"
-                value={newGenre}
-                onChange={(e) => setNewGenre(e.target.value)}
-                placeholder="장르 입력"
-                className="w-24 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-500 placeholder-neutral-400"
-              />
-              <datalist id="genre-suggestions">
-                {existingGenres.map((g) => (
-                  <option key={g} value={g} />
-                ))}
-              </datalist>
-            </div>
+          {/* ==================== A. [일정] 탭 화면 ==================== */}
+          {currentTab === "schedule" && (
+            <>
+              {/* [일정 박스 1] 일정 등록 바 */}
+              <form onSubmit={handleAddSchedule} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
+                {/* 날짜 선택 */}
+                <input
+                  type="date"
+                  required
+                  value={schedDate}
+                  onChange={(e) => setSchedDate(e.target.value)}
+                  className="w-36 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-900 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                />
 
-            <input
-              type="text"
-              value={newArtist}
-              onChange={(e) => setNewArtist(e.target.value)}
-              placeholder="가수 / 아티스트"
-              className="w-36 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
-            />
+                {/* 시간 선택 */}
+                <input
+                  type="time"
+                  value={schedTime}
+                  onChange={(e) => setSchedTime(e.target.value)}
+                  className="w-28 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-emerald-900 focus:outline-none focus:border-emerald-500 cursor-pointer"
+                />
 
-            <input
-              type="text"
-              required
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              placeholder="곡 제목 *"
-              className="w-44 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
-            />
+                {/* 카테고리 */}
+                <div className="relative">
+                  <input
+                    type="text"
+                    list="sched-categories"
+                    value={schedCategory}
+                    onChange={(e) => setSchedCategory(e.target.value)}
+                    placeholder="카테고리"
+                    className="w-28 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-500 placeholder-neutral-400"
+                  />
+                  <datalist id="sched-categories">
+                    <option value="개인" />
+                    <option value="업무" />
+                    <option value="운동" />
+                    <option value="약속" />
+                    <option value="기념일" />
+                  </datalist>
+                </div>
 
-            <input
-              type="text"
-              value={newUrl}
-              onChange={(e) => setNewUrl(e.target.value)}
-              placeholder="유튜브 링크"
-              className="flex-1 min-w-[150px] border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
-            />
+                {/* 일정 내용 */}
+                <input
+                  type="text"
+                  required
+                  value={schedTitle}
+                  onChange={(e) => setSchedTitle(e.target.value)}
+                  placeholder="일정 내용을 입력하세요 *"
+                  className="flex-1 min-w-[200px] border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
+                />
 
-            <select
-              value={newSongType}
-              onChange={(e) => setNewSongType(e.target.value as "none" | "Original" | "Cover")}
-              className={`w-28 border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none cursor-pointer transition ${
-                newSongType === "Cover"
-                  ? "border-amber-400 bg-amber-50 text-amber-800"
-                  : newSongType === "Original"
-                  ? "border-blue-300 bg-blue-50 text-blue-800"
-                  : "border-emerald-200 bg-white/80 text-neutral-600"
-              }`}
-            >
-              <option value="none">선택 안함</option>
-              <option value="Original">Original</option>
-              <option value="Cover">Cover</option>
-            </select>
-
-            <button
-              type="submit"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1"
-            >
-              <Plus className="w-3.5 h-3.5" /> 곡 추가
-            </button>
-          </form>
-
-          {/* [박스 2] 독립된 검색창 & 장르 필터 박스 */}
-          <div className="border border-emerald-400 rounded-2xl p-3 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
-            <div className="relative w-full">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="곡명, 아티스트, 장르를 검색해보세요..."
-                className="w-full border border-emerald-200 bg-white/80 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
-              />
-              <Search className="w-3.5 h-3.5 text-emerald-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
-            </div>
-
-            <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
-              <span className="text-emerald-900 font-semibold text-[11px] mr-1">장르:</span>
-              <button
-                onClick={() => setSelectedGenre("전체")}
-                className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
-                  selectedGenre === "전체"
-                    ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
-                    : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
-                }`}
-              >
-                전체
-              </button>
-              {existingGenres.map((genre) => (
                 <button
-                  key={genre}
-                  onClick={() => setSelectedGenre(genre)}
-                  className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
-                    selectedGenre === genre
-                      ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
-                      : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
-                  }`}
+                  type="submit"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1"
                 >
-                  {genre}
+                  <Plus className="w-3.5 h-3.5" /> 일정 추가
                 </button>
-              ))}
-              <span className="ml-auto text-[11px] text-emerald-800/80 font-medium">
-                총 {filteredSongs.length}곡 (가수순 ➔ 제목순)
-              </span>
-            </div>
-          </div>
+              </form>
 
-          {/* [박스 3] 헤더 전용 박스 (2 : 4 : 4 : 2 대칭 분할로 좌우 끝 여백 완벽 균등) */}
-          <div className="border border-emerald-400 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
-            <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-emerald-900 items-center">
-              <span className="col-span-2 flex items-center justify-center gap-1 text-center">🏷️ 장르</span>
-              <span className="col-span-4 flex items-center justify-center gap-1 text-center">🎤 가수 / 아티스트</span>
-              <span className="col-span-4 flex items-center justify-center gap-1 text-center">🎵 곡명</span>
-              <span className="col-span-2 flex items-center justify-center text-center">관리</span>
-            </div>
-          </div>
+              {/* [일정 박스 2] 독립된 검색창 & 카테고리 필터 박스 */}
+              <div className="border border-emerald-400 rounded-2xl p-3 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    value={schedSearch}
+                    onChange={(e) => setSchedSearch(e.target.value)}
+                    placeholder="일정 내용, 카테고리, 날짜(YYYY-MM-DD)를 검색해보세요..."
+                    className="w-full border border-emerald-200 bg-white/80 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
+                  />
+                  <Search className="w-3.5 h-3.5 text-emerald-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
 
-          {/* [박스 4] 추가된 곡 목록 (헤더 박스와 동일한 2:4:4:2 대칭 구조로 좌우 여백 정밀 일치) */}
-          <div className="flex flex-col gap-2">
-            {filteredSongs.map((song) => {
-              const isPlayingThis = isPlayingAudio && currentSong?.id === song.id;
-              const isEditing = editingSongId === song.id;
-              const isCover = song.songType === "Cover";
-              const isOriginal = song.songType === "Original";
-
-              // [A] 인라인 편집 모드
-              if (isEditing) {
-                return (
-                  <div
-                    key={`edit-${song.id}`}
-                    className="p-3 rounded-2xl border-2 border-emerald-500 bg-emerald-50/90 shadow-md flex flex-wrap items-center gap-2"
+                <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
+                  <span className="text-emerald-900 font-semibold text-[11px] mr-1">분류:</span>
+                  <button
+                    onClick={() => setSchedCategoryFilter("전체")}
+                    className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                      schedCategoryFilter === "전체"
+                        ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
+                        : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
+                    }`}
                   >
-                    <div className="relative">
-                      <input
-                        type="text"
-                        list="genre-suggestions"
-                        value={editGenre}
-                        onChange={(e) => setEditGenre(e.target.value)}
-                        placeholder="장르"
-                        className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-600"
-                      />
-                    </div>
-
-                    <input
-                      type="text"
-                      value={editArtist}
-                      onChange={(e) => setEditArtist(e.target.value)}
-                      placeholder="가수"
-                      className="w-32 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
-                    />
-
-                    <input
-                      type="text"
-                      required
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      placeholder="곡 제목"
-                      className="w-44 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-bold"
-                    />
-
-                    <input
-                      type="text"
-                      value={editUrl}
-                      onChange={(e) => setEditUrl(e.target.value)}
-                      placeholder="유튜브 링크"
-                      className="flex-1 min-w-[140px] border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
-                    />
-
-                    <select
-                      value={editSongType}
-                      onChange={(e) => setEditSongType(e.target.value as "none" | "Original" | "Cover")}
-                      className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none cursor-pointer"
-                    >
-                      <option value="none">선택 안함</option>
-                      <option value="Original">Original</option>
-                      <option value="Cover">Cover</option>
-                    </select>
-
-                    <div className="flex items-center gap-1 shrink-0 ml-auto">
-                      <button
-                        onClick={() => saveEditSong(song.id)}
-                        title="수정 완료 저장"
-                        className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"
-                      >
-                        <Check className="w-3.5 h-3.5" /> 저장
-                      </button>
-                      <button
-                        onClick={cancelEditSong}
-                        title="수정 취소"
-                        className="p-1.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-600 text-xs flex items-center gap-1 shadow-sm transition"
-                      >
-                        <X className="w-3.5 h-3.5" /> 취소
-                      </button>
-                    </div>
-                  </div>
-                );
-              }
-
-              // [B] 일반 보기 모드 (2 : 4 : 4 : 2 대칭 분할 적용)
-              return (
-                <div
-                  key={song.id}
-                  className={`grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border transition shadow-sm ${
-                    isPlayingThis
-                      ? "bg-emerald-100/90 border-emerald-500 ring-2 ring-emerald-300"
-                      : "bg-emerald-50/40 border-emerald-400 hover:border-emerald-500 hover:bg-emerald-50/70"
-                  }`}
-                >
-                  {/* 1. 장르 (2칸) */}
-                  <div className="col-span-2 flex justify-center">
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-[11px] font-bold text-center">
-                      {song.genre}
-                    </span>
-                  </div>
-
-                  {/* 2. 가수 / 아티스트 (4칸) */}
-                  <div className="col-span-4 text-neutral-800 truncate font-bold text-[13px] text-center px-1">
-                    {song.artist}
-                  </div>
-
-                  {/* 3. 곡명 & 심볼 (4칸) */}
-                  <div className="col-span-4 flex items-center justify-center gap-2 font-bold text-neutral-900 px-1 overflow-hidden">
-                    <Music className={`w-3.5 h-3.5 shrink-0 ${isPlayingThis ? "text-emerald-600 animate-pulse" : "text-emerald-500"}`} />
-                    <span className="truncate text-sm">{song.title}</span>
-
-                    {/* Cover 심볼 */}
-                    {isCover && (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 shadow-xs shrink-0">
-                        <Mic2 className="w-2.5 h-2.5" />
-                        <span>Cover</span>
-                      </span>
-                    )}
-
-                    {/* Original 심볼 */}
-                    {isOriginal && (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-300 shadow-xs shrink-0">
-                        <Disc3 className="w-2.5 h-2.5" />
-                        <span>Original</span>
-                      </span>
-                    )}
-
-                    {song.url && (
-                      <a
-                        href={song.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-neutral-400 hover:text-emerald-600 transition shrink-0 ml-0.5"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
-                  </div>
-
-                  {/* 4. 관리 버튼 (2칸) */}
-                  <div className="col-span-2 flex items-center justify-center gap-1.5">
+                    전체
+                  </button>
+                  {scheduleCategories.map((cat) => (
                     <button
-                      onClick={() => startEditSong(song)}
-                      title="곡 내용 수정"
-                      className="p-1.5 rounded-lg text-neutral-400 hover:text-emerald-700 hover:bg-white transition"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-
-                    <button
-                      onClick={() => toggleLike(song.id)}
-                      title={song.liked ? "플레이리스트에서 제거" : "플레이리스트에 담기"}
-                      className={`p-1.5 rounded-lg transition ${
-                        song.liked
-                          ? "text-rose-500 fill-rose-500 hover:scale-110 bg-rose-50"
-                          : "text-neutral-400 hover:text-rose-500 hover:bg-white"
+                      key={cat}
+                      onClick={() => setSchedCategoryFilter(cat)}
+                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                        schedCategoryFilter === cat
+                          ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
+                          : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
                       }`}
                     >
-                      <Heart className={`w-3.5 h-3.5 ${song.liked ? "fill-rose-500" : ""}`} />
+                      {cat}
                     </button>
-
-                    <button
-                      onClick={() => handleDeleteSong(song.id)}
-                      title="노래 삭제"
-                      className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  ))}
+                  <span className="ml-auto text-[11px] text-emerald-800/80 font-medium">
+                    총 {filteredSchedules.length}개 일정 (날짜순 ➔ 시간순)
+                  </span>
                 </div>
-              );
-            })}
-
-            {filteredSongs.length === 0 && (
-              <div className="border border-dashed border-emerald-300 rounded-2xl p-12 text-center text-xs font-medium text-emerald-800/70 bg-emerald-50/20">
-                등록되었거나 조건에 맞는 노래가 없습니다.
               </div>
-            )}
-          </div>
+
+              {/* [일정 박스 3] 헤더 전용 박스 (2 : 3 : 5 : 2 대칭 분할 구조) */}
+              <div className="border border-emerald-400 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-emerald-900 items-center">
+                  <span className="col-span-2 flex items-center justify-center gap-1 text-center">🏷️ 분류</span>
+                  <span className="col-span-3 flex items-center justify-center gap-1 text-center">📅 날짜 및 시간</span>
+                  <span className="col-span-5 flex items-center justify-center gap-1 text-center">📝 일정 내용</span>
+                  <span className="col-span-2 flex items-center justify-center text-center">관리</span>
+                </div>
+              </div>
+
+              {/* [일정 박스 4] 일정 목록 개별 카드 리스트 */}
+              <div className="flex flex-col gap-2">
+                {filteredSchedules.map((item) => {
+                  const isEditing = editingSchedId === item.id;
+
+                  // 인라인 편집 모드
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={`edit-sched-${item.id}`}
+                        className="p-3 rounded-2xl border-2 border-emerald-500 bg-emerald-50/90 shadow-md flex flex-wrap items-center gap-2"
+                      >
+                        <input
+                          type="date"
+                          value={editSchedDate}
+                          onChange={(e) => setEditSchedDate(e.target.value)}
+                          className="w-32 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-600"
+                        />
+                        <input
+                          type="time"
+                          value={editSchedTime}
+                          onChange={(e) => setEditSchedTime(e.target.value)}
+                          className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-600"
+                        />
+                        <input
+                          type="text"
+                          value={editSchedCategory}
+                          onChange={(e) => setEditSchedCategory(e.target.value)}
+                          placeholder="분류"
+                          className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
+                        />
+                        <input
+                          type="text"
+                          required
+                          value={editSchedTitle}
+                          onChange={(e) => setEditSchedTitle(e.target.value)}
+                          placeholder="일정 내용"
+                          className="flex-1 min-w-[180px] border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-bold"
+                        />
+
+                        <div className="flex items-center gap-1 shrink-0 ml-auto">
+                          <button
+                            onClick={() => saveEditSchedule(item.id)}
+                            title="수정 완료"
+                            className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"
+                          >
+                            <Check className="w-3.5 h-3.5" /> 저장
+                          </button>
+                          <button
+                            onClick={cancelEditSchedule}
+                            title="취소"
+                            className="p-1.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-600 text-xs flex items-center gap-1 shadow-sm transition"
+                          >
+                            <X className="w-3.5 h-3.5" /> 취소
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // 일반 뷰 모드
+                  return (
+                    <div
+                      key={item.id}
+                      className={`grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border transition shadow-sm ${
+                        item.completed
+                          ? "bg-neutral-100/70 border-neutral-300 opacity-70"
+                          : "bg-emerald-50/40 border-emerald-400 hover:border-emerald-500 hover:bg-emerald-50/70"
+                      }`}
+                    >
+                      {/* 1. 분류 (2칸) */}
+                      <div className="col-span-2 flex justify-center">
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-[11px] font-bold text-center">
+                          {item.category}
+                        </span>
+                      </div>
+
+                      {/* 2. 날짜 및 시간 (3칸) */}
+                      <div className="col-span-3 text-neutral-800 truncate font-semibold text-[12px] text-center px-1 flex items-center justify-center gap-1.5">
+                        <CalendarIcon className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>{item.date}</span>
+                        {item.time && (
+                          <span className="text-neutral-500 font-mono text-[11px]">
+                            ({item.time})
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 3. 일정 내용 (5칸) */}
+                      <div className={`col-span-5 flex items-center gap-2 font-bold px-1 overflow-hidden ${
+                        item.completed ? "line-through text-neutral-400" : "text-neutral-900"
+                      }`}>
+                        <button
+                          onClick={() => toggleScheduleComplete(item.id)}
+                          title={item.completed ? "미완료로 변경" : "완료로 표시"}
+                          className="shrink-0 text-emerald-600 hover:scale-110 transition"
+                        >
+                          {item.completed ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 fill-emerald-100" />
+                          ) : (
+                            <Circle className="w-4 h-4 text-neutral-400 hover:text-emerald-500" />
+                          )}
+                        </button>
+                        <span className="truncate text-sm">{item.title}</span>
+                      </div>
+
+                      {/* 4. 관리 버튼 (2칸: 여백 대칭) */}
+                      <div className="col-span-2 flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => startEditSchedule(item)}
+                          title="일정 수정"
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-emerald-700 hover:bg-white transition"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteSchedule(item.id)}
+                          title="일정 삭제"
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredSchedules.length === 0 && (
+                  <div className="border border-dashed border-emerald-300 rounded-2xl p-12 text-center text-xs font-medium text-emerald-800/70 bg-emerald-50/20">
+                    등록되었거나 조건에 맞는 일정이 없습니다.
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ==================== B. [노래책] 탭 화면 ==================== */}
+          {currentTab === "songs" && (
+            <>
+              {/* [노래책 박스 1] 노래 등록 바 */}
+              <form onSubmit={handleAddSong} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="relative">
+                  <input
+                    type="text"
+                    list="genre-suggestions"
+                    value={newGenre}
+                    onChange={(e) => setNewGenre(e.target.value)}
+                    placeholder="장르 입력"
+                    className="w-24 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-500 placeholder-neutral-400"
+                  />
+                  <datalist id="genre-suggestions">
+                    {existingGenres.map((g) => (
+                      <option key={g} value={g} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <input
+                  type="text"
+                  value={newArtist}
+                  onChange={(e) => setNewArtist(e.target.value)}
+                  placeholder="가수 / 아티스트"
+                  className="w-36 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  required
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="곡 제목 *"
+                  className="w-44 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  value={newUrl}
+                  onChange={(e) => setNewUrl(e.target.value)}
+                  placeholder="유튜브 링크"
+                  className="flex-1 min-w-[150px] border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
+                />
+
+                <select
+                  value={newSongType}
+                  onChange={(e) => setNewSongType(e.target.value as "none" | "Original" | "Cover")}
+                  className={`w-28 border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none cursor-pointer transition ${
+                    newSongType === "Cover"
+                      ? "border-amber-400 bg-amber-50 text-amber-800"
+                      : newSongType === "Original"
+                      ? "border-blue-300 bg-blue-50 text-blue-800"
+                      : "border-emerald-200 bg-white/80 text-neutral-600"
+                  }`}
+                >
+                  <option value="none">선택 안함</option>
+                  <option value="Original">Original</option>
+                  <option value="Cover">Cover</option>
+                </select>
+
+                <button
+                  type="submit"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> 곡 추가
+                </button>
+              </form>
+
+              {/* [노래책 박스 2] 독립된 검색창 & 장르 필터 박스 */}
+              <div className="border border-emerald-400 rounded-2xl p-3 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="곡명, 아티스트, 장르를 검색해보세요..."
+                    className="w-full border border-emerald-200 bg-white/80 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
+                  />
+                  <Search className="w-3.5 h-3.5 text-emerald-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
+                  <span className="text-emerald-900 font-semibold text-[11px] mr-1">장르:</span>
+                  <button
+                    onClick={() => setSelectedGenre("전체")}
+                    className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                      selectedGenre === "전체"
+                        ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
+                        : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
+                    }`}
+                  >
+                    전체
+                  </button>
+                  {existingGenres.map((genre) => (
+                    <button
+                      key={genre}
+                      onClick={() => setSelectedGenre(genre)}
+                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                        selectedGenre === genre
+                          ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
+                          : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
+                      }`}
+                    >
+                      {genre}
+                    </button>
+                  ))}
+                  <span className="ml-auto text-[11px] text-emerald-800/80 font-medium">
+                    총 {filteredSongs.length}곡 (가수순 ➔ 제목순)
+                  </span>
+                </div>
+              </div>
+
+              {/* [노래책 박스 3] 헤더 전용 박스 (2 : 4 : 4 : 2 대칭 분할 구조) */}
+              <div className="border border-emerald-400 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-emerald-900 items-center">
+                  <span className="col-span-2 flex items-center justify-center gap-1 text-center">🏷️ 장르</span>
+                  <span className="col-span-4 flex items-center justify-center gap-1 text-center">🎤 가수 / 아티스트</span>
+                  <span className="col-span-4 flex items-center justify-center gap-1 text-center">🎵 곡명</span>
+                  <span className="col-span-2 flex items-center justify-center text-center">관리</span>
+                </div>
+              </div>
+
+              {/* [노래책 박스 4] 추가된 곡 목록 (2 : 4 : 4 : 2 대칭 구조) */}
+              <div className="flex flex-col gap-2">
+                {filteredSongs.map((song) => {
+                  const isPlayingThis = isPlayingAudio && currentSong?.id === song.id;
+                  const isEditing = editingSongId === song.id;
+                  const isCover = song.songType === "Cover";
+                  const isOriginal = song.songType === "Original";
+
+                  // 인라인 편집 모드
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={`edit-${song.id}`}
+                        className="p-3 rounded-2xl border-2 border-emerald-500 bg-emerald-50/90 shadow-md flex flex-wrap items-center gap-2"
+                      >
+                        <div className="relative">
+                          <input
+                            type="text"
+                            list="genre-suggestions"
+                            value={editGenre}
+                            onChange={(e) => setEditGenre(e.target.value)}
+                            placeholder="장르"
+                            className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-600"
+                          />
+                        </div>
+
+                        <input
+                          type="text"
+                          value={editArtist}
+                          onChange={(e) => setEditArtist(e.target.value)}
+                          placeholder="가수"
+                          className="w-32 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
+                        />
+
+                        <input
+                          type="text"
+                          required
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          placeholder="곡 제목"
+                          className="w-44 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-bold"
+                        />
+
+                        <input
+                          type="text"
+                          value={editUrl}
+                          onChange={(e) => setEditUrl(e.target.value)}
+                          placeholder="유튜브 링크"
+                          className="flex-1 min-w-[140px] border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
+                        />
+
+                        <select
+                          value={editSongType}
+                          onChange={(e) => setEditSongType(e.target.value as "none" | "Original" | "Cover")}
+                          className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none cursor-pointer"
+                        >
+                          <option value="none">선택 안함</option>
+                          <option value="Original">Original</option>
+                          <option value="Cover">Cover</option>
+                        </select>
+
+                        <div className="flex items-center gap-1 shrink-0 ml-auto">
+                          <button
+                            onClick={() => saveEditSong(song.id)}
+                            title="수정 완료 저장"
+                            className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"
+                          >
+                            <Check className="w-3.5 h-3.5" /> 저장
+                          </button>
+                          <button
+                            onClick={cancelEditSong}
+                            title="수정 취소"
+                            className="p-1.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-600 text-xs flex items-center gap-1 shadow-sm transition"
+                          >
+                            <X className="w-3.5 h-3.5" /> 취소
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // 일반 보기 모드
+                  return (
+                    <div
+                      key={song.id}
+                      className={`grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border transition shadow-sm ${
+                        isPlayingThis
+                          ? "bg-emerald-100/90 border-emerald-500 ring-2 ring-emerald-300"
+                          : "bg-emerald-50/40 border-emerald-400 hover:border-emerald-500 hover:bg-emerald-50/70"
+                      }`}
+                    >
+                      {/* 1. 장르 (2칸) */}
+                      <div className="col-span-2 flex justify-center">
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-[11px] font-bold text-center">
+                          {song.genre}
+                        </span>
+                      </div>
+
+                      {/* 2. 가수 / 아티스트 (4칸) */}
+                      <div className="col-span-4 text-neutral-800 truncate font-bold text-[13px] text-center px-1">
+                        {song.artist}
+                      </div>
+
+                      {/* 3. 곡명 & 심볼 (4칸) */}
+                      <div className="col-span-4 flex items-center justify-center gap-2 font-bold text-neutral-900 px-1 overflow-hidden">
+                        <Music className={`w-3.5 h-3.5 shrink-0 ${isPlayingThis ? "text-emerald-600 animate-pulse" : "text-emerald-500"}`} />
+                        <span className="truncate text-sm">{song.title}</span>
+
+                        {isCover && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 shadow-xs shrink-0">
+                            <Mic2 className="w-2.5 h-2.5" />
+                            <span>Cover</span>
+                          </span>
+                        )}
+
+                        {isOriginal && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-300 shadow-xs shrink-0">
+                            <Disc3 className="w-2.5 h-2.5" />
+                            <span>Original</span>
+                          </span>
+                        )}
+
+                        {song.url && (
+                          <a
+                            href={song.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-neutral-400 hover:text-emerald-600 transition shrink-0 ml-0.5"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+
+                      {/* 4. 관리 버튼 (2칸) */}
+                      <div className="col-span-2 flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => startEditSong(song)}
+                          title="곡 내용 수정"
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-emerald-700 hover:bg-white transition"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          onClick={() => toggleLike(song.id)}
+                          title={song.liked ? "플레이리스트에서 제거" : "플레이리스트에 담기"}
+                          className={`p-1.5 rounded-lg transition ${
+                            song.liked
+                              ? "text-rose-500 fill-rose-500 hover:scale-110 bg-rose-50"
+                              : "text-neutral-400 hover:text-rose-500 hover:bg-white"
+                          }`}
+                        >
+                          <Heart className={`w-3.5 h-3.5 ${song.liked ? "fill-rose-500" : ""}`} />
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteSong(song.id)}
+                          title="노래 삭제"
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredSongs.length === 0 && (
+                  <div className="border border-dashed border-emerald-300 rounded-2xl p-12 text-center text-xs font-medium text-emerald-800/70 bg-emerald-50/20">
+                    등록되었거나 조건에 맞는 노래가 없습니다.
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ==================== C. 그 외 메뉴 탭 화면 (준비중) ==================== */}
+          {currentTab !== "songs" && currentTab !== "schedule" && (
+            <div className="border border-dashed border-emerald-300 rounded-2xl p-20 text-center bg-emerald-50/20 backdrop-blur-[2px]">
+              <span className="text-3xl mb-2 block">🚧</span>
+              <h3 className="text-sm font-bold text-emerald-900 mb-1">
+                {menuItems.find((m) => m.id === currentTab)?.label} 준비 중
+              </h3>
+              <p className="text-xs text-emerald-700/80">
+                해당 탭의 기능도 곧 추가될 예정입니다.
+              </p>
+            </div>
+          )}
+
         </section>
 
-        {/* [3] 우측 배너 (sticky 고정 추적) */}
+        {/* [3] 우측 배너 (어떤 탭에서도 영구 고정) */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px] flex flex-col gap-3">
           
           {/* 1. 시계 & 타이머 */}
