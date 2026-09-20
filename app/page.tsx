@@ -1762,7 +1762,7 @@ export default function Home() {
           {/* ==================== 2. [노래책] 탭 화면 (완전 정상 복구) ==================== */}
           {currentTab === "songs" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
-              <form onSubmit={handleAddSong} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
+              <form onSubmit={handleAddSong} className="border-2 border-emerald-400/90 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
                 <div className="relative">
                   <input
                     type="text"
@@ -1828,7 +1828,7 @@ export default function Home() {
                 </button>
               </form>
 
-              <div className="border border-emerald-400 rounded-2xl p-3 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
+              <div className="border-2 border-emerald-400/90 rounded-2xl p-3 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
                 <div className="relative w-full">
                   <input
                     type="text"
@@ -1872,7 +1872,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="border border-emerald-400 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
+              <div className="border-2 border-emerald-400/90 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
                 <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-emerald-900 items-center">
                   <span className="col-span-2 flex items-center justify-center gap-1 text-center">🏷️ 장르</span>
                   <span className="col-span-4 flex items-center justify-center gap-1 text-center">🎤 가수 / 아티스트</span>
@@ -1899,36 +1899,36 @@ export default function Home() {
                       >
                         <input
                           type="text"
-                          value={editGenre}
-                          onChange={(e) => setEditGenre(e.target.value)}
+                          value={editSongGenre}
+                          onChange={(e) => setEditSongGenre(e.target.value)}
                           placeholder="장르"
                           className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-600"
                         />
                         <input
                           type="text"
-                          value={editArtist}
-                          onChange={(e) => setEditArtist(e.target.value)}
+                          value={editSongArtist}
+                          onChange={(e) => setEditSongArtist(e.target.value)}
                           placeholder="가수"
                           className="w-32 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
                         />
                         <input
                           type="text"
                           required
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
+                          value={editSongTitle}
+                          onChange={(e) => setEditSongTitle(e.target.value)}
                           placeholder="곡 제목"
                           className="w-44 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-bold"
                         />
                         <input
                           type="text"
-                          value={editUrl}
-                          onChange={(e) => setEditUrl(e.target.value)}
+                          value={editSongUrl}
+                          onChange={(e) => setEditSongUrl(e.target.value)}
                           placeholder="유튜브 링크"
                           className="flex-1 min-w-[140px] border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
                         />
                         <select
-                          value={editSongType}
-                          onChange={(e) => setEditSongType(e.target.value as "none" | "Original" | "Cover")}
+                          value={editSongTypeState}
+                          onChange={(e) => setEditSongTypeState(e.target.value as "none" | "Original" | "Cover")}
                           className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none cursor-pointer"
                         >
                           <option value="none">선택 안함</option>
@@ -1958,7 +1958,7 @@ export default function Home() {
                   return (
                     <div
                       key={song.id}
-                      className={`grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border transition shadow-sm ${
+                      className={`grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border-2 transition shadow-sm ${
                         isPlayingThis
                           ? "bg-emerald-100/90 border-emerald-500 ring-2 ring-emerald-300"
                           : "bg-emerald-50/40 border-emerald-400 hover:border-emerald-500 hover:bg-emerald-50/70"
