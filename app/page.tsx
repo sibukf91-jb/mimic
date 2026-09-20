@@ -50,9 +50,9 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("schedule");
+  const [currentTab, setCurrentTab] = useState("cart"); // 기본 진입 탭: 장바구니
 
-  // ================= 테마 색상 동적 매핑 =================
+  // ================= 1. 테마 색상 동적 매핑 =================
   const themeClasses = useMemo(() => {
     if (currentTab === "cart") {
       return {
@@ -195,7 +195,7 @@ export default function Home() {
   const TODAY_STR = "2026-09-20";
   const todayDateObj = new Date(TODAY_STR);
 
-  // ================= 1. 일정 탭 =================
+  // ================= 1. 일정 탭 데이터 =================
   const SCHEDULE_SYMBOL_CONFIG = {
     leave: { label: "연차", icon: "🌴" },
     half_leave: { label: "반차", icon: "🌓" },
@@ -348,7 +348,7 @@ export default function Home() {
 
   const hasAnyScheduleSummary = leaveSummary || birthdaySummary || hairSummary || upcomingAppointments.length > 0;
 
-  // ================= 2. 가계부 탭 =================
+  // ================= 2. 가계부 탭 데이터 =================
   const LEDGER_SYMBOL_CONFIG = {
     taxi: { label: "택시", icon: "🚕" },
     delivery: { label: "배달", icon: "🛵" },
@@ -479,6 +479,14 @@ export default function Home() {
         item.id === id ? { ...item, title: trimmedTitle, amount: Number(editLedgerAmount), type: editLedgerType, symbol: editLedgerSymbol, color: editLedgerColor } : item
       )
     );
+    if (editLedgerSymbol === "fixed") {
+      setFixedTemplates((prev) => {
+        if (!prev.some((tpl) => tpl.title === trimmedTitle)) {
+          return [...prev, { id: `fixed_tpl_${Date.now()}`, title: trimmedTitle, color: editLedgerColor }];
+        }
+        return prev;
+      });
+    }
     setLedgerEditingId(null);
   };
 
@@ -539,7 +547,7 @@ export default function Home() {
     }
   };
 
-  // ================= 3. 즐겨찾기 탭 =================
+  // ================= 3. 즐겨찾기 탭 데이터 =================
   const getCategoryIcon = (category: string) => {
     const cat = (category || "").toLowerCase();
     if (cat.includes("포털") || cat.includes("웹")) return "🌐";
@@ -686,7 +694,7 @@ export default function Home() {
       .sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
   }, [favList, selectedFavCategory, favSearchQuery]);
 
-  // ================= 4. 책갈피 탭 =================
+  // ================= 4. 책갈피 탭 데이터 =================
   const calculateAutoFinalEpisode = (releaseDateStr: string) => {
     if (!releaseDateStr) return "1회";
     let targetDate: Date;
@@ -882,7 +890,7 @@ export default function Home() {
     return list.sort((a, b) => (a.title || "").localeCompare(b.title || "", "ko"));
   }, [bookmarkList, selectedBmarkCategory, bmarkSearchQuery, bmarkSortOrder]);
 
-  // ================= 5. 노래책 탭 =================
+  // ================= 5. 노래책 탭 데이터 =================
   const defaultSongs = [
     { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
     { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
@@ -1028,7 +1036,7 @@ export default function Home() {
       });
   }, [songList, selectedGenre, searchQuery]);
 
-  // ================= 6. 구매물품 탭 =================
+  // ================= 6. 구매물품 탭 데이터 =================
   const getOrderCategoryIcon = (category: string) => {
     const c = (category || "").trim().toLowerCase();
     if (c.includes("전자") || c.includes("기기")) return "📱";
@@ -1175,7 +1183,179 @@ export default function Home() {
     return filteredOrders.reduce((sum, item) => sum + (Number(item.price) || 0), 0);
   }, [filteredOrders]);
 
-  // ================= 7. 플레이리스트 & 시계 =================
+  // ================= 7. 장바구니 탭 데이터 (오류 해결 완료) =================
+  const defaultCartItems = [
+    {
+      id: 1,
+      category: "전자기기",
+      priority: "⭐⭐⭐",
+      name: "소니 WH-1000XM5 헤드폰",
+      price: 449000,
+      specOption: "실버 / 블루투스 5.2",
+      url: "https://www.sony.co.kr",
+      memo: "생일 선물 후보 또는 세일할 때 구매",
+      purchased: false
+    },
+    {
+      id: 2,
+      category: "패션",
+      priority: "⭐⭐",
+      name: "호카 오네오네 본디 8 러닝화",
+      price: 219000,
+      specOption: "블랙 / 270mm",
+      url: "",
+      memo: "현재 신는 운동화 닳으면 바로 사기",
+      purchased: false
+    }
+  ];
+
+  const [cartList, setCartList] = useState<any[]>([]);
+  const [isCartLoaded, setIsCartLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("jb_bookmark_cart_list_v1");
+      setCartList(saved ? JSON.parse(saved) : defaultCartItems);
+      setIsCartLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isCartLoaded && typeof window !== "undefined") {
+      localStorage.setItem("jb_bookmark_cart_list_v1", JSON.stringify(cartList));
+    }
+  }, [cartList, isCartLoaded]);
+
+  const [newCartCategory, setNewCartCategory] = useState("");
+  const [newCartPriority, setNewCartPriority] = useState("⭐⭐⭐");
+  const [newCartName, setNewCartName] = useState("");
+  const [newCartPrice, setNewCartPrice] = useState("");
+  const [newCartSpec, setNewCartSpec] = useState("");
+  const [newCartUrl, setNewCartUrl] = useState("");
+  const [newCartMemo, setNewCartMemo] = useState("");
+
+  const [selectedCartCategory, setSelectedCartCategory] = useState("전체");
+  const [cartSearchQuery, setCartSearchQuery] = useState("");
+
+  const [editingCartId, setEditingCartId] = useState<number | null>(null);
+  const [editCartCategory, setEditCartCategory] = useState("");
+  const [editCartPriority, setEditCartPriority] = useState("⭐⭐⭐");
+  const [editCartName, setEditCartName] = useState("");
+  const [editCartPrice, setEditCartPrice] = useState("");
+  const [editCartSpec, setEditCartSpec] = useState("");
+  const [editCartUrl, setEditCartUrl] = useState("");
+  const [editCartMemo, setEditCartMemo] = useState("");
+
+  const existingCartCategories = useMemo(() => {
+    const set = new Set<string>();
+    (cartList || []).forEach((item) => {
+      if (item && item.category && item.category.trim()) set.add(item.category.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [cartList]);
+
+  const handleAddCartItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCartName.trim()) return;
+
+    let formattedUrl = newCartUrl.trim();
+    if (formattedUrl && !formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+      formattedUrl = "https://" + formattedUrl;
+    }
+
+    const newEntry = {
+      id: Date.now(),
+      category: newCartCategory.trim() || "생활용품",
+      priority: newCartPriority || "⭐⭐⭐",
+      name: newCartName.trim(),
+      price: Number(newCartPrice) || 0,
+      specOption: newCartSpec.trim() || "-",
+      url: formattedUrl,
+      memo: newCartMemo.trim(),
+      purchased: false
+    };
+
+    setCartList([newEntry, ...cartList]);
+    setNewCartCategory("");
+    setNewCartPriority("⭐⭐⭐");
+    setNewCartName("");
+    setNewCartPrice("");
+    setNewCartSpec("");
+    setNewCartUrl("");
+    setNewCartMemo("");
+  };
+
+  const startEditCartItem = (item: any) => {
+    setEditingCartId(item.id);
+    setEditCartCategory(item.category || "");
+    setEditCartPriority(item.priority || "⭐⭐⭐");
+    setEditCartName(item.name || "");
+    setEditCartPrice(String(item.price || ""));
+    setEditCartSpec(item.specOption === "-" ? "" : item.specOption || "");
+    setEditCartUrl(item.url || "");
+    setEditCartMemo(item.memo || "");
+  };
+
+  const cancelEditCartItem = () => setEditingCartId(null);
+
+  const saveEditCartItem = (id: number) => {
+    if (!editCartName.trim()) return;
+
+    let formattedUrl = editCartUrl.trim();
+    if (formattedUrl && !formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+      formattedUrl = "https://" + formattedUrl;
+    }
+
+    setCartList((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              category: editCartCategory.trim() || "생활용품",
+              priority: editCartPriority || "⭐⭐⭐",
+              name: editCartName.trim(),
+              price: Number(editCartPrice) || 0,
+              specOption: editCartSpec.trim() || "-",
+              url: formattedUrl,
+              memo: editCartMemo.trim()
+            }
+          : item
+      )
+    );
+    setEditingCartId(null);
+  };
+
+  const handleDeleteCartItem = (id: number) => {
+    setCartList((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const handleTogglePurchased = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCartList((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, purchased: !item.purchased } : item))
+    );
+  };
+
+  const filteredCartItems = useMemo(() => {
+    return (cartList || [])
+      .filter((item) => {
+        if (!item) return false;
+        const matchCategory = selectedCartCategory === "전체" || item.category === selectedCartCategory;
+        const matchSearch =
+          (item.name || "").toLowerCase().includes(cartSearchQuery.toLowerCase()) ||
+          (item.category || "").toLowerCase().includes(cartSearchQuery.toLowerCase()) ||
+          (item.specOption || "").toLowerCase().includes(cartSearchQuery.toLowerCase()) ||
+          (item.memo || "").toLowerCase().includes(cartSearchQuery.toLowerCase());
+        return matchCategory && matchSearch;
+      })
+      .sort((a, b) => (b.priority || "").localeCompare(a.priority || ""));
+  }, [cartList, selectedCartCategory, cartSearchQuery]);
+
+  const totalCartAmount = useMemo(() => {
+    return (filteredCartItems || []).reduce((sum, item) => sum + (Number(item?.price) || 0), 0);
+  }, [filteredCartItems]);
+
+  // ================= 8. 플레이리스트 & 시계 =================
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [repeatMode, setRepeatMode] = useState<"none" | "all" | "one">("all");
@@ -1574,7 +1754,7 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* [2] 중앙 내용 영역 (7개 탭 완벽 렌더링) */}
+        {/* [2] 중앙 내용 영역 (7개 탭 모두 포함 완벽 렌더링) */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
           {/* 1. [일정] 탭 */}
@@ -1625,12 +1805,8 @@ export default function Home() {
                           }`}
                         >
                           <div className="flex items-center justify-between text-[11px] font-bold leading-tight">
-                            <span className={isSunday || holidayName ? "text-rose-600" : isSaturday ? "text-blue-600" : "text-neutral-800"}>
-                              {cell.day}
-                            </span>
-                            {holidayName && (
-                              <span className="text-[9px] font-bold text-rose-500 truncate max-w-[55px]">{holidayName}</span>
-                            )}
+                            <span className={isSunday || holidayName ? "text-rose-600" : isSaturday ? "text-blue-600" : "text-neutral-800"}>{cell.day}</span>
+                            {holidayName && <span className="text-[9px] font-bold text-rose-500 truncate max-w-[55px]">{holidayName}</span>}
                           </div>
 
                           <div className="flex-1 overflow-y-auto space-y-1 my-0.5 pr-0.5 scrollbar-none">
@@ -1638,22 +1814,13 @@ export default function Home() {
                               const symbolInfo = SCHEDULE_SYMBOL_CONFIG[item.symbol] || SCHEDULE_SYMBOL_CONFIG.appointment;
                               const colorInfo = SCHEDULE_COLOR_CONFIG[item.color] || SCHEDULE_COLOR_CONFIG.pink;
                               return (
-                                <div
-                                  key={item.id}
-                                  className={`flex items-center justify-between px-1.5 py-0.5 rounded border text-[10px] font-semibold leading-none shadow-2xs ${colorInfo.class}`}
-                                >
-                                  <span className="truncate flex items-center gap-1">
-                                    <span className="text-[9px]">{symbolInfo.icon}</span>
-                                    <span>{item.title}</span>
-                                  </span>
-                                  <button onClick={(e) => handleDeleteSchedule(item.id, e)} title="삭제" className="text-neutral-400 hover:text-rose-500 ml-1 shrink-0">
-                                    <X className="w-2.5 h-2.5" />
-                                  </button>
+                                <div key={item.id} className={`flex items-center justify-between px-1.5 py-0.5 rounded border text-[10px] font-semibold leading-none shadow-2xs ${colorInfo.class}`}>
+                                  <span className="truncate flex items-center gap-1"><span>{symbolInfo.icon}</span><span>{item.title}</span></span>
+                                  <button onClick={(e) => handleDeleteSchedule(item.id, e)} title="삭제" className="text-neutral-400 hover:text-rose-500 ml-1 shrink-0"><X className="w-2.5 h-2.5" /></button>
                                 </div>
                               );
                             })}
                           </div>
-
                           <div className="text-[9px] text-neutral-400 text-right opacity-0 group-hover:opacity-100 transition leading-none">+추가</div>
                         </div>
                       );
@@ -1675,10 +1842,7 @@ export default function Home() {
 
                   {birthdaySummary && (
                     <div className="border border-rose-200 bg-rose-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900">
-                        <span>🎂</span>
-                        <span>{birthdaySummary.title}</span>
-                      </div>
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900"><span>🎂</span><span>{birthdaySummary.title}</span></div>
                       <div className="text-3xl font-black text-rose-600 tracking-tight my-2">{birthdaySummary.dDayText}</div>
                       <div className="text-[11px] text-neutral-500 font-medium">({birthdaySummary.date} 기준)</div>
                     </div>
@@ -1686,10 +1850,7 @@ export default function Home() {
 
                   {hairSummary && (
                     <div className="border border-purple-200 bg-purple-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900">
-                        <span>✂️</span>
-                        <span>{hairSummary.title}</span>
-                      </div>
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900"><span>✂️</span><span>{hairSummary.title}</span></div>
                       <div className="text-3xl font-black text-purple-600 tracking-tight my-2">{hairSummary.displayText}</div>
                       <div className="text-[11px] text-neutral-500 font-medium">{hairSummary.subText}</div>
                     </div>
@@ -1709,33 +1870,19 @@ export default function Home() {
                     <div className="h-full flex flex-col items-center justify-center text-center p-6 text-neutral-400">
                       <CalendarDays className="w-8 h-8 mb-2 text-pink-300" />
                       <span className="text-xs font-bold text-neutral-500 mb-1">일정 요약 없음</span>
-                      <p className="text-[11px] text-neutral-400 leading-relaxed">
-                        달력에 <span className="font-semibold text-pink-600">연차, 반차, 헤어, 생일</span> 일정을 등록하면 이곳에 자동으로 요약 카드가 생성됩니다.
-                      </p>
+                      <p className="text-[11px] text-neutral-400 leading-relaxed">달력에 일정을 등록하면 요약 카드가 생성됩니다.</p>
                     </div>
                   )}
                 </div>
               </div>
 
               {modalDate && (
-                <div 
-                  className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
-                  onClick={() => { setModalDate(null); setPopupEditingId(null); }}
-                >
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => { setModalDate(null); setPopupEditingId(null); }}>
                   <div className="bg-white rounded-3xl p-6 border border-pink-300 shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-between pb-3 border-b border-neutral-200 shrink-0">
-                      <h3 className="text-base font-black text-neutral-900 flex items-center gap-2">
-                        <CalendarIcon className="w-5 h-5 text-pink-500" />
-                        <span>{modalDate} 일정 관리</span>
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-neutral-400 font-medium bg-neutral-100 px-2 py-0.5 rounded-md">ESC로 닫기</span>
-                        <button onClick={() => { setModalDate(null); setPopupEditingId(null); }} className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg">
-                          <X className="w-5 h-5" />
-                        </button>
-                      </div>
+                      <h3 className="text-base font-black text-neutral-900 flex items-center gap-2"><CalendarIcon className="w-5 h-5 text-pink-500" /><span>{modalDate} 일정 관리</span></h3>
+                      <button onClick={() => { setModalDate(null); setPopupEditingId(null); }} className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg"><X className="w-5 h-5" /></button>
                     </div>
-
                     <div className="my-3 overflow-y-auto space-y-2 max-h-[220px] pr-1">
                       {(scheduleList || []).filter((s) => s.date === modalDate).map((item) => {
                         const isEditingThis = popupEditingId === item.id;
@@ -1745,23 +1892,21 @@ export default function Home() {
                         if (isEditingThis) {
                           return (
                             <div key={`pop-edit-${item.id}`} className="p-3 rounded-2xl border-2 border-pink-400 bg-pink-50/50 space-y-2">
-                              <input type="text" value={editPopupTitle} onChange={(e) => setEditPopupTitle(e.target.value)} className="w-full border border-pink-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-neutral-900 bg-white focus:outline-none focus:border-pink-500" />
+                              <input type="text" value={editPopupTitle} onChange={(e) => setEditPopupTitle(e.target.value)} className="w-full border border-pink-300 rounded-lg px-2.5 py-1.5 text-xs font-bold text-neutral-900 bg-white" />
                               <div className="flex gap-1 flex-wrap">
                                 {Object.entries(SCHEDULE_SYMBOL_CONFIG).map(([key, val]) => (
-                                  <button key={key} type="button" onClick={() => setEditPopupSymbol(key)} className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition ${editPopupSymbol === key ? "border-pink-500 bg-pink-50 text-pink-900 font-black" : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"}`}>
-                                    {val.icon} {val.label}
-                                  </button>
+                                  <button key={key} type="button" onClick={() => setEditPopupSymbol(key)} className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${editPopupSymbol === key ? "border-pink-500 bg-pink-50 text-pink-900 font-black" : "border-neutral-200 bg-white"}`}>{val.icon} {val.label}</button>
                                 ))}
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-bold text-neutral-600">색상:</span>
                                 {Object.entries(SCHEDULE_COLOR_CONFIG).map(([key, val]) => (
-                                  <button key={key} type="button" onClick={() => setEditPopupColor(key)} className={`w-5 h-5 rounded-full ${val.chip} border-2 transition ${editPopupColor === key ? "border-pink-600 scale-110" : "border-white"}`} />
+                                  <button key={key} type="button" onClick={() => setEditPopupColor(key)} className={`w-5 h-5 rounded-full ${val.chip} border-2 ${editPopupColor === key ? "border-pink-600 scale-110" : "border-white"}`} />
                                 ))}
                               </div>
                               <div className="flex justify-end gap-1.5 pt-1">
-                                <button onClick={() => savePopupEdit(item.id)} className="px-3 py-1 bg-pink-500 text-white text-xs font-bold rounded-lg hover:bg-pink-600">저장</button>
-                                <button onClick={() => setPopupEditingId(null)} className="px-3 py-1 bg-white border border-neutral-300 text-neutral-600 text-xs rounded-lg hover:bg-neutral-50">취소</button>
+                                <button onClick={() => savePopupEdit(item.id)} className="px-3 py-1 bg-pink-500 text-white text-xs font-bold rounded-lg">저장</button>
+                                <button onClick={() => setPopupEditingId(null)} className="px-3 py-1 bg-white border border-neutral-300 text-neutral-600 text-xs rounded-lg">취소</button>
                               </div>
                             </div>
                           );
@@ -1769,43 +1914,34 @@ export default function Home() {
 
                         return (
                           <div key={item.id} className={`flex items-center justify-between p-2 rounded-xl border text-xs font-semibold ${colorObj.class}`}>
-                            <div className="flex items-center gap-1.5 min-w-0 pr-2">
-                              <span className="text-sm">{symbolObj.icon}</span>
-                              <span className="truncate">{item.title}</span>
-                            </div>
+                            <div className="flex items-center gap-1.5 min-w-0 pr-2"><span className="text-sm">{symbolObj.icon}</span><span className="truncate">{item.title}</span></div>
                             <div className="flex items-center gap-1 shrink-0">
                               <button onClick={() => startPopupEdit(item)} title="수정" className="p-1 rounded-md hover:bg-black/10 text-neutral-600"><Pencil className="w-3.5 h-3.5" /></button>
-                              <button onClick={() => handleDeleteSchedule(item.id)} title="삭제" className="p-1 rounded-md hover:bg-rose-100 text-neutral-600 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => handleDeleteSchedule(item.id)} title="삭제" className="p-1 rounded-md hover:bg-rose-100 text-neutral-600"><Trash2 className="w-3.5 h-3.5" /></button>
                             </div>
                           </div>
                         );
                       })}
                     </div>
-
                     <form onSubmit={handleAddPopupSchedule} className="pt-3 border-t border-neutral-200 shrink-0 space-y-3">
-                      <input type="text" required value={newSchedTitle} onChange={(e) => setNewSchedTitle(e.target.value)} placeholder="일정 제목 입력" className="w-full border border-pink-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-pink-500 font-medium" />
+                      <input type="text" required value={newSchedTitle} onChange={(e) => setNewSchedTitle(e.target.value)} placeholder="일정 제목 입력" className="w-full border border-pink-300 rounded-xl px-3 py-2 text-xs font-medium" />
                       <div className="grid grid-cols-5 gap-1">
                         {Object.entries(SCHEDULE_SYMBOL_CONFIG).map(([key, val]) => (
-                          <button key={key} type="button" onClick={() => setNewSchedSymbol(key)} className={`py-1.5 rounded-xl text-[11px] font-bold border flex flex-col items-center gap-0.5 transition ${newSchedSymbol === key ? "border-pink-500 bg-pink-50 text-pink-900 font-black shadow-2xs" : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"}`}>
-                            <span className="text-sm">{val.icon}</span>
-                            <span>{val.label}</span>
-                          </button>
+                          <button key={key} type="button" onClick={() => setNewSchedSymbol(key)} className={`py-1.5 rounded-xl text-[11px] font-bold border flex flex-col items-center gap-0.5 ${newSchedSymbol === key ? "border-pink-500 bg-pink-50 text-pink-900 font-black" : "border-neutral-200 bg-white"}`}><span>{val.icon}</span><span>{val.label}</span></button>
                         ))}
                       </div>
                       <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
                         {Object.entries(SCHEDULE_COLOR_CONFIG).map(([key, val]) => (
                           <label key={key} className="flex items-center gap-1.5 cursor-pointer">
                             <input type="radio" name="tagColor" value={key} checked={newSchedColor === key} onChange={() => setNewSchedColor(key)} className="hidden" />
-                            <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${newSchedColor === key ? "border-pink-600 scale-110 shadow-xs" : "border-transparent opacity-70"}`}>
-                              {newSchedColor === key && <Check className="w-3 h-3 text-pink-950 stroke-[3]" />}
-                            </span>
+                            <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center ${newSchedColor === key ? "border-pink-600 scale-110" : "border-transparent opacity-70"}`}>{newSchedColor === key && <Check className="w-3 h-3 text-pink-950 stroke-[3]" />}</span>
                             <span className="text-[11px] font-semibold text-neutral-700">{val.label}</span>
                           </label>
                         ))}
                       </div>
                       <div className="flex items-center gap-2 pt-1">
-                        <button type="button" onClick={() => { setModalDate(null); setPopupEditingId(null); }} className="flex-1 py-2 rounded-xl border border-neutral-300 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 transition">닫기 (ESC)</button>
-                        <button type="submit" className="flex-1 py-2 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold shadow-sm transition">일정 추가</button>
+                        <button type="button" onClick={() => { setModalDate(null); setPopupEditingId(null); }} className="flex-1 py-2 rounded-xl border border-neutral-300 text-neutral-600 text-xs font-semibold">닫기</button>
+                        <button type="submit" className="flex-1 py-2 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold">일정 추가</button>
                       </div>
                     </form>
                   </div>
@@ -1820,28 +1956,16 @@ export default function Home() {
               <div className="border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
                 <div className="flex-1 flex items-center justify-between pr-6 border-r border-sky-200">
                   <button onClick={prevLedgerMonth} className="px-4 py-1.5 rounded-xl border border-sky-400 text-sky-700 hover:bg-sky-50 font-bold text-xs transition">&lt; 이전달</button>
-                  <h2 className="text-lg font-black text-sky-950 tracking-tight flex items-center gap-2">
-                    <Wallet className="w-5 h-5 text-sky-600" />
-                    <span>{ledgerYear}년 {ledgerMonth}월 가계부</span>
-                  </h2>
+                  <h2 className="text-lg font-black text-sky-950 tracking-tight flex items-center gap-2"><Wallet className="w-5 h-5 text-sky-600" /><span>{ledgerYear}년 {ledgerMonth}월 가계부</span></h2>
                   <button onClick={nextLedgerMonth} className="px-4 py-1.5 rounded-xl border border-sky-400 text-sky-700 hover:bg-sky-50 font-bold text-xs transition">다음달 &gt;</button>
                 </div>
-                <div className="w-[280px] pl-6 flex items-center gap-1.5 text-sm font-extrabold text-sky-900">
-                  <PiggyBank className="w-4 h-4 text-sky-600" />
-                  <span>재정 요약</span>
-                </div>
+                <div className="w-[280px] pl-6 flex items-center gap-1.5 text-sm font-extrabold text-sky-900"><PiggyBank className="w-4 h-4 text-sky-600" /><span>재정 요약</span></div>
               </div>
 
               <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 items-stretch">
                 <div className="flex-1 h-full border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between overflow-hidden">
                   <div className="grid grid-cols-7 text-center font-bold text-xs pb-2 border-b border-sky-100 text-neutral-700 shrink-0">
-                    <span className="text-rose-600 font-extrabold">일</span>
-                    <span>월</span>
-                    <span>화</span>
-                    <span>수</span>
-                    <span>목</span>
-                    <span>금</span>
-                    <span className="text-blue-600 font-extrabold">토</span>
+                    <span className="text-rose-600 font-extrabold">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span className="text-blue-600 font-extrabold">토</span>
                   </div>
 
                   <div className="flex-1 grid grid-cols-7 grid-rows-5 gap-2 pt-2 min-h-0">
@@ -1861,13 +1985,7 @@ export default function Home() {
                       });
 
                       return (
-                        <div
-                          key={cell.dateStr}
-                          onClick={() => { setLedgerEditingId(null); setLedgerModalDate(cell.dateStr); }}
-                          className={`h-full border rounded-xl p-1.5 flex flex-col justify-between transition group relative cursor-pointer min-h-0 ${
-                            isToday ? "border-amber-400 bg-amber-50/70" : "border-sky-200/90 bg-white hover:border-sky-400 hover:bg-sky-50/20"
-                          }`}
-                        >
+                        <div key={cell.dateStr} onClick={() => { setLedgerEditingId(null); setLedgerModalDate(cell.dateStr); }} className={`h-full border rounded-xl p-1.5 flex flex-col justify-between transition group relative cursor-pointer min-h-0 ${isToday ? "border-amber-400 bg-amber-50/70" : "border-sky-200/90 bg-white hover:border-sky-400"}`}>
                           <div className="flex items-center justify-between text-[11px] font-bold leading-tight">
                             <span className={isSunday || holidayName ? "text-rose-600" : isSaturday ? "text-blue-600" : "text-neutral-800"}>{cell.day}</span>
                             {(dayIncome > 0 || dayExpense > 0) && (
@@ -1877,21 +1995,16 @@ export default function Home() {
                               </span>
                             )}
                           </div>
-
                           <div className="flex-1 overflow-y-auto space-y-1 my-0.5 pr-0.5 scrollbar-none">
                             {dayEntries.map((item) => {
                               const isIncome = item.type === "income";
                               const colorObj = LEDGER_COLOR_CONFIG[item.color] || LEDGER_COLOR_CONFIG.pink;
                               const symbolObj = LEDGER_SYMBOL_CONFIG[item.symbol] || LEDGER_SYMBOL_CONFIG.fixed;
-
                               return (
                                 <div key={item.id} className={`flex items-start justify-between p-1 rounded border text-[10px] font-semibold leading-tight shadow-2xs ${colorObj.class}`}>
                                   <div className="flex items-start gap-1 min-w-0 break-all flex-1 pr-1">
                                     <span className="text-[10px] shrink-0">{symbolObj.icon}</span>
-                                    <div className="flex flex-wrap items-baseline gap-x-1">
-                                      <span className="font-bold">{item.title}</span>
-                                      <span className="font-mono text-[9px] font-bold opacity-85 whitespace-nowrap">{isIncome ? "+" : "-"}{Number(item.amount).toLocaleString()}원</span>
-                                    </div>
+                                    <div className="flex flex-wrap items-baseline gap-x-1"><span className="font-bold">{item.title}</span><span className="font-mono text-[9px] opacity-85 whitespace-nowrap">{isIncome ? "+" : "-"}{Number(item.amount).toLocaleString()}원</span></div>
                                   </div>
                                   <button onClick={(e) => handleDeleteLedgerEntry(item.id, e)} title="삭제" className="text-neutral-400 hover:text-rose-500 p-0.5 shrink-0"><X className="w-2.5 h-2.5" /></button>
                                 </div>
@@ -1907,75 +2020,41 @@ export default function Home() {
 
                 <div className="w-full lg:w-[280px] h-full shrink-0 border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-start gap-3 overflow-y-auto">
                   <div className="border border-blue-200 bg-blue-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
-                    <div className="flex items-center justify-between text-xs font-bold text-blue-900">
-                      <span className="flex items-center gap-1"><ArrowDownLeft className="w-3.5 h-3.5 text-blue-600" /> 총 수입</span>
-                      <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full font-bold">수입</span>
-                    </div>
+                    <span className="text-xs font-bold text-blue-900 flex items-center gap-1"><ArrowDownLeft className="w-3.5 h-3.5 text-blue-600" /> 총 수입</span>
                     <div className="text-xl font-black text-blue-600 tracking-tight my-1.5">+{currentMonthLedgerSummary.income.toLocaleString()}원</div>
                   </div>
-
                   <div className="border border-rose-200 bg-rose-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
-                    <div className="flex items-center justify-between text-xs font-bold text-rose-900">
-                      <span className="flex items-center gap-1"><ArrowUpRight className="w-3.5 h-3.5 text-rose-600" /> 총 지출</span>
-                      <span className="text-[10px] text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded-full font-bold">지출</span>
-                    </div>
+                    <span className="text-xs font-bold text-rose-900 flex items-center gap-1"><ArrowUpRight className="w-3.5 h-3.5 text-rose-600" /> 총 지출</span>
                     <div className="text-xl font-black text-rose-600 tracking-tight my-1.5">-{currentMonthLedgerSummary.expense.toLocaleString()}원</div>
                   </div>
-
                   <div className="border border-sky-200 bg-sky-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
-                    <div className="flex items-center justify-between text-xs font-bold text-sky-900">
-                      <span className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5 text-sky-600" /> 정산 잔액</span>
-                      <span className="text-[10px] text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded-full font-bold">잔액</span>
-                    </div>
-                    <div className={`text-xl font-black tracking-tight my-1.5 ${currentMonthLedgerSummary.balance >= 0 ? "text-sky-700" : "text-rose-600"}`}>
-                      {currentMonthLedgerSummary.balance >= 0 ? "+" : ""}{currentMonthLedgerSummary.balance.toLocaleString()}원
-                    </div>
+                    <span className="text-xs font-bold text-sky-900 flex items-center gap-1"><CreditCard className="w-3.5 h-3.5 text-sky-600" /> 정산 잔액</span>
+                    <div className={`text-xl font-black tracking-tight my-1.5 ${currentMonthLedgerSummary.balance >= 0 ? "text-sky-700" : "text-rose-600"}`}>{currentMonthLedgerSummary.balance >= 0 ? "+" : ""}{currentMonthLedgerSummary.balance.toLocaleString()}원</div>
                   </div>
-
                   <div className="border-t border-sky-200/80 my-0.5 shrink-0" />
-
                   <div className="border border-amber-200 bg-amber-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
-                    <div className="flex items-center justify-between text-xs font-bold text-amber-900">
-                      <span>🚕 택시 지출 합산</span>
-                    </div>
+                    <span className="text-xs font-bold text-amber-900">🚕 택시 지출 합산</span>
                     <div className="text-xl font-black text-amber-900 tracking-tight my-1.5">{currentMonthLedgerSummary.taxiTotal.toLocaleString()}원</div>
                   </div>
-
                   <div className="border border-pink-200 bg-pink-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
-                    <div className="flex items-center justify-between text-xs font-bold text-pink-900">
-                      <span>🛵 배달 지출 합산</span>
-                    </div>
+                    <span className="text-xs font-bold text-pink-900">🛵 배달 지출 합산</span>
                     <div className="text-xl font-black text-pink-900 tracking-tight my-1.5">{currentMonthLedgerSummary.deliveryTotal.toLocaleString()}원</div>
                   </div>
-
                   <div className="border border-purple-200 bg-purple-50/80 rounded-2xl p-3 shadow-xs flex flex-col gap-2 shrink-0">
                     <div className="flex items-center justify-between text-xs font-bold text-purple-900">
                       <span>📌 고정 지출 목록</span>
-                      <button onClick={() => openFixedExpenseModal()} className="p-1 rounded bg-purple-100 hover:bg-purple-200 text-purple-800 text-[10px] font-bold flex items-center gap-0.5 transition">
-                        <Plus className="w-3 h-3" /> 추가
-                      </button>
+                      <button onClick={() => openFixedExpenseModal()} className="p-1 rounded bg-purple-100 hover:bg-purple-200 text-purple-800 text-[10px] font-bold flex items-center gap-0.5"><Plus className="w-3 h-3" /> 추가</button>
                     </div>
-
                     <div className="space-y-1.5">
                       {currentMonthLedgerSummary.fixedItems.map((item) => (
-                        <div
-                          key={`fixed-tpl-${item.tplTitle}`}
-                          onClick={() => openFixedExpenseModal(item)}
-                          className="flex items-center justify-between bg-white/90 p-2 rounded-xl border border-purple-200 text-xs hover:border-purple-400 cursor-pointer transition group"
-                        >
+                        <div key={`fixed-tpl-${item.tplTitle}`} onClick={() => openFixedExpenseModal(item)} className="flex items-center justify-between bg-white/90 p-2 rounded-xl border border-purple-200 text-xs hover:border-purple-400 cursor-pointer transition group">
                           <div className="min-w-0 pr-1">
                             <div className="font-bold text-neutral-800 truncate leading-tight">📌 {item.tplTitle}</div>
-                            <div className="text-[10px] font-mono font-bold mt-0.5">
-                              {item.entry ? (
-                                <span className="text-purple-700 font-black">-{Number(item.entry.amount).toLocaleString()}원</span>
-                              ) : (
-                                <span className="text-rose-500 italic font-semibold">금액 미입력</span>
-                              )}
-                            </div>
+                            <div className="text-[10px] font-mono font-bold mt-0.5">{item.entry ? <span className="text-purple-700 font-black">-{Number(item.entry.amount).toLocaleString()}원</span> : <span className="text-rose-500 italic font-semibold">금액 미입력</span>}</div>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            <button onClick={(e) => { e.stopPropagation(); openFixedExpenseModal(item); }} className="p-1 rounded-md text-neutral-400 hover:text-purple-700 hover:bg-purple-100 transition"><Pencil className="w-3.5 h-3.5" /></button>
-                            <button onClick={(e) => handleDeleteFixedTemplate(item.tplTitle, e)} className="p-1 rounded-md text-neutral-400 hover:text-rose-600 hover:bg-rose-50 transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                            <button onClick={(e) => { e.stopPropagation(); openFixedExpenseModal(item); }} className="p-1 rounded-md text-neutral-400 hover:text-purple-700 hover:bg-purple-100"><Pencil className="w-3.5 h-3.5" /></button>
+                            <button onClick={(e) => handleDeleteFixedTemplate(item.tplTitle, e)} className="p-1 rounded-md text-neutral-400 hover:text-rose-600 hover:bg-rose-50"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         </div>
                       ))}
@@ -1985,53 +2064,33 @@ export default function Home() {
               </div>
 
               {ledgerModalDate && (
-                <div 
-                  className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
-                  onClick={() => { setLedgerModalDate(null); setLedgerEditingId(null); }}
-                >
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4" onClick={() => { setLedgerModalDate(null); setLedgerEditingId(null); }}>
                   <div className="bg-white rounded-3xl p-6 border border-sky-300 shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-between pb-3 border-b border-neutral-200 shrink-0">
-                      <h3 className="text-base font-black text-neutral-900 flex items-center gap-2">
-                        <Wallet className="w-5 h-5 text-sky-500" />
-                        <span>가계부 관리 ({ledgerModalDate})</span>
-                      </h3>
-                      <button onClick={() => { setLedgerModalDate(null); setLedgerEditingId(null); }} className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg">
-                        <X className="w-5 h-5" />
-                      </button>
+                      <h3 className="text-base font-black text-neutral-900 flex items-center gap-2"><Wallet className="w-5 h-5 text-sky-500" /><span>가계부 관리 ({ledgerModalDate})</span></h3>
+                      <button onClick={() => { setLedgerModalDate(null); setLedgerEditingId(null); }} className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg"><X className="w-5 h-5" /></button>
                     </div>
-
                     <div className="my-3 overflow-y-auto space-y-2 max-h-[220px] pr-1">
                       {(ledgerEntries || []).filter((s) => s.date === ledgerModalDate).map((item) => {
                         const isIncome = item.type === "income";
                         const colorObj = LEDGER_COLOR_CONFIG[item.color] || LEDGER_COLOR_CONFIG.pink;
                         const symbolObj = LEDGER_SYMBOL_CONFIG[item.symbol] || LEDGER_SYMBOL_CONFIG.fixed;
-
                         return (
                           <div key={item.id} className={`flex items-center justify-between p-2 rounded-xl border text-xs font-semibold ${colorObj.class}`}>
-                            <div className="flex items-center gap-2 min-w-0 pr-2">
-                              <span className="text-base">{symbolObj.icon}</span>
-                              <span className="font-bold truncate">{item.title}</span>
-                              <span className="font-mono font-bold whitespace-nowrap">{isIncome ? "+" : "-"}{Number(item.amount).toLocaleString()}원</span>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <button onClick={() => handleDeleteLedgerEntry(item.id)} title="삭제" className="p-1 rounded-md hover:bg-rose-100 text-neutral-600 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                            </div>
+                            <div className="flex items-center gap-2 min-w-0 pr-2"><span className="text-base">{symbolObj.icon}</span><span className="font-bold truncate">{item.title}</span><span className="font-mono font-bold whitespace-nowrap">{isIncome ? "+" : "-"}{Number(item.amount).toLocaleString()}원</span></div>
+                            <button onClick={() => handleDeleteLedgerEntry(item.id)} title="삭제" className="p-1 rounded-md hover:bg-rose-100 text-neutral-600 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
                           </div>
                         );
                       })}
                     </div>
-
                     <form onSubmit={handleAddLedgerEntry} className="pt-3 border-t border-neutral-200 shrink-0 space-y-3">
                       <div className="flex gap-2">
                         <select value={newLedgerType} onChange={(e) => setNewLedgerType(e.target.value as "expense" | "income")} className="border border-sky-300 rounded-xl px-2.5 py-2 text-xs font-bold bg-white">
-                          <option value="expense">지출 (-)</option>
-                          <option value="income">수입 (+)</option>
+                          <option value="expense">지출 (-)</option><option value="income">수입 (+)</option>
                         </select>
-                        <input type="text" required value={newLedgerTitle} onChange={(e) => setNewLedgerTitle(e.target.value)} placeholder="항목 내용" className="flex-1 border border-sky-300 rounded-xl px-3 py-2 text-xs focus:outline-none font-medium" />
+                        <input type="text" required value={newLedgerTitle} onChange={(e) => setNewLedgerTitle(e.target.value)} placeholder="항목 내용" className="flex-1 border border-sky-300 rounded-xl px-3 py-2 text-xs font-medium" />
                         <select value={newLedgerSymbol} onChange={(e) => setNewLedgerSymbol(e.target.value)} className="border border-sky-300 rounded-xl px-2 py-2 text-xs font-bold bg-white">
-                          {Object.entries(LEDGER_SYMBOL_CONFIG).map(([key, val]) => (
-                            <option key={key} value={key}>{val.icon} {val.label}</option>
-                          ))}
+                          {Object.entries(LEDGER_SYMBOL_CONFIG).map(([key, val]) => (<option key={key} value={key}>{val.icon} {val.label}</option>))}
                         </select>
                       </div>
                       <input type="number" required min="0" value={newLedgerAmount} onChange={(e) => setNewLedgerAmount(e.target.value)} placeholder="금액(원)" className="w-full border border-sky-300 rounded-xl px-3 py-2 text-xs font-medium" />
@@ -2050,7 +2109,7 @@ export default function Home() {
           {currentTab === "favorites" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               <form onSubmit={handleAddFav} className="border-2 border-purple-400/80 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-purple-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
-                <input type="text" list="fav-category-suggestions" value={newFavCategory} onChange={(e) => setNewFavCategory(e.target.value)} placeholder="분류" className="w-24 border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs font-medium text-purple-950 focus:outline-none placeholder-neutral-400" />
+                <input type="text" list="fav-category-suggestions" value={newFavCategory} onChange={(e) => setNewFavCategory(e.target.value)} placeholder="분류" className="w-24 border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs font-medium" />
                 <datalist id="fav-category-suggestions">{existingFavCategories.map((c) => (<option key={c} value={c} />))}</datalist>
                 <input type="text" required value={newFavName} onChange={(e) => setNewFavName(e.target.value)} placeholder="사이트명 *" className="w-32 border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs font-bold" />
                 <input type="text" required value={newFavUrl} onChange={(e) => setNewFavUrl(e.target.value)} placeholder="URL *" className="flex-1 min-w-[150px] border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs font-medium" />
@@ -2077,12 +2136,7 @@ export default function Home() {
 
               <div className="border-2 border-purple-400/80 rounded-xl px-4 py-2.5 bg-purple-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
                 <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-purple-950 items-center text-center">
-                  <span className="col-span-2">🏷️ 분류</span>
-                  <span className="col-span-3">🌐 사이트명</span>
-                  <span className="col-span-1">바로가기</span>
-                  <span className="col-span-2">📝 메모</span>
-                  <span className="col-span-2">🔐 계정 정보</span>
-                  <span className="col-span-2">관리</span>
+                  <span className="col-span-2">🏷️ 분류</span><span className="col-span-3">🌐 사이트명</span><span className="col-span-1">바로가기</span><span className="col-span-2">📝 메모</span><span className="col-span-2">🔐 계정 정보</span><span className="col-span-2">관리</span>
                 </div>
               </div>
 
@@ -2112,17 +2166,11 @@ export default function Home() {
                   return (
                     <div key={fav.id} className="grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border-2 border-purple-400/80 bg-purple-50/40 hover:bg-purple-50/70 transition shadow-2xs">
                       <div className="col-span-2 flex justify-center">
-                        <span className="px-2.5 py-1 rounded-lg bg-purple-100 text-purple-900 border border-purple-300 text-[11px] font-bold text-center flex items-center gap-1 shadow-2xs">
-                          <span>{catIcon}</span>
-                          <span>{fav.category}</span>
-                        </span>
+                        <span className="px-2.5 py-1 rounded-lg bg-purple-100 text-purple-900 border border-purple-300 text-[11px] font-bold text-center flex items-center gap-1 shadow-2xs"><span>{catIcon}</span><span>{fav.category}</span></span>
                       </div>
                       <div className="col-span-3 text-neutral-900 truncate font-black text-[13px] text-center px-1">{fav.name}</div>
                       <div className="col-span-1 flex justify-center">
-                        <a href={fav.url} target="_blank" rel="noreferrer" className="px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-2xs transition active:scale-95">
-                          <ExternalLink className="w-3 h-3" />
-                          <span>이동</span>
-                        </a>
+                        <a href={fav.url} target="_blank" rel="noreferrer" className="px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-2xs transition active:scale-95"><ExternalLink className="w-3 h-3" /><span>이동</span></a>
                       </div>
                       <div className="col-span-2 text-neutral-600 truncate text-[11px] px-1 text-center font-medium">{fav.memo || "-"}</div>
                       <div className="col-span-2 flex flex-col items-center justify-center gap-1 px-1 overflow-hidden">
@@ -2133,8 +2181,7 @@ export default function Home() {
                         )}
                         {fav.pwHint && (
                           <div className="flex items-center gap-1 text-[10px] font-mono text-neutral-600 bg-purple-100/60 px-1.5 py-0.2 rounded border border-purple-200/90 truncate max-w-full cursor-help group">
-                            <Key className="w-2.5 h-2.5 text-purple-700 shrink-0" />
-                            <span className="filter blur-[3px] group-hover:blur-none transition-all duration-200 select-none group-hover:select-text text-purple-950 font-bold">{fav.pwHint}</span>
+                            <Key className="w-2.5 h-2.5 text-purple-700 shrink-0" /><span className="filter blur-[3px] group-hover:blur-none transition-all duration-200 select-none group-hover:select-text text-purple-950 font-bold">{fav.pwHint}</span>
                           </div>
                         )}
                       </div>
@@ -2256,7 +2303,7 @@ export default function Home() {
                       <div className="col-span-1 flex items-center justify-center gap-1">
                         <button onClick={(e) => handleToggleCompleted(bmark.id, e)} className={`px-1 py-0.5 rounded text-[10px] font-black border transition ${bmark.isCompleted ? "bg-rose-600 text-white border-rose-700 shadow-xs" : "bg-white/80 text-neutral-700 border-amber-300 hover:bg-amber-100"}`}>완결</button>
                         <button onClick={() => startEditBookmark(bmark)} title="수정" className="p-1 rounded text-neutral-500 hover:text-amber-900 hover:bg-white transition"><Pencil className="w-3 h-3" /></button>
-                        <button onClick={() => handleDeleteBookmark(bmark.id)} title="삭제" className="p-1 rounded text-neutral-500 hover:text-rose-600 hover:bg-white transition"><Trash2 className="w-3 h-3" /></button>
+                        <button onClick={() => handleDeleteBookmark(bmark.id)} title="삭제" className="p-1 rounded text-neutral-500 hover:text-rose-600 hover:bg-white transition"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   );
@@ -2299,11 +2346,7 @@ export default function Home() {
 
               <div className="border-2 border-emerald-400/90 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
                 <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-emerald-900 items-center text-center">
-                  <span className="col-span-2">🏷️ 장르</span>
-                  <span className="col-span-4">🎤 가수 / 아티스트</span>
-                  <span className="col-span-3">🎵 곡명</span>
-                  <span className="col-span-1">🎬 영상</span>
-                  <span className="col-span-2">관리</span>
+                  <span className="col-span-2">🏷️ 장르</span><span className="col-span-4">🎤 가수 / 아티스트</span><span className="col-span-3">🎵 곡명</span><span className="col-span-1">🎬 영상</span><span className="col-span-2">관리</span>
                 </div>
               </div>
 
@@ -2473,7 +2516,7 @@ export default function Home() {
                       </div>
                       <div className="col-span-1 flex items-center justify-center gap-1">
                         <button onClick={() => startEditOrder(order)} title="수정" className="p-1 rounded text-neutral-500 hover:text-indigo-900 hover:bg-white transition"><Pencil className="w-3 h-3" /></button>
-                        <button onClick={() => handleDeleteOrder(order.id)} title="삭제" className="p-1 rounded text-neutral-500 hover:text-rose-600 hover:bg-white transition"><Trash2 className="w-3 h-3" /></button>
+                        <button onClick={() => handleDeleteOrder(order.id)} title="삭제" className="p-1 rounded text-neutral-500 hover:text-rose-600 hover:bg-white transition"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   );
@@ -2482,35 +2525,123 @@ export default function Home() {
             </div>
           )}
 
-          {/* 7. [장바구니] 탭 */}
+          {/* 7. [장바구니] 탭 (오류 해결 완료) */}
           {currentTab === "cart" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               <form onSubmit={handleAddCartItem} className="border-2 border-rose-400/90 rounded-2xl p-3 flex flex-wrap items-center gap-1.5 bg-rose-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
-                <input type="text" list="cart-category-suggestions" value={newCartCategory} onChange={(e) => setNewCartCategory(e.target.value)} placeholder="분류 (예: 전자기기)" className="w-24 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-medium text-rose-950 focus:outline-none" />
-                <datalist id="cart-category-suggestions">{existingCartCategories.map((c) => (<option key={c} value={c} />))}</datalist>
-                <select value={newCartPriority} onChange={(e) => setNewCartPriority(e.target.value)} className="w-28 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-bold text-rose-950 cursor-pointer shrink-0">
-                  <option value="⭐⭐⭐">⭐⭐⭐ 필수</option><option value="⭐⭐">⭐⭐ 고민중</option><option value="⭐">⭐ 여유될때</option>
+                <input
+                  type="text"
+                  list="cart-category-suggestions"
+                  value={newCartCategory}
+                  onChange={(e) => setNewCartCategory(e.target.value)}
+                  placeholder="분류 (예: 전자기기)"
+                  className="w-24 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-medium text-rose-950 focus:outline-none"
+                />
+                <datalist id="cart-category-suggestions">
+                  {existingCartCategories.map((c) => (<option key={c} value={c} />))}
+                </datalist>
+
+                <select
+                  value={newCartPriority}
+                  onChange={(e) => setNewCartPriority(e.target.value)}
+                  className="w-28 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-bold text-rose-950 cursor-pointer shrink-0"
+                  title="구매 우선순위"
+                >
+                  <option value="⭐⭐⭐">⭐⭐⭐ 필수</option>
+                  <option value="⭐⭐">⭐⭐ 고민중</option>
+                  <option value="⭐">⭐ 여유될때</option>
                 </select>
-                <input type="text" required value={newCartName} onChange={(e) => setNewCartName(e.target.value)} placeholder="사고싶은 물건 이름 *" className="flex-1 min-w-[110px] border border-rose-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs font-bold" />
-                <input type="number" min="0" value={newCartPrice} onChange={(e) => setNewCartPrice(e.target.value)} placeholder="예상 가격(원)" className="w-24 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-mono" />
-                <input type="text" value={newCartSpec} onChange={(e) => setNewCartSpec(e.target.value)} placeholder="스펙/옵션 (270mm, 실버)" className="w-36 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-medium" />
-                <input type="text" value={newCartUrl} onChange={(e) => setNewCartUrl(e.target.value)} placeholder="링크 URL" className="w-32 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-medium" />
-                <input type="text" value={newCartMemo} onChange={(e) => setNewCartMemo(e.target.value)} placeholder="메모" className="w-32 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-medium" />
-                <button type="submit" className="bg-rose-500 hover:bg-rose-600 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1 ml-auto"><Plus className="w-3.5 h-3.5" /> 담기</button>
+
+                <input
+                  type="text"
+                  required
+                  value={newCartName}
+                  onChange={(e) => setNewCartName(e.target.value)}
+                  placeholder="사고싶은 물건 이름 *"
+                  className="flex-1 min-w-[110px] border border-rose-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none placeholder-neutral-500 font-bold"
+                />
+
+                <input
+                  type="number"
+                  min="0"
+                  value={newCartPrice}
+                  onChange={(e) => setNewCartPrice(e.target.value)}
+                  placeholder="예상 가격(원)"
+                  className="w-24 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none placeholder-neutral-500 font-mono"
+                />
+
+                <input
+                  type="text"
+                  value={newCartSpec}
+                  onChange={(e) => setNewCartSpec(e.target.value)}
+                  placeholder="스펙/옵션 (270mm, 실버)"
+                  className="w-36 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  value={newCartUrl}
+                  onChange={(e) => setNewCartUrl(e.target.value)}
+                  placeholder="링크 URL"
+                  className="w-32 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  value={newCartMemo}
+                  onChange={(e) => setNewCartMemo(e.target.value)}
+                  placeholder="메모"
+                  className="w-32 border border-rose-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none placeholder-neutral-500 font-medium"
+                />
+
+                <button
+                  type="submit"
+                  className="bg-rose-500 hover:bg-rose-600 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1 ml-auto"
+                >
+                  <Plus className="w-3.5 h-3.5" /> 담기
+                </button>
               </form>
 
               <div className="border-2 border-rose-400/90 rounded-2xl p-3 bg-rose-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
                 <div className="relative w-full">
-                  <input type="text" value={cartSearchQuery} onChange={(e) => setCartSearchQuery(e.target.value)} placeholder="품목명, 카테고리, 옵션, 메모 검색..." className="w-full border border-rose-300 bg-white/90 rounded-xl pl-9 pr-3 py-1.5 text-xs font-medium" />
+                  <input
+                    type="text"
+                    value={cartSearchQuery}
+                    onChange={(e) => setCartSearchQuery(e.target.value)}
+                    placeholder="품목명, 카테고리, 옵션, 메모 검색..."
+                    className="w-full border border-rose-300 bg-white/90 rounded-xl pl-9 pr-3 py-1.5 text-xs font-medium"
+                  />
                   <Search className="w-3.5 h-3.5 text-rose-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
                 </div>
+
                 <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
                   <span className="text-rose-950 font-semibold text-[11px] mr-1">분류:</span>
-                  <button onClick={() => setSelectedCartCategory("전체")} className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${selectedCartCategory === "전체" ? "border-rose-500 bg-rose-200 text-rose-950 font-bold" : "border-rose-300/80 bg-white/70"}`}>전체</button>
+                  <button
+                    onClick={() => setSelectedCartCategory("전체")}
+                    className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                      selectedCartCategory === "전체"
+                        ? "border-rose-500 bg-rose-200 text-rose-950 font-bold shadow-2xs"
+                        : "border-rose-300/80 bg-white/70 text-neutral-700 hover:bg-white"
+                    }`}
+                  >
+                    전체
+                  </button>
                   {existingCartCategories.map((cat) => (
-                    <button key={cat} onClick={() => setSelectedCartCategory(cat)} className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${selectedCartCategory === cat ? "border-rose-500 bg-rose-200 text-rose-950 font-bold" : "border-rose-300/80 bg-white/70"}`}>{cat}</button>
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCartCategory(cat)}
+                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                        selectedCartCategory === cat
+                          ? "border-rose-500 bg-rose-200 text-rose-950 font-bold shadow-2xs"
+                          : "border-rose-300/80 bg-white/70 text-neutral-700 hover:bg-white"
+                      }`}
+                    >
+                      {cat}
+                    </button>
                   ))}
-                  <span className="ml-auto text-[11px] text-rose-800/80 font-bold">담아둔 물건: {filteredCartItems.length}개 / 예상 총액: {totalCartAmount.toLocaleString()}원</span>
+                  <span className="ml-auto text-[11px] text-rose-800/80 font-bold">
+                    담아둔 물건: {(filteredCartItems || []).length}개 / 예상 총액: {Number(totalCartAmount || 0).toLocaleString()}원
+                  </span>
                 </div>
               </div>
 
@@ -2527,24 +2658,41 @@ export default function Home() {
               </div>
 
               <div className="flex flex-col gap-2">
-                {filteredCartItems.map((item) => {
+                {(filteredCartItems || []).map((item) => {
+                  if (!item) return null;
                   const isEditing = editingCartId === item.id;
                   const catIcon = getCartCategoryIcon(item.category);
 
                   if (isEditing) {
                     return (
-                      <div key={`edit-cart-${item.id}`} className="grid grid-cols-12 gap-1 items-center p-2.5 rounded-2xl border-2 border-rose-400 bg-rose-50/90 shadow-md text-center">
+                      <div
+                        key={`edit-cart-${item.id}`}
+                        className="grid grid-cols-12 gap-1 items-center p-2.5 rounded-2xl border-2 border-rose-400 bg-rose-50/90 shadow-md text-center"
+                      >
                         <div className="col-span-2 flex flex-col gap-1 px-1">
                           <input type="text" value={editCartCategory} onChange={(e) => setEditCartCategory(e.target.value)} placeholder="분류" className="w-full border border-rose-300 bg-white rounded px-1.5 py-1 text-[11px] font-bold" />
                           <select value={editCartPriority} onChange={(e) => setEditCartPriority(e.target.value)} className="w-full border border-rose-300 bg-white rounded px-1 py-0.5 text-[10px] font-bold">
-                            <option value="⭐⭐⭐">⭐⭐⭐</option><option value="⭐⭐">⭐⭐</option><option value="⭐">⭐</option>
+                            <option value="⭐⭐⭐">⭐⭐⭐</option>
+                            <option value="⭐⭐">⭐⭐</option>
+                            <option value="⭐">⭐</option>
                           </select>
                         </div>
-                        <div className="col-span-3 px-1"><input type="text" required value={editCartName} onChange={(e) => setEditCartName(e.target.value)} placeholder="품목명" className="w-full border border-rose-300 bg-white rounded px-2 py-1 text-[11px] font-bold" /></div>
-                        <div className="col-span-2 px-1 flex items-center gap-0.5"><input type="number" min="0" value={editCartPrice} onChange={(e) => setEditCartPrice(e.target.value)} placeholder="예상가격" className="w-full border border-rose-300 bg-white rounded px-1.5 py-1 text-[11px] font-mono" /><span className="text-[10px] font-bold">원</span></div>
-                        <div className="col-span-2 px-1"><input type="text" value={editCartSpec} onChange={(e) => setEditCartSpec(e.target.value)} placeholder="옵션/스펙" className="w-full border border-rose-300 bg-white rounded px-1.5 py-1 text-[11px]" /></div>
-                        <div className="col-span-1 px-0.5"><input type="text" value={editCartUrl} onChange={(e) => setEditCartUrl(e.target.value)} placeholder="링크URL" className="w-full border border-rose-300 bg-white rounded px-1 py-1 text-[10px]" /></div>
-                        <div className="col-span-1 px-0.5"><input type="text" value={editCartMemo} onChange={(e) => setEditCartMemo(e.target.value)} placeholder="메모" className="w-full border border-rose-300 bg-white rounded px-1 py-1 text-[10px]" /></div>
+                        <div className="col-span-3 px-1">
+                          <input type="text" required value={editCartName} onChange={(e) => setEditCartName(e.target.value)} placeholder="품목명" className="w-full border border-rose-300 bg-white rounded px-2 py-1 text-[11px] font-bold" />
+                        </div>
+                        <div className="col-span-2 px-1 flex items-center gap-0.5">
+                          <input type="number" min="0" value={editCartPrice} onChange={(e) => setEditCartPrice(e.target.value)} placeholder="예상가격" className="w-full border border-rose-300 bg-white rounded px-1.5 py-1 text-[11px] font-mono" />
+                          <span className="text-[10px] font-bold">원</span>
+                        </div>
+                        <div className="col-span-2 px-1">
+                          <input type="text" value={editCartSpec} onChange={(e) => setEditCartSpec(e.target.value)} placeholder="옵션/스펙" className="w-full border border-rose-300 bg-white rounded px-1.5 py-1 text-[11px]" />
+                        </div>
+                        <div className="col-span-1 px-0.5">
+                          <input type="text" value={editCartUrl} onChange={(e) => setEditCartUrl(e.target.value)} placeholder="링크URL" className="w-full border border-rose-300 bg-white rounded px-1 py-1 text-[10px]" />
+                        </div>
+                        <div className="col-span-1 px-0.5">
+                          <input type="text" value={editCartMemo} onChange={(e) => setEditCartMemo(e.target.value)} placeholder="메모" className="w-full border border-rose-300 bg-white rounded px-1 py-1 text-[10px]" />
+                        </div>
                         <div className="col-span-1 flex items-center justify-center gap-1">
                           <button onClick={() => saveEditCartItem(item.id)} title="저장" className="p-1 rounded bg-rose-500 text-white font-bold text-[10px]"><Check className="w-3 h-3" /></button>
                           <button onClick={cancelEditCartItem} title="취소" className="p-1 rounded border border-neutral-300 bg-white text-neutral-600 text-[10px]"><X className="w-3 h-3" /></button>
@@ -2554,35 +2702,64 @@ export default function Home() {
                   }
 
                   return (
-                    <div key={item.id} className={`grid grid-cols-12 gap-1 items-center text-[11px] p-2.5 rounded-2xl border-2 transition shadow-2xs text-center ${item.purchased ? "bg-neutral-100/80 border-neutral-300 opacity-60 line-through text-neutral-500" : "border-rose-400/90 bg-rose-50/40 hover:bg-rose-50/70 text-neutral-900"}`}>
+                    <div
+                      key={item.id}
+                      className={`grid grid-cols-12 gap-1 items-center text-[11px] p-2.5 rounded-2xl border-2 transition shadow-2xs text-center ${
+                        item.purchased
+                          ? "bg-neutral-100/80 border-neutral-300 opacity-60 line-through text-neutral-500"
+                          : "border-rose-400/90 bg-rose-50/40 hover:bg-rose-50/70 text-neutral-900"
+                      }`}
+                    >
                       <div className="col-span-2 flex flex-col items-center justify-center">
                         <span className="px-2 py-0.5 rounded-md bg-rose-100 text-rose-900 border border-rose-300 font-bold shadow-2xs flex items-center gap-1">
-                          <span>{catIcon}</span><span>{item.category}</span>
+                          <span>{catIcon}</span>
+                          <span>{item.category || "생활용품"}</span>
                         </span>
-                        <span className="text-[10px] font-bold mt-0.5 text-amber-500">{item.priority}</span>
+                        <span className="text-[10px] font-bold mt-0.5 text-amber-500">{item.priority || "⭐⭐⭐"}</span>
                       </div>
-                      <div className="col-span-3 text-neutral-900 font-black truncate px-1 text-center" title={item.name}>{item.name}</div>
-                      <div className="col-span-2 text-rose-950 font-black font-mono truncate px-1">{Number(item.price).toLocaleString()}원</div>
-                      <div className="col-span-2 text-neutral-700 font-medium truncate px-1" title={item.specOption}>{item.specOption}</div>
+
+                      <div className="col-span-3 text-neutral-900 font-black truncate px-1 text-center" title={item.name}>
+                        {item.name}
+                      </div>
+
+                      <div className="col-span-2 text-rose-950 font-black font-mono truncate px-1">
+                        {Number(item.price || 0).toLocaleString()}원
+                      </div>
+
+                      <div className="col-span-2 text-neutral-700 font-medium truncate px-1" title={item.specOption}>
+                        {item.specOption || "-"}
+                      </div>
+
                       <div className="col-span-1 flex justify-center">
                         {item.url ? (
-                          <a href={item.url} target="_blank" rel="noreferrer" className="px-2 py-0.5 rounded bg-rose-500 hover:bg-rose-600 text-white font-bold text-[10px] flex items-center gap-0.5 shadow-2xs transition active:scale-95">
+                          <a href={item.url} target="_blank" rel="noreferrer" className="px-2 py-0.5 rounded bg-rose-500 hover:bg-rose-600 text-white font-bold text-[10px] flex items-center gap-0.5 shadow-2xs transition active:scale-95" title="판매 링크 이동">
                             <ExternalLink className="w-2.5 h-2.5" /><span>보기</span>
                           </a>
                         ) : <span className="text-neutral-400 text-[10px]">-</span>}
                       </div>
-                      <div className="col-span-1 text-neutral-500 truncate px-1 italic text-[10px]" title={item.memo}>{item.memo || "-"}</div>
+
+                      <div className="col-span-1 text-neutral-500 truncate px-1 italic text-[10px]" title={item.memo}>
+                        {item.memo || "-"}
+                      </div>
+
                       <div className="col-span-1 flex items-center justify-center gap-1">
-                        <button onClick={(e) => handleTogglePurchased(item.id, e)} className={`p-1 rounded transition ${item.purchased ? "bg-emerald-500 text-white font-bold" : "bg-white/80 border border-rose-300 hover:bg-rose-100 text-rose-700"}`} title={item.purchased ? "취소" : "구매완료"}>
+                        <button onClick={(e) => handleTogglePurchased(item.id, e)} className={`p-1 rounded transition ${item.purchased ? "bg-emerald-500 text-white font-bold" : "bg-white/80 border border-rose-300 hover:bg-rose-100 text-rose-700"}`} title={item.purchased ? "구매 취소" : "구매 완료로 표시"}>
                           <Check className="w-3 h-3" />
                         </button>
                         <button onClick={() => startEditCartItem(item)} title="수정" className="p-1 rounded text-neutral-500 hover:text-rose-900 hover:bg-white transition"><Pencil className="w-3 h-3" /></button>
-                        <button onClick={() => handleDeleteCartItem(item.id)} title="삭제" className="p-1 rounded text-neutral-500 hover:text-rose-600 hover:bg-white transition"><Trash2 className="w-3 h-3" /></button>
+                        <button onClick={() => handleDeleteCartItem(item.id)} title="삭제" className="p-1 rounded text-neutral-500 hover:text-rose-600 hover:bg-white transition"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   );
                 })}
+
+                {(filteredCartItems || []).length === 0 && (
+                  <div className="border-2 border-dashed border-rose-300 rounded-2xl p-12 text-center text-xs font-medium text-rose-800/70 bg-rose-50/20">
+                    장바구니에 담아둔 물건이 없습니다. 사고 싶은 물건을 등록해보세요!
+                  </div>
+                )}
               </div>
+
             </div>
           )}
 
