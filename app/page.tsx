@@ -208,7 +208,7 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("jb_bookmark_reading_list_v8");
+      const saved = localStorage.getItem("jb_bookmark_reading_list_v7");
       setBookmarkList(saved ? JSON.parse(saved) : defaultBookmarks);
       setIsBookmarkLoaded(true);
     }
@@ -216,11 +216,10 @@ export default function Home() {
 
   useEffect(() => {
     if (isBookmarkLoaded && typeof window !== "undefined") {
-      localStorage.setItem("jb_bookmark_reading_list_v8", JSON.stringify(bookmarkList));
+      localStorage.setItem("jb_bookmark_reading_list_v7", JSON.stringify(bookmarkList));
     }
   }, [bookmarkList, isBookmarkLoaded]);
 
-  // 등록 폼 상태
   const [newBmarkCategory, setNewBmarkCategory] = useState("");
   const [newBmarkPlatform, setNewBmarkPlatform] = useState("");
   const [newBmarkTitle, setNewBmarkTitle] = useState("");
@@ -232,7 +231,6 @@ export default function Home() {
   const [selectedBmarkCategory, setSelectedBmarkCategory] = useState("전체");
   const [bmarkSearchQuery, setBmarkSearchQuery] = useState("");
 
-  // 수정 상태
   const [editingBmarkId, setEditingBmarkId] = useState<number | null>(null);
   const [editBmarkCategory, setEditBmarkCategory] = useState("");
   const [editBmarkPlatform, setEditBmarkPlatform] = useState("");
@@ -383,7 +381,7 @@ export default function Home() {
     return list.sort((a, b) => (a.title || "").localeCompare(b.title || "", "ko"));
   }, [bookmarkList, selectedBmarkCategory, bmarkSearchQuery, bmarkSortOrder]);
 
-  // ================= 3. 노래책 탭 데이터 =================
+  // ================= 3. 노래책 탭 데이터 (오류 해결 완료) =================
   const defaultSongs = [
     { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
     { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
@@ -435,35 +433,35 @@ export default function Home() {
   }, [songList, isSongDataLoaded]);
 
   const [editingSongId, setEditingSongId] = useState<number | null>(null);
-  const [editSongGenre, setEditSongGenre] = useState("");
-  const [editSongArtist, setEditSongArtist] = useState("");
-  const [editSongTitle, setEditSongTitle] = useState("");
-  const [editSongUrl, setEditSongUrl] = useState("");
-  const [editSongTypeState, setEditSongTypeState] = useState<"none" | "Original" | "Cover">("none");
+  const [editGenre, setEditGenre] = useState("");
+  const [editArtist, setEditArtist] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+  const [editSongType, setEditSongType] = useState<"none" | "Original" | "Cover">("none");
 
   const startEditSong = (song: any) => {
     setEditingSongId(song.id);
-    setEditSongGenre(song.genre || "");
-    setEditSongArtist(song.artist || "");
-    setEditSongTitle(song.title || "");
-    setEditSongUrl(song.url || "");
-    setEditSongTypeState(song.songType || "none");
+    setEditGenre(song.genre || "");
+    setEditArtist(song.artist || "");
+    setEditTitle(song.title || "");
+    setEditUrl(song.url || "");
+    setEditSongType(song.songType || "none");
   };
 
   const cancelEditSong = () => setEditingSongId(null);
 
   const saveEditSong = (id: number) => {
-    if (!editSongTitle.trim()) return;
+    if (!editTitle.trim()) return;
     setSongList((prev) =>
       prev.map((s) =>
         s.id === id
           ? {
               ...s,
-              genre: editSongGenre.trim() || "기타",
-              artist: editSongArtist.trim() || "미상",
-              title: editSongTitle.trim(),
-              url: editSongUrl.trim(),
-              songType: editSongTypeState
+              genre: editGenre.trim() || "기타",
+              artist: editArtist.trim() || "미상",
+              title: editTitle.trim(),
+              url: editUrl.trim(),
+              songType: editSongType
             }
           : s
       )
@@ -1760,7 +1758,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== 2. [노래책] 탭 화면 ==================== */}
+          {/* ==================== 2. [노래책] 탭 화면 (완전 정상 복구) ==================== */}
           {currentTab === "songs" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               <form onSubmit={handleAddSong} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
@@ -1900,36 +1898,36 @@ export default function Home() {
                       >
                         <input
                           type="text"
-                          value={editSongGenre}
-                          onChange={(e) => setEditSongGenre(e.target.value)}
+                          value={editGenre}
+                          onChange={(e) => setEditGenre(e.target.value)}
                           placeholder="장르"
                           className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-600"
                         />
                         <input
                           type="text"
-                          value={editSongArtist}
-                          onChange={(e) => setEditSongArtist(e.target.value)}
+                          value={editArtist}
+                          onChange={(e) => setEditArtist(e.target.value)}
                           placeholder="가수"
                           className="w-32 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
                         />
                         <input
                           type="text"
                           required
-                          value={editSongTitle}
-                          onChange={(e) => setEditSongTitle(e.target.value)}
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
                           placeholder="곡 제목"
                           className="w-44 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-bold"
                         />
                         <input
                           type="text"
-                          value={editSongUrl}
-                          onChange={(e) => setEditSongUrl(e.target.value)}
+                          value={editUrl}
+                          onChange={(e) => setEditUrl(e.target.value)}
                           placeholder="유튜브 링크"
                           className="flex-1 min-w-[140px] border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
                         />
                         <select
-                          value={editSongTypeState}
-                          onChange={(e) => setEditSongTypeState(e.target.value as "none" | "Original" | "Cover")}
+                          value={editSongType}
+                          onChange={(e) => setEditSongType(e.target.value as "none" | "Original" | "Cover")}
                           className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none cursor-pointer"
                         >
                           <option value="none">선택 안함</option>
@@ -2833,7 +2831,7 @@ export default function Home() {
                         <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
                           {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
                             <label key={key} className="flex items-center gap-1.5 cursor-pointer">
-                              <input type="radio" name="ledgerTagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
+                              <input type="radio" name="tagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
                               <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${newLedgerColor === key ? "border-sky-800 scale-110 shadow-xs" : "border-transparent opacity-70"}`}>
                                 {newLedgerColor === key && <Check className="w-3 h-3 text-sky-950 stroke-[3]" />}
                               </span>
@@ -2906,7 +2904,7 @@ export default function Home() {
                   <span>{isTimerRunning ? "정지" : "시작"}</span>
                 </button>
                 <button onClick={resetTimer} title="타이머 초기화" className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60 ${themeClasses.textSecondary} transition`}>
-                  <RotateCcw className="w-3.5 h-3.5" />
+                  <RotateCcw className="w-3 h-3" />
                 </button>
               </div>
             </div>
