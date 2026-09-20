@@ -23,7 +23,8 @@ import {
   VolumeX,
   Settings,
   Wallet,
-  Star
+  Star,
+  Bookmark
 } from "lucide-react";
 
 import ScheduleTab from "@/components/tabs/ScheduleTab";
@@ -673,7 +674,7 @@ export default function Home() {
       {/* 본문 3단 레이아웃 */}
       <main className="max-w-[1720px] mx-auto w-full px-6 py-6 flex flex-col lg:flex-row gap-5 items-start flex-1 relative z-10">
         
-        {/* [1] 좌측 배너 (일정: 핑크, 가계부: 블루, 즐겨찾기: 퍼플, 노래책: 민트, 그 외: 기본 영역) */}
+        {/* [1] 좌측 배너 (일정: 핑크, 가계부: 블루, 즐겨찾기: 퍼플, 책갈피: 옐로우, 노래책: 민트, 그 외: 기본 영역) */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px]">
           {currentTab === "schedule" ? (
             <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-pink-400/90 shadow-sm relative bg-[#fbcfe8]">
@@ -749,6 +750,32 @@ export default function Home() {
                   <span className="text-[11px] font-bold text-purple-100 mt-2">JB's Bookmarks</span>
                 </div>
                 <div className="pb-4 text-[10px] text-purple-200 font-medium">
+                  HADES Illustration
+                </div>
+              </div>
+            </div>
+          ) : currentTab === "bookmarks" ? (
+            <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-amber-400/90 shadow-sm relative bg-[#fef3c7]">
+              <img
+                src="/bookmarks-banner.jpg"
+                alt="책갈피 배너"
+                className="w-full h-full object-cover relative z-10"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+              <div className="absolute inset-0 flex flex-col items-center justify-between p-4 z-0 text-center bg-gradient-to-b from-[#fef3c7] via-[#f59e0b] to-[#78350f]">
+                <div className="pt-6">
+                  <span className="text-3xl block filter drop-shadow">🍊</span>
+                  <span className="text-xs font-black text-white tracking-widest uppercase block mt-1">Reading Space</span>
+                </div>
+                <div className="w-full flex flex-col items-center gap-2">
+                  <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg">
+                    <Bookmark className="w-10 h-10 text-amber-100 fill-amber-200/80 animate-pulse" />
+                  </div>
+                  <span className="text-[11px] font-bold text-amber-100 mt-2">JB's Reading</span>
+                </div>
+                <div className="pb-4 text-[10px] text-amber-200 font-medium">
                   HADES Illustration
                 </div>
               </div>
