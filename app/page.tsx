@@ -57,7 +57,7 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("songs"); // 기본 탭: 노래책 (즐겨찾기, 일정, 가계부 선택 가능)
+  const [currentTab, setCurrentTab] = useState("songs"); // 기본 탭: 노래책
 
   // ================= 1. 테마 색상 동적 매핑 =================
   const themeClasses = useMemo(() => {
@@ -145,7 +145,23 @@ export default function Home() {
   const TODAY_STR = "2026-09-20";
   const todayDateObj = new Date(TODAY_STR);
 
-  // ================= 2. 노래책 탭 데이터 =================
+  // ================= 2. 노래책 탭 데이터 & 장르별 자동 심볼 =================
+  const getGenreIcon = (genre: string) => {
+    const g = (genre || "").trim().toLowerCase();
+    if (g.includes("k-pop") || g.includes("kpop") || g.includes("가요")) return "🇰🇷";
+    if (g.includes("j-pop") || g.includes("jpop") || g.includes("애니")) return "🇯🇵";
+    if (g.includes("pop") || g.includes("팝")) return "🌎";
+    if (g.includes("발라드") || g.includes("어쿠스틱")) return "🎻";
+    if (g.includes("ost")) return "🎬";
+    if (g.includes("힙합") || g.includes("랩")) return "🎧";
+    if (g.includes("락") || g.includes("밴드") || g.includes("록")) return "🎸";
+    if (g.includes("r&b") || g.includes("소울") || g.includes("재즈")) return "🎷";
+    if (g.includes("인디")) return "🌿";
+    if (g.includes("댄스")) return "💃";
+    if (g.includes("트로트")) return "🪗";
+    return "🎵";
+  };
+
   const defaultSongs = [
     { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
     { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
@@ -301,21 +317,6 @@ export default function Home() {
   }, [songList, selectedGenre, searchQuery]);
 
   // ================= 3. 즐겨찾기 탭 데이터 =================
-  const getCategoryIcon = (category: string) => {
-    const cat = (category || "").toLowerCase();
-    if (cat.includes("포털") || cat.includes("웹") || cat.includes("인터넷")) return "🌐";
-    if (cat.includes("검색") || cat.includes("구글")) return "🔍";
-    if (cat.includes("영상") || cat.includes("동영상") || cat.includes("유튜브") || cat.includes("ott")) return "🎬";
-    if (cat.includes("쇼핑") || cat.includes("구매") || cat.includes("마트")) return "🛒";
-    if (cat.includes("개발") || cat.includes("코딩") || cat.includes("깃")) return "💻";
-    if (cat.includes("음악") || cat.includes("노래") || cat.includes("뮤직")) return "🎵";
-    if (cat.includes("커뮤니티") || cat.includes("카페") || cat.includes("sns") || cat.includes("블로그")) return "💬";
-    if (cat.includes("게임")) return "🎮";
-    if (cat.includes("금융") || cat.includes("은행") || cat.includes("증권") || cat.includes("페이")) return "🏦";
-    if (cat.includes("업무") || cat.includes("회사") || cat.includes("오피스")) return "📁";
-    return "⭐";
-  };
-
   const defaultFavorites = [
     { id: 1, category: "포털", name: "네이버", url: "https://www.naver.com", memo: "뉴스, 지도, 블로그", username: "my_naver_id", pwHint: "초록창12#$" },
     { id: 2, category: "검색", name: "구글", url: "https://www.google.com", memo: "검색 및 지메일", username: "user@gmail.com", pwHint: "구글영문+특수" },
@@ -1062,7 +1063,6 @@ export default function Home() {
     return `${m}:${String(s).padStart(2, "0")}`;
   };
 
-  // 시계 & 타이머 상태
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [timerMinutes, setTimerMinutes] = useState(4);
   const [timeLeft, setTimeLeft] = useState(4 * 60);
@@ -1267,10 +1267,10 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* [2] 중앙 내용 영역 (세로 높이 h-[760px] 완벽 고정) */}
+        {/* [2] 중앙 내용 영역 (세로 높이 h-[760px] 고정) */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
-          {/* ==================== A. [노래책] 탭 ==================== */}
+          {/* ==================== 1. [노래책] 탭 ==================== */}
           {currentTab === "songs" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               <form onSubmit={handleAddSong} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
@@ -1367,13 +1367,14 @@ export default function Home() {
                     <button
                       key={genre}
                       onClick={() => setSelectedGenre(genre)}
-                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium flex items-center gap-1 ${
                         selectedGenre === genre
                           ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
                           : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
                       }`}
                     >
-                      {genre}
+                      <span>{getGenreIcon(genre)}</span>
+                      <span>{genre}</span>
                     </button>
                   ))}
                   <span className="ml-auto text-[11px] text-emerald-800/80 font-medium">
@@ -1399,6 +1400,7 @@ export default function Home() {
                   const isCover = song.songType === "Cover";
                   const isOriginal = song.songType === "Original";
                   const hasUrl = Boolean(song.url && getYouTubeId(song.url));
+                  const genreIcon = getGenreIcon(song.genre);
 
                   if (isEditing) {
                     return (
@@ -1474,8 +1476,9 @@ export default function Home() {
                       }`}
                     >
                       <div className="col-span-2 flex justify-center">
-                        <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-[11px] font-bold text-center">
-                          {song.genre}
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-[11px] font-bold text-center flex items-center gap-1 shadow-2xs">
+                          <span>{genreIcon}</span>
+                          <span>{song.genre}</span>
                         </span>
                       </div>
 
@@ -1588,7 +1591,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== B. [즐겨찾기] 탭 ==================== */}
+          {/* ==================== 2. [즐겨찾기] 탭 ==================== */}
           {currentTab === "favorites" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               <form onSubmit={handleAddFav} className="border-2 border-purple-400/80 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-purple-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
@@ -1786,7 +1789,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== C. [일정] 탭 ==================== */}
+          {/* ==================== 3. [일정] 탭 ==================== */}
           {currentTab === "schedule" && (
             <div className="h-full flex flex-col gap-3">
               <div className="border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
@@ -1926,6 +1929,7 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* 일정 팝업 모달 */}
               {modalDate && (
                 <div 
                   className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -2340,7 +2344,7 @@ export default function Home() {
                         <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
                           {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
                             <label key={key} className="flex items-center gap-1.5 cursor-pointer">
-                              <input type="radio" name="ledgerTagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
+                              <input type="radio" name="tagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
                               <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${newLedgerColor === key ? "border-sky-800 scale-110 shadow-xs" : "border-transparent opacity-70"}`}>
                                 {newLedgerColor === key && <Check className="w-3 h-3 text-sky-950 stroke-[3]" />}
                               </span>
@@ -2365,7 +2369,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== E. 그 외 탭 ==================== */}
+          {/* ==================== E. 그 외 미구현 탭 ==================== */}
           {currentTab !== "songs" && currentTab !== "schedule" && currentTab !== "ledger" && currentTab !== "favorites" && (
             <div className="h-full border border-dashed border-emerald-300 rounded-2xl p-20 flex flex-col items-center justify-center text-center bg-emerald-50/20 backdrop-blur-[2px]">
               <span className="text-3xl mb-2 block">🚧</span>
