@@ -537,7 +537,6 @@ export default function Home() {
     { id: 5, date: "2026-09-17", type: "expense", title: "GS25 편의점", amount: 6200, symbol: "convenience", color: "green" },
   ];
 
-  // 매월 고정지출 템플릿 마스터 목록 (월이 넘어가도 유지)
   const defaultFixedTemplates = [
     { id: "fixed_tpl_1", title: "인터넷", color: "pink" }
   ];
@@ -549,7 +548,7 @@ export default function Home() {
   const [ledgerYear, setLedgerYear] = useState(2026);
   const [ledgerMonth, setLedgerMonth] = useState(9);
 
-  // 팝업 모달 상태
+  // 가계부 팝업 모달 상태
   const [ledgerModalDate, setLedgerModalDate] = useState<string | null>(null);
   const [newLedgerTitle, setNewLedgerTitle] = useState("");
   const [newLedgerAmount, setNewLedgerAmount] = useState("");
@@ -672,7 +671,6 @@ export default function Home() {
 
     setLedgerEntries((prev) => [...prev, newEntry]);
 
-    // 고정 지출인 경우 다음 달에도 템플릿 유지되도록 마스터 템플릿에 자동 등록
     if (newLedgerSymbol === "fixed") {
       setFixedTemplates((prev) => {
         if (!prev.some((tpl) => tpl.title === trimmedTitle)) {
@@ -738,13 +736,11 @@ export default function Home() {
   // 요약창 고정지출 템플릿 자체 개별 삭제
   const handleDeleteFixedTemplate = (titleToDelete: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    // 템플릿 목록에서 삭제
     setFixedTemplates((prev) => prev.filter((tpl) => tpl.title !== titleToDelete));
-    // 해당 고정지출 내역들도 함께 삭제
     setLedgerEntries((prev) => prev.filter((item) => !(item.symbol === "fixed" && item.title === titleToDelete)));
   };
 
-  // 요약창용 동적 합산 및 고정지출 항목 계산 (달 넘어가도 템플릿 유지)
+  // 요약창용 동적 합산 및 고정지출 항목 계산
   const currentMonthLedgerSummary = useMemo(() => {
     const prefix = `${ledgerYear}-${String(ledgerMonth).padStart(2, "0")}`;
     const monthlyList = ledgerEntries.filter((item) => item.date.startsWith(prefix));
@@ -765,13 +761,12 @@ export default function Home() {
       }
     });
 
-    // 고정지출 항목: 마스터 템플릿을 기준으로 당월 등록 여부 매핑
     const fixedItems = fixedTemplates.map((tpl) => {
       const found = monthlyList.find((item) => item.symbol === "fixed" && item.title === tpl.title);
       return {
         tplTitle: tpl.title,
         color: tpl.color || "pink",
-        entry: found || null, // null이면 당월 금액 미입력 상태
+        entry: found || null,
       };
     });
 
@@ -786,28 +781,28 @@ export default function Home() {
     };
   }, [ledgerEntries, fixedTemplates, ledgerYear, ledgerMonth]);
 
-  // 요약창에서 고정지출 클릭 시 팝업 열기 (스크린샷과 100% 동일한 팝업 호출)
+  // 요약창에서 고정지출 클릭 시 팝업 열기 (날짜 설정 지원)
   const openFixedExpenseModal = (fixedItemObj?: any) => {
-    const firstDayDate = `${ledgerYear}-${String(ledgerMonth).padStart(2, "0")}-01`;
-    setLedgerModalDate(firstDayDate);
+    setLedgerEditingId(null); // 초기 진입 시 깔끔한 목록 뷰 유지
 
     if (fixedItemObj && fixedItemObj.entry) {
-      // 이미 등록된 경우 인라인 수정 시작
-      startLedgerEdit(fixedItemObj.entry);
-    } else if (fixedItemObj) {
-      // 템플릿만 있고 당월 금액 미입력인 경우, 입력 폼에 템플릿명 자동 세팅
-      setNewLedgerTitle(fixedItemObj.tplTitle);
-      setNewLedgerAmount("");
-      setNewLedgerSymbol("fixed");
-      setNewLedgerType("expense");
-      setNewLedgerColor(fixedItemObj.color || "pink");
+      setLedgerModalDate(fixedItemObj.entry.date);
     } else {
-      // 신규 고정 추가
-      setNewLedgerTitle("");
-      setNewLedgerAmount("");
-      setNewLedgerSymbol("fixed");
-      setNewLedgerType("expense");
-      setNewLedgerColor("pink");
+      const defaultDate = `${ledgerYear}-${String(ledgerMonth).padStart(2, "0")}-01`;
+      setLedgerModalDate(defaultDate);
+      if (fixedItemObj) {
+        setNewLedgerTitle(fixedItemObj.tplTitle);
+        setNewLedgerAmount("");
+        setNewLedgerSymbol("fixed");
+        setNewLedgerType("expense");
+        setNewLedgerColor(fixedItemObj.color || "pink");
+      } else {
+        setNewLedgerTitle("");
+        setNewLedgerAmount("");
+        setNewLedgerSymbol("fixed");
+        setNewLedgerType("expense");
+        setNewLedgerColor("pink");
+      }
     }
   };
 
@@ -1272,7 +1267,7 @@ export default function Home() {
               {/* 하단 2분할 영역 (달력 박스 + 요약 박스) */}
               <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 items-stretch">
                 
-                {/* [박스 2] 좌측 메인 가계부 달력 박스 (내역 짤리지 않고 줄바꿈으로 보여주기) */}
+                {/* [박스 2] 좌측 메인 가계부 달력 박스 */}
                 <div className="flex-1 h-full border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between overflow-hidden">
                   <div className="grid grid-cols-7 text-center font-bold text-xs pb-2 border-b border-sky-100 text-neutral-700 shrink-0">
                     <span className="text-rose-600 font-extrabold">일</span>
@@ -1308,7 +1303,10 @@ export default function Home() {
                       return (
                         <div
                           key={cell.dateStr}
-                          onClick={() => setLedgerModalDate(cell.dateStr)}
+                          onClick={() => {
+                            setLedgerEditingId(null);
+                            setLedgerModalDate(cell.dateStr);
+                          }}
                           className={`h-full border rounded-xl p-1.5 flex flex-col justify-between transition group relative cursor-pointer min-h-0 ${
                             isToday
                               ? "border-amber-400 bg-amber-50/70"
@@ -1331,7 +1329,7 @@ export default function Home() {
                             ) : null}
                           </div>
 
-                          {/* 당일 내역 태그 뱃지 리스트 (말줄임 없이 줄바꿈하여 온전히 표시) */}
+                          {/* 당일 내역 태그 뱃지 리스트 */}
                           <div className="flex-1 overflow-y-auto space-y-1 my-0.5 pr-0.5 scrollbar-none">
                             {dayEntries.map((item) => {
                               const isIncome = item.type === "income";
@@ -1373,7 +1371,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* [박스 3] 우측 재정 요약 박스 (택시, 배달 합산 및 고정비 목록 개별 삭제/수정) */}
+                {/* [박스 3] 우측 재정 요약 박스 */}
                 <div className="w-full lg:w-[280px] h-full shrink-0 border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-start gap-3 overflow-y-auto">
                   
                   {/* 카드 1: 이번 달 총 수입 */}
@@ -1437,7 +1435,7 @@ export default function Home() {
                     <div className="text-[10px] text-neutral-500">당월 배달 주문 누적</div>
                   </div>
 
-                  {/* 카드 6: 📌 고정 지출 목록 (달 넘어가도 템플릿 유지, 개별 삭제 및 수정/추가 지원) */}
+                  {/* 카드 6: 📌 고정 지출 목록 */}
                   <div className="border border-purple-200 bg-purple-50/80 rounded-2xl p-3 shadow-xs flex flex-col gap-2 shrink-0">
                     <div className="flex items-center justify-between text-xs font-bold text-purple-900">
                       <span className="flex items-center gap-1">📌 고정 지출 목록</span>
@@ -1509,7 +1507,7 @@ export default function Home() {
 
               </div>
 
-              {/* [가계부 조회/추가/수정/삭제 팝업 모달 - 스크린샷과 100% 동일한 디자인] */}
+              {/* [가계부 팝업 모달 - 달력 클릭/요약창 클릭 완전 동일 규격 + 날짜 선택 지원] */}
               {ledgerModalDate && (
                 <div 
                   className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -1524,10 +1522,18 @@ export default function Home() {
                   >
                     {/* 모달 상단 헤더 */}
                     <div className="flex items-center justify-between pb-3 border-b border-neutral-200 shrink-0">
-                      <h3 className="text-base font-black text-neutral-900 flex items-center gap-2">
+                      <div className="flex items-center gap-2">
                         <Wallet className="w-5 h-5 text-sky-500" />
-                        <span>{ledgerModalDate} 가계부 관리</span>
-                      </h3>
+                        <h3 className="text-base font-black text-neutral-900">
+                          가계부 관리
+                        </h3>
+                        <input
+                          type="date"
+                          value={ledgerModalDate}
+                          onChange={(e) => setLedgerModalDate(e.target.value)}
+                          className="border border-sky-200 bg-sky-50/50 rounded-lg px-2 py-0.5 text-xs font-bold text-sky-900 focus:outline-none focus:border-sky-500 cursor-pointer"
+                        />
+                      </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-neutral-400 font-medium bg-neutral-100 px-2 py-0.5 rounded-md">ESC로 닫기</span>
                         <button
@@ -1542,10 +1548,10 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* 등록된 내역 목록 (인라인 수정 및 삭제 지원) */}
-                    <div className="my-3 overflow-y-auto space-y-2 max-h-[200px] pr-1">
+                    {/* 등록된 내역 목록 (달력과 동일하게 깨짐 없는 리스트 뷰) */}
+                    <div className="my-3 overflow-y-auto space-y-2 max-h-[220px] pr-1">
                       <div className="text-[11px] font-bold text-neutral-500 mb-1">
-                        등록된 내역 ({ledgerEntries.filter((s) => s.date === ledgerModalDate).length}건)
+                        선택 날짜({ledgerModalDate}) 등록 내역 ({ledgerEntries.filter((s) => s.date === ledgerModalDate).length}건)
                       </div>
 
                       {ledgerEntries.filter((s) => s.date === ledgerModalDate).map((item) => {
@@ -1638,8 +1644,8 @@ export default function Home() {
                               }`}>
                                 {isIncome ? "수입" : "지출"}
                               </span>
-                              <span className="font-bold">{item.title}</span>
-                              <span className="font-mono font-bold">
+                              <span className="font-bold truncate">{item.title}</span>
+                              <span className="font-mono font-bold whitespace-nowrap">
                                 {isIncome ? "+" : "-"}{Number(item.amount).toLocaleString()}원
                               </span>
                             </div>
@@ -1665,16 +1671,15 @@ export default function Home() {
 
                       {ledgerEntries.filter((s) => s.date === ledgerModalDate).length === 0 && (
                         <div className="text-center py-4 text-neutral-400 text-xs">
-                          등록된 가계부 내역이 없습니다.
+                          해당 일자에 등록된 내역이 없습니다.
                         </div>
                       )}
                     </div>
 
-                    {/* 새 내역 추가 폼 (스크린샷 구조와 동일) */}
+                    {/* 새 내역 추가 폼 */}
                     <form onSubmit={handleAddLedgerEntry} className="pt-3 border-t border-neutral-200 shrink-0 space-y-3">
                       <div className="text-xs font-bold text-neutral-800">새 내역 추가</div>
 
-                      {/* 1줄: 구분 + 항목 내용 + 우측 심볼 선택기 */}
                       <div className="flex gap-2">
                         <select
                           value={newLedgerType}
@@ -2521,7 +2526,7 @@ export default function Home() {
                       : themeClasses.accentBtn
                   }`}
                 >
-                  {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                  {isTimerRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3.5 h-3.5 fill-white" />}
                   <span>{isTimerRunning ? "정지" : "시작"}</span>
                 </button>
                 <button
@@ -2529,7 +2534,7 @@ export default function Home() {
                   title="타이머 초기화"
                   className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60 ${themeClasses.textSecondary} transition`}
                 >
-                  <RotateCcw className="w-3.5 h-3.5" />
+                  <RotateCcw className="w-3 h-3" />
                 </button>
               </div>
             </div>
