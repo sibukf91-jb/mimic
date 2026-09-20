@@ -57,11 +57,10 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("schedule"); // 기본 진입 탭
+  const [currentTab, setCurrentTab] = useState("songs"); // 기본 탭: 노래책 (즐겨찾기, 일정, 가계부 선택 가능)
 
   // ================= 1. 테마 색상 동적 매핑 =================
   const themeClasses = useMemo(() => {
-    // 1. 즐겨찾기 탭 (파스텔톤 짙은 보라색)
     if (currentTab === "favorites") {
       return {
         borderDashed: "border-purple-400/80",
@@ -71,7 +70,7 @@ export default function Home() {
         bgHeader: "bg-purple-100/70",
         textPrimary: "text-purple-950",
         textSecondary: "text-purple-800",
-        accentBtn: "bg-purple-500 hover:bg-purple-600 text-white",
+        accentBtn: "bg-purple-600 hover:bg-purple-700 text-white",
         accentBtnSub: "bg-purple-100 hover:bg-purple-200 text-purple-800",
         accentActive: "border-purple-500 bg-purple-100 text-purple-900 font-bold",
         rangeAccent: "accent-purple-500",
@@ -81,7 +80,6 @@ export default function Home() {
         navActive: "bg-purple-100/90 text-purple-900 border-purple-300 shadow-sm",
       };
     }
-    // 2. 가계부 탭 (파스텔톤 짙은 하늘색)
     if (currentTab === "ledger") {
       return {
         borderDashed: "border-sky-400/80",
@@ -101,7 +99,6 @@ export default function Home() {
         navActive: "bg-sky-100/90 text-sky-900 border-sky-300 shadow-sm",
       };
     }
-    // 3. 일정 탭 (파스텔톤 짙은 핑크색)
     if (currentTab === "schedule") {
       return {
         borderDashed: "border-pink-400/80",
@@ -121,7 +118,6 @@ export default function Home() {
         navActive: "bg-pink-100/90 text-pink-900 border-pink-300 shadow-sm",
       };
     }
-    // 4. 노래책 탭 등 기본 (에메랄드)
     return {
       borderDashed: "border-emerald-400/90",
       borderSolid: "border-emerald-400/90",
@@ -141,7 +137,6 @@ export default function Home() {
     };
   }, [currentTab]);
 
-  // 공통 상수
   const holidays: Record<string, string> = {
     "2026-09-24": "추석 연휴",
     "2026-09-25": "추석",
@@ -305,7 +300,175 @@ export default function Home() {
       });
   }, [songList, selectedGenre, searchQuery]);
 
-  // ================= 3. 일정 탭 데이터 =================
+  // ================= 3. 즐겨찾기 탭 데이터 =================
+  const getCategoryIcon = (category: string) => {
+    const cat = (category || "").toLowerCase();
+    if (cat.includes("포털") || cat.includes("웹") || cat.includes("인터넷")) return "🌐";
+    if (cat.includes("검색") || cat.includes("구글")) return "🔍";
+    if (cat.includes("영상") || cat.includes("동영상") || cat.includes("유튜브") || cat.includes("ott")) return "🎬";
+    if (cat.includes("쇼핑") || cat.includes("구매") || cat.includes("마트")) return "🛒";
+    if (cat.includes("개발") || cat.includes("코딩") || cat.includes("깃")) return "💻";
+    if (cat.includes("음악") || cat.includes("노래") || cat.includes("뮤직")) return "🎵";
+    if (cat.includes("커뮤니티") || cat.includes("카페") || cat.includes("sns") || cat.includes("블로그")) return "💬";
+    if (cat.includes("게임")) return "🎮";
+    if (cat.includes("금융") || cat.includes("은행") || cat.includes("증권") || cat.includes("페이")) return "🏦";
+    if (cat.includes("업무") || cat.includes("회사") || cat.includes("오피스")) return "📁";
+    return "⭐";
+  };
+
+  const defaultFavorites = [
+    { id: 1, category: "포털", name: "네이버", url: "https://www.naver.com", memo: "뉴스, 지도, 블로그", username: "my_naver_id", pwHint: "초록창12#$" },
+    { id: 2, category: "검색", name: "구글", url: "https://www.google.com", memo: "검색 및 지메일", username: "user@gmail.com", pwHint: "구글영문+특수" },
+    { id: 3, category: "영상", name: "유튜브", url: "https://www.youtube.com", memo: "음악 및 동영상 시청", username: "youtube_acc", pwHint: "구글연동" },
+    { id: 4, category: "개발", name: "GitHub", url: "https://github.com", memo: "코드 저장소", username: "dev_user", pwHint: "깃허브토큰!" },
+    { id: 5, category: "쇼핑", name: "쿠팡", url: "https://www.coupang.com", memo: "로켓배송", username: "coupang_01", pwHint: "생일뒤자리@!" },
+  ];
+
+  const [favList, setFavList] = useState<any[]>([]);
+  const [isFavLoaded, setIsFavLoaded] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
+  const handleCopyUsername = (id: number, username: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!username) return;
+    try {
+      if (navigator && navigator.clipboard) {
+        navigator.clipboard.writeText(username);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setCopiedId(id);
+    setTimeout(() => {
+      setCopiedId((prev) => (prev === id ? null : prev));
+    }, 1500);
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("jb_bookmark_fav_list_v4");
+      setFavList(saved ? JSON.parse(saved) : defaultFavorites);
+      setIsFavLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isFavLoaded && typeof window !== "undefined") {
+      localStorage.setItem("jb_bookmark_fav_list_v4", JSON.stringify(favList));
+    }
+  }, [favList, isFavLoaded]);
+
+  const [newFavCategory, setNewFavCategory] = useState("");
+  const [newFavName, setNewFavName] = useState("");
+  const [newFavUrl, setNewFavUrl] = useState("");
+  const [newFavMemo, setNewFavMemo] = useState("");
+  const [newFavUsername, setNewFavUsername] = useState("");
+  const [newFavPwHint, setNewFavPwHint] = useState("");
+  const [selectedFavCategory, setSelectedFavCategory] = useState("전체");
+  const [favSearchQuery, setFavSearchQuery] = useState("");
+
+  const [editingFavId, setEditingFavId] = useState<number | null>(null);
+  const [editFavCategory, setEditFavCategory] = useState("");
+  const [editFavName, setEditFavName] = useState("");
+  const [editFavUrl, setEditFavUrl] = useState("");
+  const [editFavMemo, setEditFavMemo] = useState("");
+  const [editFavUsername, setEditFavUsername] = useState("");
+  const [editFavPwHint, setEditFavPwHint] = useState("");
+
+  const existingFavCategories = useMemo(() => {
+    const set = new Set<string>();
+    (favList || []).forEach((f) => {
+      if (f.category && f.category.trim()) set.add(f.category.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [favList]);
+
+  const handleAddFav = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFavName.trim() || !newFavUrl.trim()) return;
+
+    let formattedUrl = newFavUrl.trim();
+    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+      formattedUrl = "https://" + formattedUrl;
+    }
+
+    const newFav = {
+      id: Date.now(),
+      category: newFavCategory.trim() || "기타",
+      name: newFavName.trim(),
+      url: formattedUrl,
+      memo: newFavMemo.trim(),
+      username: newFavUsername.trim(),
+      pwHint: newFavPwHint.trim()
+    };
+
+    setFavList([newFav, ...favList]);
+    setNewFavCategory("");
+    setNewFavName("");
+    setNewFavUrl("");
+    setNewFavMemo("");
+    setNewFavUsername("");
+    setNewFavPwHint("");
+  };
+
+  const startEditFav = (fav: any) => {
+    setEditingFavId(fav.id);
+    setEditFavCategory(fav.category || "기타");
+    setEditFavName(fav.name || "");
+    setEditFavUrl(fav.url || "");
+    setEditFavMemo(fav.memo || "");
+    setEditFavUsername(fav.username || "");
+    setEditFavPwHint(fav.pwHint || "");
+  };
+
+  const cancelEditFav = () => setEditingFavId(null);
+
+  const saveEditFav = (id: number) => {
+    if (!editFavName.trim() || !editFavUrl.trim()) return;
+
+    let formattedUrl = editFavUrl.trim();
+    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+      formattedUrl = "https://" + formattedUrl;
+    }
+
+    setFavList((prev) =>
+      prev.map((f) =>
+        f.id === id
+          ? {
+              ...f,
+              category: editFavCategory.trim() || "기타",
+              name: editFavName.trim(),
+              url: formattedUrl,
+              memo: editFavMemo.trim(),
+              username: editFavUsername.trim(),
+              pwHint: editFavPwHint.trim()
+            }
+          : f
+      )
+    );
+    setEditingFavId(null);
+  };
+
+  const handleDeleteFav = (id: number) => {
+    setFavList((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const filteredFavs = useMemo(() => {
+    return (favList || [])
+      .filter((fav) => {
+        const matchCategory = selectedFavCategory === "전체" || fav.category === selectedFavCategory;
+        const matchSearch =
+          (fav.name || "").toLowerCase().includes(favSearchQuery.toLowerCase()) ||
+          (fav.url || "").toLowerCase().includes(favSearchQuery.toLowerCase()) ||
+          (fav.category || "").toLowerCase().includes(favSearchQuery.toLowerCase()) ||
+          (fav.memo || "").toLowerCase().includes(favSearchQuery.toLowerCase()) ||
+          (fav.username || "").toLowerCase().includes(favSearchQuery.toLowerCase());
+        return matchCategory && matchSearch;
+      })
+      .sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
+  }, [favList, selectedFavCategory, favSearchQuery]);
+
+  // ================= 4. 일정 탭 데이터 =================
   const SCHEDULE_SYMBOL_CONFIG = {
     leave: { label: "연차", icon: "🌴", badge: "연차" },
     half_leave: { label: "반차", icon: "🌓", badge: "반차" },
@@ -483,7 +646,7 @@ export default function Home() {
 
   const hasAnyScheduleSummary = leaveSummary || birthdaySummary || hairSummary || upcomingAppointments.length > 0;
 
-  // ================= 4. 가계부 탭 데이터 =================
+  // ================= 5. 가계부 탭 데이터 =================
   const LEDGER_SYMBOL_CONFIG = {
     taxi: { label: "택시", icon: "🚕", badge: "택시" },
     delivery: { label: "배달", icon: "🛵", badge: "배달" },
@@ -543,8 +706,8 @@ export default function Home() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const savedEntries = localStorage.getItem("jb_bookmark_calendar_ledgers_v3");
-      const savedTemplates = localStorage.getItem("jb_bookmark_fixed_templates_v1");
+      const savedEntries = localStorage.getItem("jb_bookmark_calendar_ledgers_v4");
+      const savedTemplates = localStorage.getItem("jb_bookmark_fixed_templates_v2");
       setLedgerEntries(savedEntries ? JSON.parse(savedEntries) : defaultLedgerEntries);
       setFixedTemplates(savedTemplates ? JSON.parse(savedTemplates) : defaultFixedTemplates);
       setIsLedgerLoaded(true);
@@ -553,8 +716,8 @@ export default function Home() {
 
   useEffect(() => {
     if (isLedgerLoaded && typeof window !== "undefined") {
-      localStorage.setItem("jb_bookmark_calendar_ledgers_v3", JSON.stringify(ledgerEntries));
-      localStorage.setItem("jb_bookmark_fixed_templates_v1", JSON.stringify(fixedTemplates));
+      localStorage.setItem("jb_bookmark_calendar_ledgers_v4", JSON.stringify(ledgerEntries));
+      localStorage.setItem("jb_bookmark_fixed_templates_v2", JSON.stringify(fixedTemplates));
     }
   }, [ledgerEntries, fixedTemplates, isLedgerLoaded]);
 
@@ -704,7 +867,7 @@ export default function Home() {
     }
   };
 
-  // ================= 5. 즐겨찾기 탭 추가 및 공통 플레이리스트/시계 =================
+  // ================= 6. 플레이리스트 & 시계 =================
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [repeatMode, setRepeatMode] = useState<"none" | "all" | "one">("all");
@@ -1104,10 +1267,526 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* [2] 중앙 내용 영역 (세로 높이 h-[760px] 고정) */}
+        {/* [2] 중앙 내용 영역 (세로 높이 h-[760px] 완벽 고정) */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
-          {/* ==================== A. [일정] 탭 화면 ==================== */}
+          {/* ==================== A. [노래책] 탭 ==================== */}
+          {currentTab === "songs" && (
+            <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
+              <form onSubmit={handleAddSong} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="relative">
+                  <input
+                    type="text"
+                    list="genre-suggestions"
+                    value={newGenre}
+                    onChange={(e) => setNewGenre(e.target.value)}
+                    placeholder="장르 입력"
+                    className="w-24 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-500 placeholder-neutral-400"
+                  />
+                  <datalist id="genre-suggestions">
+                    {existingGenres.map((g) => (
+                      <option key={g} value={g} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <input
+                  type="text"
+                  value={newArtist}
+                  onChange={(e) => setNewArtist(e.target.value)}
+                  placeholder="가수 / 아티스트"
+                  className="w-36 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  required
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="곡 제목 *"
+                  className="w-44 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  value={newUrl}
+                  onChange={(e) => setNewUrl(e.target.value)}
+                  placeholder="유튜브 링크"
+                  className="flex-1 min-w-[150px] border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
+                />
+
+                <select
+                  value={newSongType}
+                  onChange={(e) => setNewSongType(e.target.value as "none" | "Original" | "Cover")}
+                  className={`w-28 border rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none cursor-pointer transition ${
+                    newSongType === "Cover"
+                      ? "border-amber-400 bg-amber-50 text-amber-800"
+                      : newSongType === "Original"
+                      ? "border-blue-300 bg-blue-50 text-blue-800"
+                      : "border-emerald-200 bg-white/80 text-neutral-600"
+                  }`}
+                >
+                  <option value="none">선택 안함</option>
+                  <option value="Original">Original</option>
+                  <option value="Cover">Cover</option>
+                </select>
+
+                <button
+                  type="submit"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-5 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> 곡 추가
+                </button>
+              </form>
+
+              <div className="border border-emerald-400 rounded-2xl p-3 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="곡명, 아티스트, 장르를 검색해보세요..."
+                    className="w-full border border-emerald-200 bg-white/80 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
+                  />
+                  <Search className="w-3.5 h-3.5 text-emerald-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
+                  <span className="text-emerald-900 font-semibold text-[11px] mr-1">장르:</span>
+                  <button
+                    onClick={() => setSelectedGenre("전체")}
+                    className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                      selectedGenre === "전체"
+                        ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
+                        : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
+                    }`}
+                  >
+                    전체
+                  </button>
+                  {existingGenres.map((genre) => (
+                    <button
+                      key={genre}
+                      onClick={() => setSelectedGenre(genre)}
+                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                        selectedGenre === genre
+                          ? "border-emerald-500 bg-emerald-200/90 text-emerald-900 font-bold shadow-xs"
+                          : "border-emerald-200/80 bg-white/70 text-neutral-700 hover:bg-white"
+                      }`}
+                    >
+                      {genre}
+                    </button>
+                  ))}
+                  <span className="ml-auto text-[11px] text-emerald-800/80 font-medium">
+                    총 {filteredSongs.length}곡 (가수순 ➔ 제목순)
+                  </span>
+                </div>
+              </div>
+
+              <div className="border border-emerald-400 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-emerald-900 items-center">
+                  <span className="col-span-2 flex items-center justify-center gap-1 text-center">🏷️ 장르</span>
+                  <span className="col-span-4 flex items-center justify-center gap-1 text-center">🎤 가수 / 아티스트</span>
+                  <span className="col-span-3 flex items-center justify-center gap-1 text-center">🎵 곡명</span>
+                  <span className="col-span-1 flex items-center justify-center gap-1 text-center">🎬 영상</span>
+                  <span className="col-span-2 flex items-center justify-center text-center">관리</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {filteredSongs.map((song) => {
+                  const isPlayingThis = isPlayingAudio && currentSong?.id === song.id;
+                  const isEditing = editingSongId === song.id;
+                  const isCover = song.songType === "Cover";
+                  const isOriginal = song.songType === "Original";
+                  const hasUrl = Boolean(song.url && getYouTubeId(song.url));
+
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={`edit-${song.id}`}
+                        className="p-3 rounded-2xl border-2 border-emerald-500 bg-emerald-50/90 shadow-md flex flex-wrap items-center gap-2"
+                      >
+                        <input
+                          type="text"
+                          value={editGenre}
+                          onChange={(e) => setEditGenre(e.target.value)}
+                          placeholder="장르"
+                          className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-600"
+                        />
+                        <input
+                          type="text"
+                          value={editArtist}
+                          onChange={(e) => setEditArtist(e.target.value)}
+                          placeholder="가수"
+                          className="w-32 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
+                        />
+                        <input
+                          type="text"
+                          required
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          placeholder="곡 제목"
+                          className="w-44 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-bold"
+                        />
+                        <input
+                          type="text"
+                          value={editUrl}
+                          onChange={(e) => setEditUrl(e.target.value)}
+                          placeholder="유튜브 링크"
+                          className="flex-1 min-w-[140px] border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-emerald-600 font-medium"
+                        />
+                        <select
+                          value={editSongType}
+                          onChange={(e) => setEditSongType(e.target.value as "none" | "Original" | "Cover")}
+                          className="w-24 border border-emerald-300 bg-white rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none cursor-pointer"
+                        >
+                          <option value="none">선택 안함</option>
+                          <option value="Original">Original</option>
+                          <option value="Cover">Cover</option>
+                        </select>
+                        <div className="flex items-center gap-1 shrink-0 ml-auto">
+                          <button
+                            onClick={() => saveEditSong(song.id)}
+                            title="수정 저장"
+                            className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"
+                          >
+                            <Check className="w-3.5 h-3.5" /> 저장
+                          </button>
+                          <button
+                            onClick={cancelEditSong}
+                            title="취소"
+                            className="p-1.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-600 text-xs flex items-center gap-1 shadow-sm transition"
+                          >
+                            <X className="w-3.5 h-3.5" /> 취소
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={song.id}
+                      className={`grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border transition shadow-sm ${
+                        isPlayingThis
+                          ? "bg-emerald-100/90 border-emerald-500 ring-2 ring-emerald-300"
+                          : "bg-emerald-50/40 border-emerald-400 hover:border-emerald-500 hover:bg-emerald-50/70"
+                      }`}
+                    >
+                      <div className="col-span-2 flex justify-center">
+                        <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-[11px] font-bold text-center">
+                          {song.genre}
+                        </span>
+                      </div>
+
+                      <div className="col-span-4 text-neutral-800 truncate font-bold text-[13px] text-center px-1">
+                        {song.artist}
+                      </div>
+
+                      <div className="col-span-3 flex items-center justify-center gap-2 font-bold text-neutral-900 px-1 overflow-hidden">
+                        <Music className={`w-3.5 h-3.5 shrink-0 ${isPlayingThis ? "text-emerald-600 animate-pulse" : "text-emerald-500"}`} />
+                        <span className="truncate text-sm">{song.title}</span>
+                        {isCover && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 shadow-xs shrink-0">
+                            <Mic2 className="w-2.5 h-2.5" />
+                            <span>Cover</span>
+                          </span>
+                        )}
+                        {isOriginal && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-300 shadow-xs shrink-0">
+                            <Disc3 className="w-2.5 h-2.5" />
+                            <span>Original</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="col-span-1 flex items-center justify-center">
+                        {hasUrl ? (
+                          <button
+                            onClick={() => setVideoModalUrl(song.url)}
+                            className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-xs transition active:scale-95"
+                            title="내부 창에서 영상 시청"
+                          >
+                            <Play className="w-3 h-3 fill-white" />
+                            <span>재생</span>
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-neutral-400 font-medium">-</span>
+                        )}
+                      </div>
+
+                      <div className="col-span-2 flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => startEditSong(song)}
+                          title="곡 내용 수정"
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-emerald-700 hover:bg-white transition"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => toggleLike(song.id)}
+                          title={song.liked ? "플레이리스트에서 제거" : "플레이리스트에 담기"}
+                          className={`p-1.5 rounded-lg transition ${
+                            song.liked ? "text-rose-500 fill-rose-500 hover:scale-110 bg-rose-50" : "text-neutral-400 hover:text-rose-500 hover:bg-white"
+                          }`}
+                        >
+                          <Heart className={`w-3.5 h-3.5 ${song.liked ? "fill-rose-500" : ""}`} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSong(song.id)}
+                          title="노래 삭제"
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredSongs.length === 0 && (
+                  <div className="border border-dashed border-emerald-300 rounded-2xl p-12 text-center text-xs font-medium text-emerald-800/70 bg-emerald-50/20">
+                    등록되었거나 조건에 맞는 노래가 없습니다.
+                  </div>
+                )}
+              </div>
+
+              {videoModalUrl && (
+                <div 
+                  className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+                  onClick={() => setVideoModalUrl(null)}
+                >
+                  <div 
+                    className="bg-neutral-900 rounded-3xl overflow-hidden shadow-2xl border border-neutral-700 w-full max-w-4xl max-h-[720px] flex flex-col relative animate-in fade-in zoom-in-95 duration-150"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between px-4 py-2 bg-neutral-900/90 border-b border-neutral-800 text-white shrink-0">
+                      <div className="flex items-center gap-2 text-xs font-bold text-neutral-300">
+                        <Tv className="w-4 h-4 text-emerald-400" />
+                        <span>영상 플레이어</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-neutral-400 bg-neutral-800 px-2 py-0.5 rounded-md">ESC로 닫기</span>
+                        <button onClick={() => setVideoModalUrl(null)} className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition">
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="relative w-full aspect-video bg-black flex items-center justify-center">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${getYouTubeId(videoModalUrl)}?autoplay=1`}
+                        title="YouTube video player"
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ==================== B. [즐겨찾기] 탭 ==================== */}
+          {currentTab === "favorites" && (
+            <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
+              <form onSubmit={handleAddFav} className="border-2 border-purple-400/80 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-purple-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="relative">
+                  <input
+                    type="text"
+                    list="fav-category-suggestions"
+                    value={newFavCategory}
+                    onChange={(e) => setNewFavCategory(e.target.value)}
+                    placeholder="분류 (예: 포털)"
+                    className="w-24 border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs font-medium text-purple-950 focus:outline-none focus:border-purple-500 placeholder-neutral-400"
+                  />
+                  <datalist id="fav-category-suggestions">
+                    {existingFavCategories.map((c) => (<option key={c} value={c} />))}
+                  </datalist>
+                </div>
+
+                <input
+                  type="text"
+                  required
+                  value={newFavName}
+                  onChange={(e) => setNewFavName(e.target.value)}
+                  placeholder="사이트명 *"
+                  className="w-32 border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-purple-500 placeholder-neutral-500 font-bold"
+                />
+
+                <input
+                  type="text"
+                  required
+                  value={newFavUrl}
+                  onChange={(e) => setNewFavUrl(e.target.value)}
+                  placeholder="URL 주소 (https://...)*"
+                  className="flex-1 min-w-[150px] border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-purple-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  value={newFavMemo}
+                  onChange={(e) => setNewFavMemo(e.target.value)}
+                  placeholder="메모"
+                  className="w-28 border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-purple-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  value={newFavUsername}
+                  onChange={(e) => setNewFavUsername(e.target.value)}
+                  placeholder="아이디"
+                  className="w-24 border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-purple-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  value={newFavPwHint}
+                  onChange={(e) => setNewFavPwHint(e.target.value)}
+                  placeholder="비번 힌트"
+                  className="w-24 border border-purple-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-purple-500 placeholder-neutral-500 font-medium"
+                />
+
+                <button
+                  type="submit"
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> 추가
+                </button>
+              </form>
+
+              <div className="border-2 border-purple-400/80 rounded-2xl p-3 bg-purple-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    value={favSearchQuery}
+                    onChange={(e) => setFavSearchQuery(e.target.value)}
+                    placeholder="사이트명, 분류, 메모, 아이디를 검색해보세요..."
+                    className="w-full border border-purple-200 bg-white/90 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-purple-500 placeholder-neutral-500 font-medium"
+                  />
+                  <Search className="w-3.5 h-3.5 text-purple-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
+                  <span className="text-purple-950 font-semibold text-[11px] mr-1">분류:</span>
+                  <button
+                    onClick={() => setSelectedFavCategory("전체")}
+                    className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                      selectedFavCategory === "전체"
+                        ? "border-purple-500 bg-purple-200 text-purple-950 font-bold shadow-2xs"
+                        : "border-purple-200/80 bg-white/70 text-neutral-700 hover:bg-white"
+                    }`}
+                  >
+                    전체
+                  </button>
+                  {existingFavCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedFavCategory(cat)}
+                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                        selectedFavCategory === cat
+                          ? "border-purple-500 bg-purple-200 text-purple-950 font-bold shadow-2xs"
+                          : "border-purple-200/80 bg-white/70 text-neutral-700 hover:bg-white"
+                      }`}
+                    >
+                      {getCategoryIcon(cat)} {cat}
+                    </button>
+                  ))}
+                  <span className="ml-auto text-[11px] text-purple-800/80 font-medium">
+                    총 {filteredFavs.length}개 사이트
+                  </span>
+                </div>
+              </div>
+
+              <div className="border-2 border-purple-400/80 rounded-xl px-4 py-2.5 bg-purple-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-purple-950 items-center text-center">
+                  <span className="col-span-2">🏷️ 분류</span>
+                  <span className="col-span-3">🌐 사이트명</span>
+                  <span className="col-span-1">바로가기</span>
+                  <span className="col-span-2">📝 메모</span>
+                  <span className="col-span-2">🔐 계정 정보 (클릭시 ID복사 / 힌트)</span>
+                  <span className="col-span-2">관리</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {filteredFavs.map((fav) => {
+                  const isEditing = editingFavId === fav.id;
+                  const isCopied = copiedId === fav.id;
+                  const catIcon = getCategoryIcon(fav.category);
+
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={`edit-fav-${fav.id}`}
+                        className="p-3 rounded-2xl border-2 border-purple-400 bg-purple-50/90 shadow-md flex flex-wrap items-center gap-2"
+                      >
+                        <input type="text" value={editFavCategory} onChange={(e) => setEditFavCategory(e.target.value)} placeholder="분류" className="w-20 border border-purple-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-purple-950 focus:outline-none focus:border-purple-600" />
+                        <input type="text" required value={editFavName} onChange={(e) => setEditFavName(e.target.value)} placeholder="사이트 이름" className="w-28 border border-purple-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-purple-600 font-bold" />
+                        <input type="text" required value={editFavUrl} onChange={(e) => setEditFavUrl(e.target.value)} placeholder="웹사이트 URL" className="flex-1 min-w-[140px] border border-purple-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-purple-600 font-medium" />
+                        <input type="text" value={editFavMemo} onChange={(e) => setEditFavMemo(e.target.value)} placeholder="메모" className="w-28 border border-purple-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-purple-600 font-medium" />
+                        <input type="text" value={editFavUsername} onChange={(e) => setEditFavUsername(e.target.value)} placeholder="아이디" className="w-24 border border-purple-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-purple-600 font-medium" />
+                        <input type="text" value={editFavPwHint} onChange={(e) => setEditFavPwHint(e.target.value)} placeholder="비번 힌트" className="w-24 border border-purple-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-purple-600 font-medium" />
+                        <div className="flex items-center gap-1 shrink-0 ml-auto">
+                          <button onClick={() => saveEditFav(fav.id)} title="저장" className="p-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"><Check className="w-3.5 h-3.5" /> 저장</button>
+                          <button onClick={cancelEditFav} title="취소" className="p-1.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-600 text-xs flex items-center gap-1 shadow-sm transition"><X className="w-3.5 h-3.5" /> 취소</button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={fav.id}
+                      className="grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border-2 border-purple-400/80 bg-purple-50/40 hover:bg-purple-50/70 transition shadow-2xs"
+                    >
+                      <div className="col-span-2 flex justify-center">
+                        <span className="px-2.5 py-1 rounded-lg bg-purple-100 text-purple-900 border border-purple-300 text-[11px] font-bold text-center flex items-center gap-1 shadow-2xs">
+                          <span>{catIcon}</span>
+                          <span>{fav.category}</span>
+                        </span>
+                      </div>
+                      <div className="col-span-3 text-neutral-900 truncate font-black text-[13px] text-center px-1">{fav.name}</div>
+                      <div className="col-span-1 flex justify-center">
+                        <a href={fav.url} target="_blank" rel="noreferrer" className="px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-2xs transition active:scale-95" title={`${fav.name} 바로가기`}>
+                          <ExternalLink className="w-3 h-3" />
+                          <span>이동</span>
+                        </a>
+                      </div>
+                      <div className="col-span-2 text-neutral-600 truncate text-[11px] px-1 text-center font-medium">{fav.memo || <span className="text-neutral-300">-</span>}</div>
+                      <div className="col-span-2 flex flex-col items-center justify-center gap-1 px-1 overflow-hidden">
+                        {fav.username ? (
+                          <button onClick={(e) => handleCopyUsername(fav.id, fav.username, e)} className={`flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded border transition active:scale-95 max-w-full ${isCopied ? "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold" : "bg-white/90 hover:bg-purple-100/80 text-neutral-800 border-purple-200/80"}`} title="클릭하여 아이디 복사">
+                            {isCopied ? (<><Check className="w-3 h-3 text-emerald-600 shrink-0" /><span className="text-emerald-700 font-bold">복사됨!</span></>) : (<><User className="w-2.5 h-2.5 text-purple-700 shrink-0" /><span className="truncate">{fav.username}</span><Copy className="w-2.5 h-2.5 opacity-50 shrink-0 ml-0.5" /></>)}
+                          </button>
+                        ) : null}
+                        {fav.pwHint ? (
+                          <div className="flex items-center gap-1 text-[10px] font-mono text-neutral-600 bg-purple-100/60 px-1.5 py-0.2 rounded border border-purple-200/90 truncate max-w-full cursor-help group" title="마우스를 올리면 비밀번호 힌트가 보입니다">
+                            <Key className="w-2.5 h-2.5 text-purple-700 shrink-0" />
+                            <span className="filter blur-[3px] group-hover:blur-none transition-all duration-200 select-none group-hover:select-text text-purple-950 font-bold">{fav.pwHint}</span>
+                          </div>
+                        ) : null}
+                        {!fav.username && !fav.pwHint && <span className="text-[10px] text-neutral-300">-</span>}
+                      </div>
+                      <div className="col-span-2 flex items-center justify-center gap-1.5">
+                        <button onClick={() => startEditFav(fav)} title="수정" className="p-1.5 rounded-lg text-neutral-400 hover:text-purple-800 hover:bg-white transition"><Pencil className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleDeleteFav(fav.id)} title="삭제" className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredFavs.length === 0 && (
+                  <div className="border-2 border-dashed border-purple-300 rounded-2xl p-12 text-center text-xs font-medium text-purple-800/70 bg-purple-50/20">
+                    등록되었거나 조건에 맞는 즐겨찾기 사이트가 없습니다.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ==================== C. [일정] 탭 ==================== */}
           {currentTab === "schedule" && (
             <div className="h-full flex flex-col gap-3">
               <div className="border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
@@ -1247,7 +1926,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 일정 팝업 모달 */}
               {modalDate && (
                 <div 
                   className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -1363,7 +2041,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== B. [가계부] 탭 화면 ==================== */}
+          {/* ==================== D. [가계부] 탭 ==================== */}
           {currentTab === "ledger" && (
             <div className="h-full flex flex-col gap-3">
               <div className="border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
@@ -1662,7 +2340,7 @@ export default function Home() {
                         <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
                           {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
                             <label key={key} className="flex items-center gap-1.5 cursor-pointer">
-                              <input type="radio" name="tagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
+                              <input type="radio" name="ledgerTagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
                               <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${newLedgerColor === key ? "border-sky-800 scale-110 shadow-xs" : "border-transparent opacity-70"}`}>
                                 {newLedgerColor === key && <Check className="w-3 h-3 text-sky-950 stroke-[3]" />}
                               </span>
@@ -1687,7 +2365,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== E. 그 외 미구현 탭 ==================== */}
+          {/* ==================== E. 그 외 탭 ==================== */}
           {currentTab !== "songs" && currentTab !== "schedule" && currentTab !== "ledger" && currentTab !== "favorites" && (
             <div className="h-full border border-dashed border-emerald-300 rounded-2xl p-20 flex flex-col items-center justify-center text-center bg-emerald-50/20 backdrop-blur-[2px]">
               <span className="text-3xl mb-2 block">🚧</span>
