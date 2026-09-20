@@ -37,7 +37,12 @@ import {
   Scissors,
   Palmtree,
   Clock3,
-  CalendarDays
+  CalendarDays,
+  Wallet,
+  ArrowUpRight,
+  ArrowDownLeft,
+  CreditCard,
+  PiggyBank
 } from "lucide-react";
 
 export default function Home() {
@@ -46,13 +51,32 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("schedule"); // 'schedule' 또는 'songs'
+  const [currentTab, setCurrentTab] = useState("ledger"); // 'ledger', 'schedule', 'songs' 등
 
-  // ================= 1. 테마 색상 동적 매핑 (탭별 동기화) =================
-  const isPinkTheme = currentTab === "schedule";
-
+  // ================= 1. 테마 색상 동적 매핑 (탭별 테마 연동) =================
   const themeClasses = useMemo(() => {
-    if (isPinkTheme) {
+    // 1. 가계부 탭 (파스텔톤 짙은 하늘색)
+    if (currentTab === "ledger") {
+      return {
+        borderDashed: "border-sky-400/80",
+        borderSolid: "border-sky-400/80",
+        borderSubtle: "border-sky-200/80",
+        bgLight: "bg-sky-50/40",
+        bgHeader: "bg-sky-100/70",
+        textPrimary: "text-sky-950",
+        textSecondary: "text-sky-800",
+        accentBtn: "bg-sky-500 hover:bg-sky-600 text-white",
+        accentBtnSub: "bg-sky-100 hover:bg-sky-200 text-sky-800",
+        accentActive: "border-sky-500 bg-sky-100 text-sky-900 font-bold",
+        rangeAccent: "accent-sky-500",
+        rangeBg: "bg-sky-100",
+        activeTrack: "bg-sky-100/90 border-sky-400",
+        playIcon: "text-sky-600 fill-sky-600",
+        navActive: "bg-sky-100/90 text-sky-900 border-sky-300 shadow-sm",
+      };
+    }
+    // 2. 일정 탭 (파스텔톤 짙은 핑크색)
+    if (currentTab === "schedule") {
       return {
         borderDashed: "border-pink-400/80",
         borderSolid: "border-pink-400/80",
@@ -68,8 +92,10 @@ export default function Home() {
         rangeBg: "bg-pink-100",
         activeTrack: "bg-pink-100/90 border-pink-400",
         playIcon: "text-pink-600 fill-pink-600",
+        navActive: "bg-pink-100/90 text-pink-900 border-pink-300 shadow-sm",
       };
     }
+    // 3. 노래책 탭 등 기본 (에메랄드)
     return {
       borderDashed: "border-emerald-400/90",
       borderSolid: "border-emerald-400/90",
@@ -85,8 +111,9 @@ export default function Home() {
       rangeBg: "bg-emerald-100",
       activeTrack: "bg-emerald-100/90 border-emerald-400",
       playIcon: "text-emerald-700 fill-emerald-700",
+      navActive: "bg-emerald-100/90 text-emerald-800 border-emerald-300 shadow-sm",
     };
-  }, [isPinkTheme]);
+  }, [currentTab]);
 
   // ================= 2. 노래책 데이터 =================
   const defaultSongs = [
@@ -233,7 +260,7 @@ export default function Home() {
       });
   }, [songList, selectedGenre, searchQuery]);
 
-  // ================= 3. 일정 캘린더 & 동적 요약 데이터 =================
+  // ================= 3. 일정 캘린더 데이터 =================
   const SYMBOL_CONFIG = {
     leave: { label: "연차", icon: "🌴", badge: "연차" },
     half_leave: { label: "반차", icon: "🌓", badge: "반차" },
@@ -268,19 +295,16 @@ export default function Home() {
   const [calYear, setCalYear] = useState(2026);
   const [calMonth, setCalMonth] = useState(9); // 1~12
 
-  // 팝업 모달 상태
   const [modalDate, setModalDate] = useState<string | null>(null);
   const [newSchedTitle, setNewSchedTitle] = useState("");
   const [newSchedSymbol, setNewSchedSymbol] = useState("appointment");
   const [newSchedColor, setNewSchedColor] = useState("pink");
 
-  // 팝업 내 인라인 수정 상태
   const [popupEditingId, setPopupEditingId] = useState<number | null>(null);
   const [editPopupTitle, setEditPopupTitle] = useState("");
   const [editPopupSymbol, setEditPopupSymbol] = useState("appointment");
   const [editPopupColor, setEditPopupColor] = useState("pink");
 
-  // ESC 키로 팝업 모달 닫기
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -401,7 +425,7 @@ export default function Home() {
     if (popupEditingId === id) setPopupEditingId(null);
   };
 
-  // ================= 4. 요약칸 동적 계산 로직 =================
+  // 일정 요약 계산 로직
   const TODAY_STR = "2026-09-20";
   const todayDateObj = new Date(TODAY_STR);
 
@@ -491,6 +515,84 @@ export default function Home() {
   }, [scheduleList]);
 
   const hasAnySummary = leaveSummary || birthdaySummary || hairSummary || upcomingAppointments.length > 0;
+
+  // ================= 4. 가계부 데이터 (파스텔톤 짙은 하늘색 테마) =================
+  const defaultLedgerItems = [
+    { id: 1, date: "2026-09-05", type: "expense", category: "식비", title: "장보기 (이마트)", amount: 54000 },
+    { id: 2, date: "2026-09-10", type: "income", category: "급여", title: "9월 기본급", amount: 3200000 },
+    { id: 3, date: "2026-09-15", type: "expense", category: "통신", title: "휴대폰 요금", amount: 65000 },
+    { id: 4, date: "2026-09-18", type: "expense", category: "여가", title: "영화 관람 및 식사", amount: 38000 },
+  ];
+
+  const [ledgerList, setLedgerList] = useState<any[]>([]);
+  const [isLedgerLoaded, setIsLedgerLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("jb_bookmark_ledger_list");
+      if (saved) {
+        try {
+          setLedgerList(JSON.parse(saved));
+        } catch (e) {
+          setLedgerList(defaultLedgerItems);
+        }
+      } else {
+        setLedgerList(defaultLedgerItems);
+      }
+      setIsLedgerLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLedgerLoaded && typeof window !== "undefined") {
+      localStorage.setItem("jb_bookmark_ledger_list", JSON.stringify(ledgerList));
+    }
+  }, [ledgerList, isLedgerLoaded]);
+
+  // 가계부 연월 필터
+  const [ledgerYear, setLedgerYear] = useState(2026);
+  const [ledgerMonth, setLedgerMonth] = useState(9);
+
+  const prevLedgerMonth = () => {
+    if (ledgerMonth === 1) {
+      setLedgerYear(ledgerYear - 1);
+      setLedgerMonth(12);
+    } else {
+      setLedgerMonth(ledgerMonth - 1);
+    }
+  };
+
+  const nextLedgerMonth = () => {
+    if (ledgerMonth === 12) {
+      setLedgerYear(ledgerYear + 1);
+      setLedgerMonth(1);
+    } else {
+      setLedgerMonth(ledgerMonth + 1);
+    }
+  };
+
+  // 해당 월의 가계부 필터 및 집계
+  const currentMonthLedger = useMemo(() => {
+    const monthStr = `${ledgerYear}-${String(ledgerMonth).padStart(2, "0")}`;
+    return ledgerList
+      .filter((item) => item.date.startsWith(monthStr))
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [ledgerList, ledgerYear, ledgerMonth]);
+
+  const ledgerSummary = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    currentMonthLedger.forEach((item) => {
+      if (item.type === "income") income += Number(item.amount);
+      else expense += Number(item.amount);
+    });
+    return {
+      income,
+      expense,
+      balance: income - expense,
+      count: currentMonthLedger.length
+    };
+  }, [currentMonthLedger]);
 
   // ================= 5. 플레이리스트 재생, 게이지 & 볼륨 =================
   const getYouTubeId = (url: string) => {
@@ -712,7 +814,6 @@ export default function Home() {
   const [timerMinutes, setTimerMinutes] = useState(4);
   const [timeLeft, setTimeLeft] = useState(4 * 60);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [isAlarmRinging, setIsAlarmRinging] = useState(false);
   const alarmIntervalRef = useRef<any>(null);
 
   useEffect(() => {
@@ -747,49 +848,25 @@ export default function Home() {
       interval = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     } else if (timeLeft === 0 && isTimerRunning) {
       setIsTimerRunning(false);
-      setIsAlarmRinging(true);
       playBeep();
       alarmIntervalRef.current = setInterval(() => playBeep(), 800);
     }
     return () => clearInterval(interval);
   }, [isTimerRunning, timeLeft]);
 
-  const stopAlarm = () => {
-    setIsAlarmRinging(false);
+  const resetTimer = () => {
     if (alarmIntervalRef.current) {
       clearInterval(alarmIntervalRef.current);
       alarmIntervalRef.current = null;
     }
-  };
-
-  const addMinute = () => {
-    if (isTimerRunning) return;
-    setTimerMinutes((prev) => {
-      const next = prev + 1;
-      setTimeLeft(next * 60);
-      return next;
-    });
-  };
-
-  const subtractMinute = () => {
-    if (isTimerRunning) return;
-    setTimerMinutes((prev) => {
-      if (prev <= 1) return 1;
-      const next = prev - 1;
-      setTimeLeft(next * 60);
-      return next;
-    });
-  };
-
-  const resetTimer = () => {
-    stopAlarm();
     setIsTimerRunning(false);
     setTimeLeft(timerMinutes * 60);
   };
 
   const toggleTimer = () => {
-    if (isAlarmRinging) {
-      stopAlarm();
+    if (alarmIntervalRef.current) {
+      clearInterval(alarmIntervalRef.current);
+      alarmIntervalRef.current = null;
       return;
     }
     if (timeLeft <= 0) setTimeLeft(timerMinutes * 60);
@@ -869,7 +946,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-neutral-100/60 text-neutral-800 flex flex-col font-sans relative">
-      {/* 배경 격자 패턴 */}
+      {/* 배경 은은한 격자 무늬 */}
       <div 
         className="fixed inset-0 pointer-events-none z-0"
         style={{
@@ -881,7 +958,6 @@ export default function Home() {
         }}
       />
 
-      {/* 숨겨진 실제 YouTube IFrame */}
       <div className="fixed -top-[999px] -left-[999px] opacity-0 pointer-events-none w-1 h-1 overflow-hidden">
         <div id="hidden-yt-player" />
       </div>
@@ -905,9 +981,7 @@ export default function Home() {
                   onClick={() => setCurrentTab(item.id)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap ${
                     isActive
-                      ? item.id === "schedule"
-                        ? "bg-pink-100/90 text-pink-900 border border-pink-300 shadow-sm"
-                        : "bg-emerald-100/90 text-emerald-800 border border-emerald-300 shadow-sm"
+                      ? themeClasses.navActive
                       : "text-neutral-700 hover:bg-white/80 hover:text-neutral-900 border border-transparent"
                   }`}
                 >
@@ -935,7 +1009,7 @@ export default function Home() {
       {/* ================= 본문 3단 레이아웃 ================= */}
       <main className="max-w-[1720px] mx-auto w-full px-6 py-6 flex flex-col lg:flex-row gap-5 items-start flex-1 relative z-10">
         
-        {/* [1] 좌측 배너 (탭 테마 색상과 완벽 연동) */}
+        {/* [1] 좌측 배너 (현재 탭 테마 색상과 연동) */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px]">
           <div className={`border-2 border-dashed ${themeClasses.borderDashed} rounded-2xl h-full flex flex-col items-center justify-center p-4 text-center ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm transition-colors duration-200`}>
             <span className="text-xl mb-1">🖼️</span>
@@ -943,14 +1017,160 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* [2] 중앙 내용 영역 (배너 세로 높이 h-[760px]와 완벽 일치) */}
+        {/* [2] 중앙 내용 영역 (배너 세로 높이 h-[760px]와 일치) */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
-          {/* ==================== A. [일정] 탭 화면 ==================== */}
+          {/* ==================== A. [가계부] 탭 화면 (파스텔톤 짙은 하늘색 테마) ==================== */}
+          {currentTab === "ledger" && (
+            <div className="h-full flex flex-col gap-3">
+              
+              {/* [박스 1] 상단 헤더 박스 (파스텔 짙은 하늘색 테두리) */}
+              <div className="border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
+                <div className="flex-1 flex items-center justify-between pr-6 border-r border-sky-200">
+                  <button
+                    onClick={prevLedgerMonth}
+                    className="px-4 py-1.5 rounded-xl border border-sky-400 text-sky-700 hover:bg-sky-50 font-bold text-xs transition"
+                  >
+                    &lt; 이전달
+                  </button>
+
+                  <h2 className="text-lg font-black text-sky-950 tracking-tight flex items-center gap-2">
+                    <Wallet className="w-5 h-5 text-sky-600" />
+                    <span>{ledgerYear}년 {ledgerMonth}월 가계부</span>
+                  </h2>
+
+                  <button
+                    onClick={nextLedgerMonth}
+                    className="px-4 py-1.5 rounded-xl border border-sky-400 text-sky-700 hover:bg-sky-50 font-bold text-xs transition"
+                  >
+                    다음달 &gt;
+                  </button>
+                </div>
+
+                <div className="w-[280px] pl-6 flex items-center gap-1.5 text-sm font-extrabold text-sky-900">
+                  <PiggyBank className="w-4 h-4 text-sky-600" />
+                  <span>재정 요약</span>
+                </div>
+              </div>
+
+              {/* 하단 2분할 영역 (내역 목록 박스 + 요약 박스) */}
+              <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 items-stretch">
+                
+                {/* [박스 2] 좌측 메인 내역 박스 (파스텔 짙은 하늘색 테두리) */}
+                <div className="flex-1 h-full border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between overflow-hidden">
+                  <div className="flex items-center justify-between pb-2 border-b border-sky-100 text-xs font-bold text-neutral-600 shrink-0">
+                    <div className="grid grid-cols-12 w-full text-center">
+                      <span className="col-span-2 text-sky-900 font-extrabold">일자</span>
+                      <span className="col-span-2 text-sky-900 font-extrabold">구분 / 분류</span>
+                      <span className="col-span-5 text-sky-900 font-extrabold">항목 및 내용</span>
+                      <span className="col-span-3 text-sky-900 font-extrabold">금액</span>
+                    </div>
+                  </div>
+
+                  {/* 내역 리스트 목록 */}
+                  <div className="flex-1 overflow-y-auto space-y-2 pt-2 min-h-0 pr-1">
+                    {currentMonthLedger.map((item) => {
+                      const isIncome = item.type === "income";
+                      return (
+                        <div
+                          key={item.id}
+                          className={`grid grid-cols-12 items-center p-3 rounded-xl border transition shadow-2xs text-xs ${
+                            isIncome
+                              ? "bg-sky-50/60 border-sky-200"
+                              : "bg-white border-sky-100 hover:border-sky-300"
+                          }`}
+                        >
+                          <span className="col-span-2 text-center text-neutral-500 font-mono text-[11px]">
+                            {item.date}
+                          </span>
+                          <span className="col-span-2 flex items-center justify-center gap-1">
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border ${
+                              isIncome ? "bg-blue-100 text-blue-800 border-blue-200" : "bg-neutral-100 text-neutral-700 border-neutral-200"
+                            }`}>
+                              {item.category}
+                            </span>
+                          </span>
+                          <span className="col-span-5 px-2 font-bold text-neutral-800 truncate">
+                            {item.title}
+                          </span>
+                          <span className={`col-span-3 text-right pr-2 font-black text-sm font-mono ${
+                            isIncome ? "text-blue-600" : "text-rose-500"
+                          }`}>
+                            {isIncome ? "+" : "-"}{Number(item.amount).toLocaleString()}원
+                          </span>
+                        </div>
+                      );
+                    })}
+
+                    {currentMonthLedger.length === 0 && (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-6 text-neutral-400">
+                        <Wallet className="w-8 h-8 mb-2 text-sky-300" />
+                        <span className="text-xs font-bold text-neutral-500 mb-1">등록된 가계부 내역이 없습니다.</span>
+                        <p className="text-[11px] text-neutral-400">세부 기능 및 추가 버튼이 곧 구성될 예정입니다.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* [박스 3] 우측 재정 요약 박스 (파스텔 짙은 하늘색 테두리) */}
+                <div className="w-full lg:w-[280px] h-full shrink-0 border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-start gap-3.5 overflow-y-auto">
+                  
+                  {/* 카드 1: 이번 달 총 수입 */}
+                  <div className="border border-blue-200 bg-blue-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
+                    <div className="flex items-center justify-between text-xs font-bold text-blue-900">
+                      <span className="flex items-center gap-1"><ArrowDownLeft className="w-3.5 h-3.5 text-blue-600" /> 이번 달 총 수입</span>
+                      <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full font-bold">수입</span>
+                    </div>
+                    <div className="text-2xl font-black text-blue-600 tracking-tight my-2">
+                      +{ledgerSummary.income.toLocaleString()}원
+                    </div>
+                    <div className="text-[11px] text-neutral-500 font-medium">
+                      {ledgerYear}년 {ledgerMonth}월 기준
+                    </div>
+                  </div>
+
+                  {/* 카드 2: 이번 달 총 지출 */}
+                  <div className="border border-rose-200 bg-rose-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
+                    <div className="flex items-center justify-between text-xs font-bold text-rose-900">
+                      <span className="flex items-center gap-1"><ArrowUpRight className="w-3.5 h-3.5 text-rose-600" /> 이번 달 총 지출</span>
+                      <span className="text-[10px] text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded-full font-bold">지출</span>
+                    </div>
+                    <div className="text-2xl font-black text-rose-600 tracking-tight my-2">
+                      -{ledgerSummary.expense.toLocaleString()}원
+                    </div>
+                    <div className="text-[11px] text-neutral-500 font-medium">
+                      총 {currentMonthLedger.filter(i => i.type === 'expense').length}건 결제
+                    </div>
+                  </div>
+
+                  {/* 카드 3: 당월 잔액 / 손익 */}
+                  <div className="border border-sky-200 bg-sky-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
+                    <div className="flex items-center justify-between text-xs font-bold text-sky-900">
+                      <span className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5 text-sky-600" /> 당월 정산 잔액</span>
+                      <span className="text-[10px] text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded-full font-bold">잔액</span>
+                    </div>
+                    <div className={`text-2xl font-black tracking-tight my-2 ${
+                      ledgerSummary.balance >= 0 ? "text-sky-700" : "text-rose-600"
+                    }`}>
+                      {ledgerSummary.balance >= 0 ? "+" : ""}{ledgerSummary.balance.toLocaleString()}원
+                    </div>
+                    <div className="text-[11px] text-neutral-500 font-medium">
+                      수입 대비 잔여금
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
+          {/* ==================== B. [일정] 탭 화면 ==================== */}
           {currentTab === "schedule" && (
             <div className="h-full flex flex-col gap-3">
               
-              {/* [박스 1] 상단 헤더 박스 (파스텔 핑크 테두리) */}
+              {/* 상단 헤더 박스 */}
               <div className="border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
                 <div className="flex-1 flex items-center justify-between pr-6 border-r border-pink-200">
                   <button
@@ -979,10 +1199,8 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 하단 2분할 영역 (달력 박스 + 요약 박스) */}
+              {/* 하단 2분할 영역 */}
               <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 items-stretch">
-                
-                {/* [박스 2] 좌측 메인 달력 박스 (파스텔 핑크 테두리) */}
                 <div className="flex-1 h-full border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between overflow-hidden">
                   <div className="grid grid-cols-7 text-center font-bold text-xs pb-2 border-b border-pink-100 text-neutral-700 shrink-0">
                     <span className="text-rose-600 font-extrabold">일</span>
@@ -994,7 +1212,6 @@ export default function Home() {
                     <span className="text-blue-600 font-extrabold">토</span>
                   </div>
 
-                  {/* 달력 그리드 */}
                   <div className="flex-1 grid grid-cols-7 grid-rows-5 gap-2 pt-2 min-h-0">
                     {calendarGrid.map((cell, idx) => {
                       if (!cell.day) {
@@ -1064,10 +1281,7 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* [박스 3] 우측 일정 요약 박스 (파스텔 핑크 테두리) */}
                 <div className="w-full lg:w-[280px] h-full shrink-0 border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-start gap-3.5 overflow-y-auto">
-                  
-                  {/* A. 남은 연차 카드 */}
                   {leaveSummary && (
                     <div className="border border-blue-200 bg-blue-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
                       <div className="flex items-center justify-between text-xs font-bold text-blue-900">
@@ -1083,7 +1297,6 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* B. 생일 D-Day 카드 */}
                   {birthdaySummary && (
                     <div className="border border-rose-200 bg-rose-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-rose-900">
@@ -1099,7 +1312,6 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* C. 헤어(이발) 경과일/D-Day 카드 */}
                   {hairSummary && (
                     <div className="border border-purple-200 bg-purple-50/80 rounded-2xl p-4 shadow-xs flex flex-col justify-between shrink-0">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-purple-900">
@@ -1115,7 +1327,6 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* D. 다가오는 약속 카드 */}
                   {upcomingAppointments.map((app) => (
                     <div key={`app-${app.id}`} className="border border-amber-200 bg-amber-50/80 rounded-2xl p-3.5 shadow-xs flex flex-col justify-between shrink-0">
                       <div className="flex items-center justify-between text-xs font-bold text-amber-900">
@@ -1128,7 +1339,6 @@ export default function Home() {
                     </div>
                   ))}
 
-                  {/* 등록된 요약 심볼이 아무것도 없을 때 */}
                   {!hasAnySummary && (
                     <div className="h-full flex flex-col items-center justify-center text-center p-6 text-neutral-400">
                       <CalendarDays className="w-8 h-8 mb-2 text-pink-300" />
@@ -1138,12 +1348,10 @@ export default function Home() {
                       </p>
                     </div>
                   )}
-
                 </div>
-
               </div>
 
-              {/* [일정 조회/추가/수정/삭제 팝업 모달] */}
+              {/* 팝업 모달 */}
               {modalDate && (
                 <div 
                   className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -1369,7 +1577,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== B. [노래책] 탭 화면 ==================== */}
+          {/* ==================== C. [노래책] 탭 화면 ==================== */}
           {currentTab === "songs" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               <form onSubmit={handleAddSong} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
@@ -1647,8 +1855,8 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== C. 그 외 탭 ==================== */}
-          {currentTab !== "songs" && currentTab !== "schedule" && (
+          {/* ==================== D. 그 외 탭 ==================== */}
+          {currentTab !== "songs" && currentTab !== "schedule" && currentTab !== "ledger" && (
             <div className="h-full border border-dashed border-emerald-300 rounded-2xl p-20 flex flex-col items-center justify-center text-center bg-emerald-50/20 backdrop-blur-[2px]">
               <span className="text-3xl mb-2 block">🚧</span>
               <h3 className="text-sm font-bold text-emerald-900 mb-1">
@@ -1662,13 +1870,11 @@ export default function Home() {
 
         </section>
 
-        {/* [3] 우측 배너 (탭 테마 색상과 완벽 연동) */}
+        {/* [3] 우측 배너 (현재 탭 테마 색상과 연동) */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px] flex flex-col gap-3">
           
           {/* 1. 시계 & 타이머 */}
-          <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col items-center text-center shrink-0 transition-colors duration-200 ${
-            isAlarmRinging ? "border-rose-500 bg-rose-50/80 animate-pulse" : ""
-          }`}>
+          <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col items-center text-center shrink-0 transition-colors duration-200`}>
             <div className={`flex items-center gap-1 text-[10px] font-semibold ${themeClasses.textSecondary} mb-0.5`}>
               <Clock className="w-3 h-3" />
               <span>{dateString}</span>
@@ -1680,18 +1886,12 @@ export default function Home() {
             <div className={`w-full pt-2 border-t ${themeClasses.borderSubtle} flex flex-col items-center`}>
               <div className="flex items-center justify-between w-full mb-1 px-1">
                 <span className="text-[10px] font-bold text-neutral-600 flex items-center gap-1">
-                  {isAlarmRinging ? (
-                    <span className="text-rose-600 flex items-center gap-0.5 animate-bounce">
-                      <Bell className="w-3 h-3" /> 종료!
-                    </span>
-                  ) : (
-                    <span>타이머</span>
-                  )}
+                  타이머
                 </span>
                 
                 <div className="flex items-center gap-1">
                   <button
-                    onClick={subtractMinute}
+                    onClick={() => !isTimerRunning && setTimerMinutes((p) => Math.max(1, p - 1))}
                     disabled={isTimerRunning}
                     title="1분 감소"
                     className={`p-0.5 rounded ${themeClasses.accentBtnSub} disabled:opacity-30 transition`}
@@ -1702,7 +1902,7 @@ export default function Home() {
                     {timerMinutes}분
                   </span>
                   <button
-                    onClick={addMinute}
+                    onClick={() => !isTimerRunning && setTimerMinutes((p) => p + 1)}
                     disabled={isTimerRunning}
                     title="1분 증가"
                     className={`p-0.5 rounded ${themeClasses.accentBtnSub} disabled:opacity-30 transition`}
@@ -1712,49 +1912,29 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className={`text-xl font-black my-1 font-mono tracking-wider ${
-                isAlarmRinging ? "text-rose-600 animate-bounce" : themeClasses.textPrimary
-              }`}>
+              <div className={`text-xl font-black my-1 font-mono tracking-wider ${themeClasses.textPrimary}`}>
                 {timerMin}:{timerSec}
               </div>
 
               <div className="flex items-center gap-1.5 w-full mt-1">
-                {isAlarmRinging ? (
-                  <button
-                    onClick={stopAlarm}
-                    className="flex-1 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center justify-center gap-1 shadow-sm transition"
-                  >
-                    <BellOff className="w-3 h-3" /> 알람 끄기
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      onClick={toggleTimer}
-                      className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition shadow-sm ${
-                        isTimerRunning
-                          ? "bg-amber-500 hover:bg-amber-600 text-white"
-                          : themeClasses.accentBtn
-                      }`}
-                    >
-                      {isTimerRunning ? (
-                        <>
-                          <Pause className="w-3 h-3" /> 정지
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-3 h-3" /> 시작
-                        </>
-                      )}
-                    </button>
-                    <button
-                      onClick={resetTimer}
-                      title="타이머 초기화"
-                      className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60 ${themeClasses.textSecondary} transition`}
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={toggleTimer}
+                  className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition shadow-sm ${
+                    isTimerRunning
+                      ? "bg-amber-500 hover:bg-amber-600 text-white"
+                      : themeClasses.accentBtn
+                  }`}
+                >
+                  {isTimerRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                  <span>{isTimerRunning ? "정지" : "시작"}</span>
+                </button>
+                <button
+                  onClick={resetTimer}
+                  title="타이머 초기화"
+                  className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60 ${themeClasses.textSecondary} transition`}
+                >
+                  <RotateCcw className="w-3 h-3" />
+                </button>
               </div>
             </div>
           </div>
@@ -1780,7 +1960,6 @@ export default function Home() {
                 )}
               </div>
 
-              {/* 탐색 바 */}
               <div className="space-y-1">
                 <input
                   type="range"
@@ -1797,7 +1976,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 컨트롤 버튼 */}
               <div className="flex items-center justify-between pt-0.5 px-1">
                 <div className="flex items-center gap-1">
                   <button
@@ -1830,13 +2008,7 @@ export default function Home() {
 
                 <button
                   onClick={cycleRepeatMode}
-                  title={
-                    repeatMode === "all"
-                      ? "전체 반복"
-                      : repeatMode === "one"
-                      ? "1곡 반복"
-                      : "반복 안 함"
-                  }
+                  title="반복 설정"
                   className={`p-1 rounded-md transition flex items-center gap-0.5 text-[10px] font-bold ${
                     repeatMode !== "none"
                       ? themeClasses.accentActive + " px-1.5"
@@ -1857,7 +2029,6 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* 볼륨 컨트롤 */}
               <div className={`flex items-center gap-1.5 pt-1 border-t ${themeClasses.borderSubtle} px-0.5`}>
                 <button
                   onClick={toggleMute}
@@ -1881,7 +2052,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 담겨있는 노래 목록 */}
+            {/* 플레이리스트 목록 */}
             <div className="overflow-y-auto space-y-1 pr-1 max-h-[140px]">
               {likedSongs.map((song, idx) => {
                 const isSelected = currentPlayingIndex === idx;
@@ -1925,7 +2096,7 @@ export default function Home() {
                           e.stopPropagation();
                           toggleLike(song.id);
                         }}
-                        title="플레이리스트에서 제외"
+                        title="제외"
                         className="text-neutral-300 hover:text-rose-500 p-0.5"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1943,7 +2114,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 3. 우측 하단 배너 (탭 테마 색상과 완벽 연동) */}
+          {/* 3. 우측 하단 배너 */}
           <div className={`border-2 border-dashed ${themeClasses.borderDashed} rounded-2xl p-3 flex-1 min-h-0 flex flex-col items-center justify-center text-center ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm overflow-hidden transition-colors duration-200`}>
             <span className="text-xl mb-1 shrink-0">🖼️</span>
             <span className={`text-xs font-semibold ${themeClasses.textSecondary} truncate`}>우측 하단 배너</span>
