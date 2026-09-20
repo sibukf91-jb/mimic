@@ -60,7 +60,7 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("bookmarks"); // 기본 진입 탭: 책갈피
+  const [currentTab, setCurrentTab] = useState("songs"); // 기본 진입 탭: 노래책
 
   // ================= 1. 테마 색상 동적 매핑 =================
   const themeClasses = useMemo(() => {
@@ -167,7 +167,157 @@ export default function Home() {
   const TODAY_STR = "2026-09-20";
   const todayDateObj = new Date(TODAY_STR);
 
-  // ================= 2. 책갈피 탭 데이터 =================
+  // ================= 2. 노래책 탭 데이터 & 상태 (오류 해결 완료) =================
+  const defaultSongs = [
+    { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
+    { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
+    { id: 3, genre: "K-POP", title: "만개화", artist: "안예은", url: "", songType: "none", liked: false },
+    { id: 4, genre: "J-POP", title: "베텔기우스 (Betelgeuse)", artist: "Yuuri", url: "https://www.youtube.com/watch?v=cbqvxDTLMPS", songType: "Cover", liked: true },
+    { id: 5, genre: "OST", title: "그대라는 시", artist: "태연", url: "", songType: "Original", liked: false },
+    { id: 6, genre: "POP", title: "Love Story", artist: "Taylor Swift", url: "", songType: "Original", liked: false },
+    { id: 7, genre: "K-POP", title: "사건의 지평선", artist: "윤하", url: "", songType: "Original", liked: false },
+  ];
+
+  const [songList, setSongList] = useState<any[]>([]);
+  const [isSongDataLoaded, setIsSongDataLoaded] = useState(false);
+  const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
+
+  const getGenreIcon = (genre: string) => {
+    const g = (genre || "").trim().toLowerCase();
+    if (g.includes("k-pop") || g.includes("kpop") || g.includes("가요")) return "🇰🇷";
+    if (g.includes("j-pop") || g.includes("jpop") || g.includes("애니")) return "🇯🇵";
+    if (g.includes("pop") || g.includes("팝")) return "🌎";
+    if (g.includes("발라드") || g.includes("어쿠스틱")) return "🎻";
+    if (g.includes("ost")) return "🎬";
+    if (g.includes("힙합") || g.includes("랩")) return "🎧";
+    if (g.includes("락") || g.includes("밴드") || g.includes("록")) return "🎸";
+    if (g.includes("r&b") || g.includes("소울") || g.includes("재즈")) return "🎷";
+    if (g.includes("인디")) return "🌿";
+    if (g.includes("댄스")) return "💃";
+    if (g.includes("트로트")) return "🪗";
+    return "🎵";
+  };
+
+  const getYouTubeId = (url: string) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return match && match[2].length === 11 ? match[2] : null;
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("jb_bookmark_song_list");
+      setSongList(saved ? JSON.parse(saved) : defaultSongs);
+      setIsSongDataLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isSongDataLoaded && typeof window !== "undefined") {
+      localStorage.setItem("jb_bookmark_song_list", JSON.stringify(songList));
+    }
+  }, [songList, isSongDataLoaded]);
+
+  const [editingSongId, setEditingSongId] = useState<number | null>(null);
+  const [editSongGenre, setEditSongGenre] = useState("");
+  const [editSongArtist, setEditSongArtist] = useState("");
+  const [editSongTitle, setEditSongTitle] = useState("");
+  const [editSongUrl, setEditSongUrl] = useState("");
+  const [editSongTypeState, setEditSongTypeState] = useState<"none" | "Original" | "Cover">("none");
+
+  const startEditSong = (song: any) => {
+    setEditingSongId(song.id);
+    setEditSongGenre(song.genre || "");
+    setEditSongArtist(song.artist || "");
+    setEditSongTitle(song.title || "");
+    setEditSongUrl(song.url || "");
+    setEditSongTypeState(song.songType || "none");
+  };
+
+  const cancelEditSong = () => setEditingSongId(null);
+
+  const saveEditSong = (id: number) => {
+    if (!editSongTitle.trim()) return;
+    setSongList((prev) =>
+      prev.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              genre: editSongGenre.trim() || "기타",
+              artist: editSongArtist.trim() || "미상",
+              title: editSongTitle.trim(),
+              url: editSongUrl.trim(),
+              songType: editSongTypeState
+            }
+          : s
+      )
+    );
+    setEditingSongId(null);
+  };
+
+  const [newGenre, setNewGenre] = useState("");
+  const [newArtist, setNewArtist] = useState("");
+  const [newTitle, setNewTitle] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [newSongType, setNewSongType] = useState<"none" | "Original" | "Cover">("none");
+  const [selectedGenre, setSelectedGenre] = useState("전체");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const existingGenres = useMemo(() => {
+    const set = new Set<string>();
+    (songList || []).forEach((s) => {
+      if (s.genre && s.genre.trim()) set.add(s.genre.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [songList]);
+
+  const handleAddSong = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+    const newSong = {
+      id: Date.now(),
+      genre: newGenre.trim() || "기타",
+      artist: newArtist.trim() || "미상",
+      title: newTitle.trim(),
+      url: newUrl.trim(),
+      songType: newSongType,
+      liked: false
+    };
+    setSongList([newSong, ...songList]);
+    setNewGenre("");
+    setNewArtist("");
+    setNewTitle("");
+    setNewUrl("");
+    setNewSongType("none");
+  };
+
+  const toggleLike = (id: number) => {
+    setSongList((prev) => prev.map((s) => (s.id === id ? { ...s, liked: !s.liked } : s)));
+  };
+
+  const handleDeleteSong = (id: number) => {
+    setSongList((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const filteredSongs = useMemo(() => {
+    return (songList || [])
+      .filter((song) => {
+        const matchGenre = selectedGenre === "전체" || song.genre === selectedGenre;
+        const matchSearch =
+          (song.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (song.artist || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (song.genre || "").toLowerCase().includes(searchQuery.toLowerCase());
+        return matchGenre && matchSearch;
+      })
+      .sort((a, b) => {
+        const artistCompare = (a.artist || "").localeCompare(b.artist || "", "ko");
+        if (artistCompare !== 0) return artistCompare;
+        return (a.title || "").localeCompare(b.title || "", "ko");
+      });
+  }, [songList, selectedGenre, searchQuery]);
+
+  // ================= 3. 책갈피 탭 데이터 =================
   const calculateAutoFinalEpisode = (releaseDateStr: string) => {
     if (!releaseDateStr) return "1회";
     let targetDate: Date;
@@ -220,7 +370,6 @@ export default function Home() {
     }
   }, [bookmarkList, isBookmarkLoaded]);
 
-  // 등록 폼 상태
   const [newBmarkCategory, setNewBmarkCategory] = useState("");
   const [newBmarkPlatform, setNewBmarkPlatform] = useState("");
   const [newBmarkTitle, setNewBmarkTitle] = useState("");
@@ -232,7 +381,6 @@ export default function Home() {
   const [selectedBmarkCategory, setSelectedBmarkCategory] = useState("전체");
   const [bmarkSearchQuery, setBmarkSearchQuery] = useState("");
 
-  // 수정 상태
   const [editingBmarkId, setEditingBmarkId] = useState<number | null>(null);
   const [editBmarkCategory, setEditBmarkCategory] = useState("");
   const [editBmarkPlatform, setEditBmarkPlatform] = useState("");
@@ -382,155 +530,6 @@ export default function Home() {
 
     return list.sort((a, b) => (a.title || "").localeCompare(b.title || "", "ko"));
   }, [bookmarkList, selectedBmarkCategory, bmarkSearchQuery, bmarkSortOrder]);
-
-  // ================= 3. 노래책 탭 데이터 =================
-  const defaultSongs = [
-    { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
-    { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
-    { id: 3, genre: "K-POP", title: "만개화", artist: "안예은", url: "", songType: "none", liked: false },
-    { id: 4, genre: "J-POP", title: "베텔기우스 (Betelgeuse)", artist: "Yuuri", url: "https://www.youtube.com/watch?v=cbqvxDTLMPS", songType: "Cover", liked: true },
-    { id: 5, genre: "OST", title: "그대라는 시", artist: "태연", url: "", songType: "Original", liked: false },
-    { id: 6, genre: "POP", title: "Love Story", artist: "Taylor Swift", url: "", songType: "Original", liked: false },
-    { id: 7, genre: "K-POP", title: "사건의 지평선", artist: "윤하", url: "", songType: "Original", liked: false },
-  ];
-
-  const [songList, setSongList] = useState<any[]>([]);
-  const [isSongDataLoaded, setIsSongDataLoaded] = useState(false);
-
-  const getGenreIcon = (genre: string) => {
-    const g = (genre || "").trim().toLowerCase();
-    if (g.includes("k-pop") || g.includes("kpop") || g.includes("가요")) return "🇰🇷";
-    if (g.includes("j-pop") || g.includes("jpop") || g.includes("애니")) return "🇯🇵";
-    if (g.includes("pop") || g.includes("팝")) return "🌎";
-    if (g.includes("발라드") || g.includes("어쿠스틱")) return "🎻";
-    if (g.includes("ost")) return "🎬";
-    if (g.includes("힙합") || g.includes("랩")) return "🎧";
-    if (g.includes("락") || g.includes("밴드") || g.includes("록")) return "🎸";
-    if (g.includes("r&b") || g.includes("소울") || g.includes("재즈")) return "🎷";
-    if (g.includes("인디")) return "🌿";
-    if (g.includes("댄스")) return "💃";
-    if (g.includes("트로트")) return "🪗";
-    return "🎵";
-  };
-
-  const getYouTubeId = (url: string) => {
-    if (!url) return null;
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return match && match[2].length === 11 ? match[2] : null;
-  };
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("jb_bookmark_song_list");
-      setSongList(saved ? JSON.parse(saved) : defaultSongs);
-      setIsSongDataLoaded(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isSongDataLoaded && typeof window !== "undefined") {
-      localStorage.setItem("jb_bookmark_song_list", JSON.stringify(songList));
-    }
-  }, [songList, isSongDataLoaded]);
-
-  const [editingSongId, setEditingSongId] = useState<number | null>(null);
-  const [editGenre, setEditGenre] = useState("");
-  const [editArtist, setEditArtist] = useState("");
-  const [editTitle, setEditTitle] = useState("");
-  const [editUrl, setEditUrl] = useState("");
-  const [editSongType, setEditSongType] = useState<"none" | "Original" | "Cover">("none");
-
-  const startEditSong = (song: any) => {
-    setEditingSongId(song.id);
-    setEditGenre(song.genre || "");
-    setEditArtist(song.artist || "");
-    setEditTitle(song.title || "");
-    setEditUrl(song.url || "");
-    setEditSongType(song.songType || "none");
-  };
-
-  const cancelEditSong = () => setEditingSongId(null);
-
-  const saveEditSong = (id: number) => {
-    if (!editTitle.trim()) return;
-    setSongList((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? {
-              ...s,
-              genre: editGenre.trim() || "기타",
-              artist: editArtist.trim() || "미상",
-              title: editTitle.trim(),
-              url: editUrl.trim(),
-              songType: editSongType
-            }
-          : s
-      )
-    );
-    setEditingSongId(null);
-  };
-
-  const [newGenre, setNewGenre] = useState("");
-  const [newArtist, setNewArtist] = useState("");
-  const [newTitle, setNewTitle] = useState("");
-  const [newUrl, setNewUrl] = useState("");
-  const [newSongType, setNewSongType] = useState<"none" | "Original" | "Cover">("none");
-  const [selectedGenre, setSelectedGenre] = useState("전체");
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const existingGenres = useMemo(() => {
-    const set = new Set<string>();
-    (songList || []).forEach((s) => {
-      if (s.genre && s.genre.trim()) set.add(s.genre.trim());
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
-  }, [songList]);
-
-  const handleAddSong = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTitle.trim()) return;
-    const newSong = {
-      id: Date.now(),
-      genre: newGenre.trim() || "기타",
-      artist: newArtist.trim() || "미상",
-      title: newTitle.trim(),
-      url: newUrl.trim(),
-      songType: newSongType,
-      liked: false
-    };
-    setSongList([newSong, ...songList]);
-    setNewGenre("");
-    setNewArtist("");
-    setNewTitle("");
-    setNewUrl("");
-    setNewSongType("none");
-  };
-
-  const toggleLike = (id: number) => {
-    setSongList((prev) => prev.map((s) => (s.id === id ? { ...s, liked: !s.liked } : s)));
-  };
-
-  const handleDeleteSong = (id: number) => {
-    setSongList((prev) => prev.filter((s) => s.id !== id));
-  };
-
-  const filteredSongs = useMemo(() => {
-    return (songList || [])
-      .filter((song) => {
-        const matchGenre = selectedGenre === "전체" || song.genre === selectedGenre;
-        const matchSearch =
-          (song.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (song.artist || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (song.genre || "").toLowerCase().includes(searchQuery.toLowerCase());
-        return matchGenre && matchSearch;
-      })
-      .sort((a, b) => {
-        const artistCompare = (a.artist || "").localeCompare(b.artist || "", "ko");
-        if (artistCompare !== 0) return artistCompare;
-        return (a.title || "").localeCompare(b.title || "", "ko");
-      });
-  }, [songList, selectedGenre, searchQuery]);
 
   // ================= 4. 즐겨찾기 탭 데이터 =================
   const getCategoryIcon = (category: string) => {
@@ -1614,7 +1613,6 @@ export default function Home() {
                   const finalEpNum = parseInt(String(bmark.finalEpisode).replace(/[^0-9]/g, "")) || 0;
                   const currentBmNum = Number(bmark.currentBookmark) || 0;
 
-                  // 배경색 판정 로직
                   let cardBgClass = "bg-amber-50/40 hover:bg-amber-50/70 border-amber-400/90 text-neutral-900";
                   if (bmark.isCompleted) {
                     cardBgClass = "bg-rose-100/70 hover:bg-rose-100 border-rose-300 text-neutral-900";
@@ -1628,15 +1626,20 @@ export default function Home() {
                     return (
                       <div
                         key={`edit-bmark-${bmark.id}`}
-                        className="grid grid-cols-12 gap-1 items-center p-2.5 rounded-2xl border-2 border-amber-400 bg-amber-50/90 shadow-md text-center"
+                        className={`grid grid-cols-12 gap-1 items-center p-2.5 rounded-2xl border-2 border-amber-400 bg-amber-50/90 shadow-md text-center`}
                       >
+                        {/* 1. 분류 / 플랫폼 */}
                         <div className="col-span-2 flex flex-col gap-1 px-1">
                           <input type="text" value={editBmarkCategory} onChange={(e) => setEditBmarkCategory(e.target.value)} placeholder="분류" className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[11px] font-bold" />
                           <input type="text" value={editBmarkPlatform} onChange={(e) => setEditBmarkPlatform(e.target.value)} placeholder="플랫폼" className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[10px]" />
                         </div>
+
+                        {/* 2. 제목 */}
                         <div className="col-span-3 px-1">
                           <input type="text" required value={editBmarkTitle} onChange={(e) => setEditBmarkTitle(e.target.value)} placeholder="제목" className="w-full border border-amber-300 bg-white rounded px-2 py-1 text-[11px] font-bold" />
                         </div>
+
+                        {/* 3. 정기업데이트 */}
                         <div className="col-span-2 px-1">
                           <select value={editBmarkUpdate} onChange={(e) => setEditBmarkUpdate(e.target.value)} className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[11px] font-bold">
                             <option value="월요일">월요일</option>
@@ -1649,21 +1652,31 @@ export default function Home() {
                             <option value="완결">완결</option>
                           </select>
                         </div>
+
+                        {/* 4. 공개일 */}
                         <div className="col-span-1 px-0.5">
                           <input type="text" value={editBmarkRelease} onChange={(e) => setEditBmarkRelease(e.target.value)} placeholder="공개일" className="w-full border border-amber-300 bg-white rounded px-1 py-1 text-[11px]" />
                         </div>
+
+                        {/* 5. 주간편성 (+ 회) */}
                         <div className="col-span-1 flex items-center justify-center gap-0.5 px-0.5">
                           <input type="text" value={editBmarkSchedule} onChange={(e) => setEditBmarkSchedule(e.target.value)} placeholder="편성" className="w-full border border-amber-300 bg-white rounded px-1 py-1 text-[11px]" />
                           <span className="text-[10px] font-bold">회</span>
                         </div>
+
+                        {/* 6. 최종회차 (+ 회) */}
                         <div className="col-span-1 flex items-center justify-center gap-0.5 px-0.5">
                           <input type="text" value={editBmarkEpisode} onChange={(e) => setEditBmarkEpisode(e.target.value)} placeholder="최종" className="w-full border border-amber-300 bg-white rounded px-1 py-1 text-[11px]" />
                           <span className="text-[10px] font-bold">회</span>
                         </div>
+
+                        {/* 7. 책갈피 (+ 회) */}
                         <div className="col-span-1 flex items-center justify-center gap-0.5 px-0.5">
                           <input type="number" min="0" value={editBmarkBookmark} onChange={(e) => setEditBmarkBookmark(Number(e.target.value))} placeholder="회" className="w-full border border-amber-300 bg-white rounded px-0.5 py-1 text-[11px]" />
                           <span className="text-[10px] font-bold">회</span>
                         </div>
+
+                        {/* 8. 관리 */}
                         <div className="col-span-1 flex items-center justify-center gap-1">
                           <button onClick={() => saveEditBookmark(bmark.id)} title="저장" className="p-1 rounded bg-amber-500 text-white font-bold text-[10px]"><Check className="w-3 h-3" /></button>
                           <button onClick={cancelEditBookmark} title="취소" className="p-1 rounded border border-neutral-300 bg-white text-neutral-600 text-[10px]"><X className="w-3 h-3" /></button>
@@ -2977,7 +2990,7 @@ export default function Home() {
                 <div key={`liked-${song.id}`} onClick={() => handleSelectSong(idx)} className={`flex items-center justify-between p-1.5 rounded-lg border text-[11px] cursor-pointer transition group ${currentPlayingIndex === idx ? themeClasses.activeTrack + " font-bold" : `bg-white/70 ${themeClasses.borderSubtle} hover:${themeClasses.bgLight}`}`}>
                   <div className="min-w-0 pr-1 flex items-center gap-1.5">
                     <Play className={`w-3.5 h-3.5 shrink-0 ${currentPlayingIndex === idx && isPlayingAudio ? themeClasses.playIcon + " animate-pulse" : "text-neutral-400 group-hover:text-neutral-700"}`} />
-                    <span className="truncate">{song.title}</span>
+                    <span className="truncate">{song.title}</div>
                   </div>
                   <button onClick={(e) => { e.stopPropagation(); toggleLike(song.id); }} className="text-neutral-300 hover:text-rose-500 p-0.5"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
