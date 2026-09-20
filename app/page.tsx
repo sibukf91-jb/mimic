@@ -43,7 +43,9 @@ import {
   ArrowDownLeft,
   CreditCard,
   PiggyBank,
-  Tv
+  Tv,
+  Star,
+  Globe
 } from "lucide-react";
 
 export default function Home() {
@@ -52,10 +54,31 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const CORRECT_PIN = "1234";
-  const [currentTab, setCurrentTab] = useState("songs"); // 기본 진입 탭
+  const [currentTab, setCurrentTab] = useState("favorites"); // 기본 진입 탭
 
   // ================= 1. 테마 색상 동적 매핑 =================
   const themeClasses = useMemo(() => {
+    // 1. 즐겨찾기 탭 (파스텔톤 짙은 앰버/골드)
+    if (currentTab === "favorites") {
+      return {
+        borderDashed: "border-amber-400/80",
+        borderSolid: "border-amber-400/80",
+        borderSubtle: "border-amber-200/80",
+        bgLight: "bg-amber-50/40",
+        bgHeader: "bg-amber-100/70",
+        textPrimary: "text-amber-950",
+        textSecondary: "text-amber-800",
+        accentBtn: "bg-amber-500 hover:bg-amber-600 text-white",
+        accentBtnSub: "bg-amber-100 hover:bg-amber-200 text-amber-800",
+        accentActive: "border-amber-500 bg-amber-100 text-amber-900 font-bold",
+        rangeAccent: "accent-amber-500",
+        rangeBg: "bg-amber-100",
+        activeTrack: "bg-amber-100/90 border-amber-400",
+        playIcon: "text-amber-600 fill-amber-600",
+        navActive: "bg-amber-100/90 text-amber-900 border-amber-300 shadow-sm",
+      };
+    }
+    // 2. 가계부 탭 (파스텔톤 짙은 하늘색)
     if (currentTab === "ledger") {
       return {
         borderDashed: "border-sky-400/80",
@@ -75,6 +98,7 @@ export default function Home() {
         navActive: "bg-sky-100/90 text-sky-900 border-sky-300 shadow-sm",
       };
     }
+    // 3. 일정 탭 (파스텔톤 짙은 핑크색)
     if (currentTab === "schedule") {
       return {
         borderDashed: "border-pink-400/80",
@@ -94,6 +118,7 @@ export default function Home() {
         navActive: "bg-pink-100/90 text-pink-900 border-pink-300 shadow-sm",
       };
     }
+    // 4. 노래책 탭 등 기본 (에메랄드)
     return {
       borderDashed: "border-emerald-400/90",
       borderSolid: "border-emerald-400/90",
@@ -113,7 +138,140 @@ export default function Home() {
     };
   }, [currentTab]);
 
-  // ================= 2. 노래책 데이터 =================
+  // ================= 2. 즐겨찾기 데이터 (노래책 탭과 1:1 대칭 구조) =================
+  const defaultFavorites = [
+    { id: 1, category: "포털", name: "네이버", url: "https://www.naver.com", memo: "뉴스, 지도, 블로그" },
+    { id: 2, category: "포털", name: "구글", url: "https://www.google.com", memo: "검색 및 메일" },
+    { id: 3, category: "동영상", name: "유튜브", url: "https://www.youtube.com", memo: "음악 및 동영상 시청" },
+    { id: 4, category: "개발", name: "GitHub", url: "https://github.com", memo: "코드 저장소" },
+    { id: 5, category: "쇼핑", name: "쿠팡", url: "https://www.coupang.com", memo: "로켓배송" },
+  ];
+
+  const [favList, setFavList] = useState<any[]>([]);
+  const [isFavLoaded, setIsFavLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("jb_bookmark_fav_list");
+      if (saved) {
+        try {
+          setFavList(JSON.parse(saved));
+        } catch (e) {
+          setFavList(defaultFavorites);
+        }
+      } else {
+        setFavList(defaultFavorites);
+      }
+      setIsFavLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isFavLoaded && typeof window !== "undefined") {
+      localStorage.setItem("jb_bookmark_fav_list", JSON.stringify(favList));
+    }
+  }, [favList, isFavLoaded]);
+
+  // 즐겨찾기 입력 폼 상태
+  const [newFavCategory, setNewFavCategory] = useState("");
+  const [newFavName, setNewFavName] = useState("");
+  const [newFavUrl, setNewFavUrl] = useState("");
+  const [newFavMemo, setNewFavMemo] = useState("");
+  const [selectedFavCategory, setSelectedFavCategory] = useState("전체");
+  const [favSearchQuery, setFavSearchQuery] = useState("");
+
+  // 즐겨찾기 수정 상태
+  const [editingFavId, setEditingFavId] = useState<number | null>(null);
+  const [editFavCategory, setEditFavCategory] = useState("");
+  const [editFavName, setEditFavName] = useState("");
+  const [editFavUrl, setEditFavUrl] = useState("");
+  const [editFavMemo, setEditFavMemo] = useState("");
+
+  const existingFavCategories = useMemo(() => {
+    const set = new Set<string>();
+    favList.forEach((f) => {
+      if (f.category && f.category.trim()) set.add(f.category.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [favList]);
+
+  const handleAddFav = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFavName.trim() || !newFavUrl.trim()) return;
+
+    let formattedUrl = newFavUrl.trim();
+    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+      formattedUrl = "https://" + formattedUrl;
+    }
+
+    const newFav = {
+      id: Date.now(),
+      category: newFavCategory.trim() || "기타",
+      name: newFavName.trim(),
+      url: formattedUrl,
+      memo: newFavMemo.trim()
+    };
+
+    setFavList([newFav, ...favList]);
+    setNewFavCategory("");
+    setNewFavName("");
+    setNewFavUrl("");
+    setNewFavMemo("");
+  };
+
+  const startEditFav = (fav: any) => {
+    setEditingFavId(fav.id);
+    setEditFavCategory(fav.category || "기타");
+    setEditFavName(fav.name || "");
+    setEditFavUrl(fav.url || "");
+    setEditFavMemo(fav.memo || "");
+  };
+
+  const cancelEditFav = () => setEditingFavId(null);
+
+  const saveEditFav = (id: number) => {
+    if (!editFavName.trim() || !editFavUrl.trim()) return;
+
+    let formattedUrl = editFavUrl.trim();
+    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
+      formattedUrl = "https://" + formattedUrl;
+    }
+
+    setFavList((prev) =>
+      prev.map((f) =>
+        f.id === id
+          ? {
+              ...f,
+              category: editFavCategory.trim() || "기타",
+              name: editFavName.trim(),
+              url: formattedUrl,
+              memo: editFavMemo.trim()
+            }
+          : f
+      )
+    );
+    setEditingFavId(null);
+  };
+
+  const handleDeleteFav = (id: number) => {
+    setFavList((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const filteredFavs = useMemo(() => {
+    return favList
+      .filter((fav) => {
+        const matchCategory = selectedFavCategory === "전체" || fav.category === selectedFavCategory;
+        const matchSearch =
+          fav.name.toLowerCase().includes(favSearchQuery.toLowerCase()) ||
+          fav.url.toLowerCase().includes(favSearchQuery.toLowerCase()) ||
+          fav.category.toLowerCase().includes(favSearchQuery.toLowerCase()) ||
+          (fav.memo && fav.memo.toLowerCase().includes(favSearchQuery.toLowerCase()));
+        return matchCategory && matchSearch;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  }, [favList, selectedFavCategory, favSearchQuery]);
+
+  // ================= 3. 노래책 데이터 =================
   const defaultSongs = [
     { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
     { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
@@ -126,8 +284,6 @@ export default function Home() {
 
   const [songList, setSongList] = useState<any[]>([]);
   const [isSongDataLoaded, setIsSongDataLoaded] = useState(false);
-
-  // 내부 팝업 비디오 재생용 상태
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
 
   const getYouTubeId = (url: string) => {
@@ -278,7 +434,7 @@ export default function Home() {
       });
   }, [songList, selectedGenre, searchQuery]);
 
-  // ================= 3. 일정 캘린더 데이터 =================
+  // ================= 4. 일정 및 가계부 데이터 =================
   const SYMBOL_CONFIG = {
     leave: { label: "연차", icon: "🌴", badge: "연차" },
     half_leave: { label: "반차", icon: "🌓", badge: "반차" },
@@ -309,15 +465,12 @@ export default function Home() {
 
   const [scheduleList, setScheduleList] = useState<any[]>([]);
   const [isScheduleLoaded, setIsScheduleLoaded] = useState(false);
-
   const [calYear, setCalYear] = useState(2026);
   const [calMonth, setCalMonth] = useState(9);
-
   const [modalDate, setModalDate] = useState<string | null>(null);
   const [newSchedTitle, setNewSchedTitle] = useState("");
   const [newSchedSymbol, setNewSchedSymbol] = useState("appointment");
   const [newSchedColor, setNewSchedColor] = useState("pink");
-
   const [popupEditingId, setPopupEditingId] = useState<number | null>(null);
   const [editPopupTitle, setEditPopupTitle] = useState("");
   const [editPopupSymbol, setEditPopupSymbol] = useState("appointment");
@@ -377,34 +530,21 @@ export default function Home() {
   const calendarGrid = useMemo(() => {
     const firstDayIndex = new Date(calYear, calMonth - 1, 1).getDay();
     const lastDate = new Date(calYear, calMonth, 0).getDate();
-
     const cells = [];
-    for (let i = 0; i < firstDayIndex; i++) {
-      cells.push({ day: null, dateStr: "" });
-    }
+    for (let i = 0; i < firstDayIndex; i++) cells.push({ day: null, dateStr: "" });
     for (let d = 1; d <= lastDate; d++) {
       const monthStr = String(calMonth).padStart(2, "0");
       const dayStr = String(d).padStart(2, "0");
       cells.push({ day: d, dateStr: `${calYear}-${monthStr}-${dayStr}` });
     }
-    while (cells.length % 7 !== 0) {
-      cells.push({ day: null, dateStr: "" });
-    }
+    while (cells.length % 7 !== 0) cells.push({ day: null, dateStr: "" });
     return cells;
   }, [calYear, calMonth]);
 
   const handleAddPopupSchedule = (e: React.FormEvent) => {
     e.preventDefault();
     if (!modalDate || !newSchedTitle.trim()) return;
-
-    const newEntry = {
-      id: Date.now(),
-      date: modalDate,
-      title: newSchedTitle.trim(),
-      symbol: newSchedSymbol,
-      color: newSchedColor
-    };
-
+    const newEntry = { id: Date.now(), date: modalDate, title: newSchedTitle.trim(), symbol: newSchedSymbol, color: newSchedColor };
     setScheduleList((prev) => [...prev, newEntry]);
     setNewSchedTitle("");
   };
@@ -420,14 +560,7 @@ export default function Home() {
     if (!editPopupTitle.trim()) return;
     setScheduleList((prev) =>
       prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              title: editPopupTitle.trim(),
-              symbol: editPopupSymbol,
-              color: editPopupColor
-            }
-          : item
+        item.id === id ? { ...item, title: editPopupTitle.trim(), symbol: editPopupSymbol, color: editPopupColor } : item
       )
     );
     setPopupEditingId(null);
@@ -446,38 +579,22 @@ export default function Home() {
     const currentYearStr = String(calYear);
     const leaveItems = scheduleList.filter((s) => s.date.startsWith(currentYearStr) && (s.symbol === "leave" || s.symbol === "half_leave"));
     if (leaveItems.length === 0) return null;
-
     let used = 0;
     leaveItems.forEach((s) => {
       if (s.symbol === "leave") used += 1.0;
       else if (s.symbol === "half_leave") used += 0.5;
     });
-
     const total = 16.0;
     const remaining = Math.max(0, total - used);
-    return {
-      used,
-      remaining: remaining % 1 === 0 ? remaining.toFixed(0) : remaining.toFixed(1),
-      count: leaveItems.length
-    };
+    return { used, remaining: remaining % 1 === 0 ? remaining.toFixed(0) : remaining.toFixed(1), count: leaveItems.length };
   }, [scheduleList, calYear]);
 
   const birthdaySummary = useMemo(() => {
-    const birthdays = scheduleList
-      .filter((s) => s.symbol === "birthday")
-      .sort((a, b) => a.date.localeCompare(b.date));
-
+    const birthdays = scheduleList.filter((s) => s.symbol === "birthday").sort((a, b) => a.date.localeCompare(b.date));
     if (birthdays.length === 0) return null;
-
-    let nextBday = birthdays.find((s) => s.date >= TODAY_STR);
-    if (!nextBday) {
-      nextBday = birthdays[birthdays.length - 1];
-    }
-
+    let nextBday = birthdays.find((s) => s.date >= TODAY_STR) || birthdays[birthdays.length - 1];
     const bdayDate = new Date(nextBday.date);
-    const diffTime = bdayDate.getTime() - todayDateObj.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
+    const diffDays = Math.ceil((bdayDate.getTime() - todayDateObj.getTime()) / (1000 * 60 * 60 * 24));
     return {
       title: nextBday.title || "생일",
       date: nextBday.date,
@@ -486,12 +603,8 @@ export default function Home() {
   }, [scheduleList]);
 
   const hairSummary = useMemo(() => {
-    const hairList = scheduleList
-      .filter((s) => s.symbol === "hair")
-      .sort((a, b) => a.date.localeCompare(b.date));
-
+    const hairList = scheduleList.filter((s) => s.symbol === "hair").sort((a, b) => a.date.localeCompare(b.date));
     if (hairList.length === 0) return null;
-
     const nextHair = hairList.find((s) => s.date > TODAY_STR);
     const pastHairs = hairList.filter((s) => s.date <= TODAY_STR);
     const lastHair = pastHairs.length > 0 ? pastHairs[pastHairs.length - 1] : null;
@@ -499,37 +612,22 @@ export default function Home() {
     if (nextHair) {
       const nDate = new Date(nextHair.date);
       const diffDays = Math.ceil((nDate.getTime() - todayDateObj.getTime()) / (1000 * 60 * 60 * 24));
-      return {
-        mode: "next",
-        title: nextHair.title || "이발 예약",
-        date: nextHair.date,
-        displayText: diffDays === 0 ? "오늘 예약" : `D-${diffDays}`,
-        subText: `(예약: ${nextHair.date})`
-      };
+      return { mode: "next", title: nextHair.title || "이발 예약", date: nextHair.date, displayText: diffDays === 0 ? "오늘 예약" : `D-${diffDays}`, subText: `(예약: ${nextHair.date})` };
     } else if (lastHair) {
       const lDate = new Date(lastHair.date);
       const diffDays = Math.floor((todayDateObj.getTime() - lDate.getTime()) / (1000 * 60 * 60 * 24));
-      return {
-        mode: "past",
-        title: "이발 후 경과일 (헤어)",
-        date: lastHair.date,
-        displayText: `+${diffDays}일`,
-        subText: `(${lastHair.date} 기준)`
-      };
+      return { mode: "past", title: "이발 후 경과일 (헤어)", date: lastHair.date, displayText: `+${diffDays}일`, subText: `(${lastHair.date} 기준)` };
     }
     return null;
   }, [scheduleList]);
 
   const upcomingAppointments = useMemo(() => {
-    return scheduleList
-      .filter((s) => s.symbol === "appointment" && s.date >= TODAY_STR)
-      .sort((a, b) => a.date.localeCompare(b.date))
-      .slice(0, 2);
+    return scheduleList.filter((s) => s.symbol === "appointment" && s.date >= TODAY_STR).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 2);
   }, [scheduleList]);
 
   const hasAnySummary = leaveSummary || birthdaySummary || hairSummary || upcomingAppointments.length > 0;
 
-  // ================= 4. 가계부 캘린더 & 동적 재정 요약 =================
+  // 가계부 설정
   const LEDGER_SYMBOL_CONFIG = {
     taxi: { label: "택시", icon: "🚕", badge: "택시" },
     delivery: { label: "배달", icon: "🛵", badge: "배달" },
@@ -554,26 +652,19 @@ export default function Home() {
     { id: 5, date: "2026-09-17", type: "expense", title: "GS25 편의점", amount: 6200, symbol: "convenience", color: "green" },
   ];
 
-  const defaultFixedTemplates = [
-    { id: "fixed_tpl_1", title: "인터넷", color: "pink" }
-  ];
+  const defaultFixedTemplates = [{ id: "fixed_tpl_1", title: "인터넷", color: "pink" }];
 
   const [ledgerEntries, setLedgerEntries] = useState<any[]>([]);
   const [fixedTemplates, setFixedTemplates] = useState<any[]>([]);
   const [isLedgerLoaded, setIsLedgerLoaded] = useState(false);
-
   const [ledgerYear, setLedgerYear] = useState(2026);
   const [ledgerMonth, setLedgerMonth] = useState(9);
-
-  // 가계부 팝업 모달 상태
   const [ledgerModalDate, setLedgerModalDate] = useState<string | null>(null);
   const [newLedgerTitle, setNewLedgerTitle] = useState("");
   const [newLedgerAmount, setNewLedgerAmount] = useState("");
   const [newLedgerType, setNewLedgerType] = useState<"expense" | "income">("expense");
   const [newLedgerSymbol, setNewLedgerSymbol] = useState("fixed");
   const [newLedgerColor, setNewLedgerColor] = useState("pink");
-
-  // 인라인 수정 상태
   const [ledgerEditingId, setLedgerEditingId] = useState<number | null>(null);
   const [editLedgerTitle, setEditLedgerTitle] = useState("");
   const [editLedgerAmount, setEditLedgerAmount] = useState("");
@@ -596,27 +687,8 @@ export default function Home() {
     if (typeof window !== "undefined") {
       const savedEntries = localStorage.getItem("jb_bookmark_calendar_ledgers_v3");
       const savedTemplates = localStorage.getItem("jb_bookmark_fixed_templates_v1");
-
-      if (savedEntries) {
-        try {
-          setLedgerEntries(JSON.parse(savedEntries));
-        } catch (e) {
-          setLedgerEntries(defaultLedgerEntries);
-        }
-      } else {
-        setLedgerEntries(defaultLedgerEntries);
-      }
-
-      if (savedTemplates) {
-        try {
-          setFixedTemplates(JSON.parse(savedTemplates));
-        } catch (e) {
-          setFixedTemplates(defaultFixedTemplates);
-        }
-      } else {
-        setFixedTemplates(defaultFixedTemplates);
-      }
-
+      setLedgerEntries(savedEntries ? JSON.parse(savedEntries) : defaultLedgerEntries);
+      setFixedTemplates(savedTemplates ? JSON.parse(savedTemplates) : defaultFixedTemplates);
       setIsLedgerLoaded(true);
     }
   }, []);
@@ -649,26 +721,20 @@ export default function Home() {
   const ledgerCalendarGrid = useMemo(() => {
     const firstDayIndex = new Date(ledgerYear, ledgerMonth - 1, 1).getDay();
     const lastDate = new Date(ledgerYear, ledgerMonth, 0).getDate();
-
     const cells = [];
-    for (let i = 0; i < firstDayIndex; i++) {
-      cells.push({ day: null, dateStr: "" });
-    }
+    for (let i = 0; i < firstDayIndex; i++) cells.push({ day: null, dateStr: "" });
     for (let d = 1; d <= lastDate; d++) {
       const monthStr = String(ledgerMonth).padStart(2, "0");
       const dayStr = String(d).padStart(2, "0");
       cells.push({ day: d, dateStr: `${ledgerYear}-${monthStr}-${dayStr}` });
     }
-    while (cells.length % 7 !== 0) {
-      cells.push({ day: null, dateStr: "" });
-    }
+    while (cells.length % 7 !== 0) cells.push({ day: null, dateStr: "" });
     return cells;
   }, [ledgerYear, ledgerMonth]);
 
   const handleAddLedgerEntry = (e: React.FormEvent) => {
     e.preventDefault();
     if (!ledgerModalDate || !newLedgerTitle.trim() || !newLedgerAmount) return;
-
     const trimmedTitle = newLedgerTitle.trim();
     const newEntry = {
       id: Date.now(),
@@ -679,9 +745,7 @@ export default function Home() {
       symbol: newLedgerSymbol,
       color: newLedgerColor
     };
-
     setLedgerEntries((prev) => [...prev, newEntry]);
-
     if (newLedgerSymbol === "fixed") {
       setFixedTemplates((prev) => {
         if (!prev.some((tpl) => tpl.title === trimmedTitle)) {
@@ -690,7 +754,6 @@ export default function Home() {
         return prev;
       });
     }
-
     setNewLedgerTitle("");
     setNewLedgerAmount("");
   };
@@ -707,22 +770,13 @@ export default function Home() {
   const saveLedgerEdit = (id: number) => {
     if (!editLedgerTitle.trim() || !editLedgerAmount) return;
     const trimmedTitle = editLedgerTitle.trim();
-
     setLedgerEntries((prev) =>
       prev.map((item) =>
         item.id === id
-          ? {
-              ...item,
-              title: trimmedTitle,
-              amount: Number(editLedgerAmount),
-              type: editLedgerType,
-              symbol: editLedgerSymbol,
-              color: editLedgerColor
-            }
+          ? { ...item, title: trimmedTitle, amount: Number(editLedgerAmount), type: editLedgerType, symbol: editLedgerSymbol, color: editLedgerColor }
           : item
       )
     );
-
     if (editLedgerSymbol === "fixed") {
       setFixedTemplates((prev) => {
         if (!prev.some((tpl) => tpl.title === trimmedTitle)) {
@@ -731,7 +785,6 @@ export default function Home() {
         return prev;
       });
     }
-
     setLedgerEditingId(null);
   };
 
@@ -750,46 +803,28 @@ export default function Home() {
   const currentMonthLedgerSummary = useMemo(() => {
     const prefix = `${ledgerYear}-${String(ledgerMonth).padStart(2, "0")}`;
     const monthlyList = ledgerEntries.filter((item) => item.date.startsWith(prefix));
-
     let income = 0;
     let expense = 0;
     let taxiTotal = 0;
     let deliveryTotal = 0;
-
     monthlyList.forEach((item) => {
       const amt = Number(item.amount || 0);
-      if (item.type === "income") {
-        income += amt;
-      } else {
+      if (item.type === "income") income += amt;
+      else {
         expense += amt;
         if (item.symbol === "taxi") taxiTotal += amt;
         if (item.symbol === "delivery") deliveryTotal += amt;
       }
     });
-
     const fixedItems = fixedTemplates.map((tpl) => {
       const found = monthlyList.find((item) => item.symbol === "fixed" && item.title === tpl.title);
-      return {
-        tplTitle: tpl.title,
-        color: tpl.color || "pink",
-        entry: found || null,
-      };
+      return { tplTitle: tpl.title, color: tpl.color || "pink", entry: found || null };
     });
-
-    return {
-      income,
-      expense,
-      balance: income - expense,
-      taxiTotal,
-      deliveryTotal,
-      fixedItems,
-      count: monthlyList.length
-    };
+    return { income, expense, balance: income - expense, taxiTotal, deliveryTotal, fixedItems, count: monthlyList.length };
   }, [ledgerEntries, fixedTemplates, ledgerYear, ledgerMonth]);
 
   const openFixedExpenseModal = (fixedItemObj?: any) => {
     setLedgerEditingId(null);
-
     if (fixedItemObj && fixedItemObj.entry) {
       setLedgerModalDate(fixedItemObj.entry.date);
     } else {
@@ -811,7 +846,7 @@ export default function Home() {
     }
   };
 
-  // ================= 5. 플레이리스트 재생, 게이지 & 볼륨 =================
+  // ================= 5. 플레이리스트 & 시계 =================
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [repeatMode, setRepeatMode] = useState<"none" | "all" | "one">("all");
@@ -819,7 +854,6 @@ export default function Home() {
   const [durationSec, setDurationSec] = useState(0);
   const [volume, setVolume] = useState(80);
   const [isMuted, setIsMuted] = useState(false);
-
   const playerRef = useRef<any>(null);
   const repeatModeRef = useRef(repeatMode);
   repeatModeRef.current = repeatMode;
@@ -854,12 +888,7 @@ export default function Home() {
           height: "1",
           width: "1",
           videoId: currentVideoId,
-          playerVars: {
-            autoplay: 1,
-            controls: 0,
-            disablekb: 1,
-            playsinline: 1
-          },
+          playerVars: { autoplay: 1, controls: 0, disablekb: 1, playsinline: 1 },
           events: {
             onReady: (event: any) => {
               event.target.setVolume(isMuted ? 0 : volume);
@@ -880,11 +909,8 @@ export default function Home() {
       }
     };
 
-    if (window.YT && window.YT.Player) {
-      initPlayer();
-    } else {
-      window.onYouTubeIframeAPIReady = initPlayer;
-    }
+    if (window.YT && window.YT.Player) initPlayer();
+    else window.onYouTubeIframeAPIReady = initPlayer;
   }, [currentVideoId]);
 
   useEffect(() => {
@@ -949,9 +975,7 @@ export default function Home() {
       }
     } else {
       setIsMuted(true);
-      if (playerRef.current && playerRef.current.mute) {
-        playerRef.current.mute();
-      }
+      if (playerRef.current && playerRef.current.mute) playerRef.current.mute();
     }
   };
 
@@ -1019,7 +1043,7 @@ export default function Home() {
     return `${m}:${String(s).padStart(2, "0")}`;
   };
 
-  // ================= 6. 시계 & 타이머 =================
+  // 시계 & 타이머
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [timerMinutes, setTimerMinutes] = useState(4);
   const [timeLeft, setTimeLeft] = useState(4 * 60);
@@ -1047,9 +1071,7 @@ export default function Home() {
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + 0.3);
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   };
 
   useEffect(() => {
@@ -1226,14 +1248,251 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* [2] 중앙 내용 영역 */}
+        {/* [2] 중앙 내용 영역 (세로 높이 h-[760px] 고정) */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           
-          {/* ==================== A. [가계부] 탭 화면 ==================== */}
+          {/* ==================== A. [즐겨찾기] 탭 화면 (노래책과 동일한 규격) ==================== */}
+          {currentTab === "favorites" && (
+            <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
+              
+              {/* 즐겨찾기 등록 바 */}
+              <form onSubmit={handleAddFav} className="border-2 border-amber-400/80 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-amber-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="relative">
+                  <input
+                    type="text"
+                    list="fav-category-suggestions"
+                    value={newFavCategory}
+                    onChange={(e) => setNewFavCategory(e.target.value)}
+                    placeholder="분류 (예: 포털)"
+                    className="w-28 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs font-medium text-amber-950 focus:outline-none focus:border-amber-500 placeholder-neutral-400"
+                  />
+                  <datalist id="fav-category-suggestions">
+                    {existingFavCategories.map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <input
+                  type="text"
+                  required
+                  value={newFavName}
+                  onChange={(e) => setNewFavName(e.target.value)}
+                  placeholder="사이트 이름 *"
+                  className="w-40 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  required
+                  value={newFavUrl}
+                  onChange={(e) => setNewFavUrl(e.target.value)}
+                  placeholder="웹사이트 URL (https://...)*"
+                  className="flex-1 min-w-[180px] border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                />
+
+                <input
+                  type="text"
+                  value={newFavMemo}
+                  onChange={(e) => setNewFavMemo(e.target.value)}
+                  placeholder="메모 / 설명"
+                  className="w-48 border border-amber-200 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                />
+
+                <button
+                  type="submit"
+                  className="bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs px-5 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" /> 즐겨찾기 추가
+                </button>
+              </form>
+
+              {/* 검색 및 카테고리 필터 바 */}
+              <div className="border-2 border-amber-400/80 rounded-2xl p-3 bg-amber-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    value={favSearchQuery}
+                    onChange={(e) => setFavSearchQuery(e.target.value)}
+                    placeholder="사이트명, URL, 카테고리, 메모를 검색해보세요..."
+                    className="w-full border border-amber-200 bg-white/90 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+                  />
+                  <Search className="w-3.5 h-3.5 text-amber-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
+                  <span className="text-amber-950 font-semibold text-[11px] mr-1">분류:</span>
+                  <button
+                    onClick={() => setSelectedFavCategory("전체")}
+                    className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                      selectedFavCategory === "전체"
+                        ? "border-amber-500 bg-amber-200 text-amber-950 font-bold shadow-2xs"
+                        : "border-amber-200/80 bg-white/70 text-neutral-700 hover:bg-white"
+                    }`}
+                  >
+                    전체
+                  </button>
+                  {existingFavCategories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedFavCategory(cat)}
+                      className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                        selectedFavCategory === cat
+                          ? "border-amber-500 bg-amber-200 text-amber-950 font-bold shadow-2xs"
+                          : "border-amber-200/80 bg-white/70 text-neutral-700 hover:bg-white"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                  <span className="ml-auto text-[11px] text-amber-800/80 font-medium">
+                    총 {filteredFavs.length}개 사이트
+                  </span>
+                </div>
+              </div>
+
+              {/* 헤더 박스 */}
+              <div className="border-2 border-amber-400/80 rounded-xl px-4 py-2.5 bg-amber-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
+                <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-amber-950 items-center">
+                  <span className="col-span-2 flex items-center justify-center gap-1 text-center">🏷️ 분류</span>
+                  <span className="col-span-3 flex items-center justify-center gap-1 text-center">🌐 사이트명</span>
+                  <span className="col-span-5 flex items-center justify-center gap-1 text-center">🔗 바로가기 링크 및 메모</span>
+                  <span className="col-span-2 flex items-center justify-center text-center">관리</span>
+                </div>
+              </div>
+
+              {/* 즐겨찾기 카드 리스트 */}
+              <div className="flex flex-col gap-2">
+                {filteredFavs.map((fav) => {
+                  const isEditing = editingFavId === fav.id;
+
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={`edit-fav-${fav.id}`}
+                        className="p-3 rounded-2xl border-2 border-amber-400 bg-amber-50/90 shadow-md flex flex-wrap items-center gap-2"
+                      >
+                        <input
+                          type="text"
+                          value={editFavCategory}
+                          onChange={(e) => setEditFavCategory(e.target.value)}
+                          placeholder="분류"
+                          className="w-24 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs font-medium text-amber-950 focus:outline-none focus:border-amber-600"
+                        />
+                        <input
+                          type="text"
+                          required
+                          value={editFavName}
+                          onChange={(e) => setEditFavName(e.target.value)}
+                          placeholder="사이트 이름"
+                          className="w-36 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-bold"
+                        />
+                        <input
+                          type="text"
+                          required
+                          value={editFavUrl}
+                          onChange={(e) => setEditFavUrl(e.target.value)}
+                          placeholder="웹사이트 URL"
+                          className="flex-1 min-w-[180px] border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium"
+                        />
+                        <input
+                          type="text"
+                          value={editFavMemo}
+                          onChange={(e) => setEditFavMemo(e.target.value)}
+                          placeholder="메모"
+                          className="w-40 border border-amber-300 bg-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-600 font-medium"
+                        />
+                        <div className="flex items-center gap-1 shrink-0 ml-auto">
+                          <button
+                            onClick={() => saveEditFav(fav.id)}
+                            title="저장"
+                            className="p-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 shadow-sm transition"
+                          >
+                            <Check className="w-3.5 h-3.5" /> 저장
+                          </button>
+                          <button
+                            onClick={cancelEditFav}
+                            title="취소"
+                            className="p-1.5 rounded-lg border border-neutral-300 bg-white hover:bg-neutral-100 text-neutral-600 text-xs flex items-center gap-1 shadow-sm transition"
+                          >
+                            <X className="w-3.5 h-3.5" /> 취소
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={fav.id}
+                      className="grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border-2 border-amber-400/80 bg-amber-50/40 hover:bg-amber-50/70 transition shadow-2xs"
+                    >
+                      {/* 1. 분류 */}
+                      <div className="col-span-2 flex justify-center">
+                        <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-bold text-center">
+                          {fav.category}
+                        </span>
+                      </div>
+
+                      {/* 2. 사이트명 */}
+                      <div className="col-span-3 text-neutral-900 truncate font-extrabold text-[13px] text-center px-1">
+                        {fav.name}
+                      </div>
+
+                      {/* 3. 링크 및 메모 */}
+                      <div className="col-span-5 flex items-center gap-2 px-1 overflow-hidden">
+                        <a
+                          href={fav.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1 text-amber-800 hover:text-amber-950 font-bold underline truncate"
+                          title={fav.url}
+                        >
+                          <Globe className="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                          <span className="truncate">{fav.url}</span>
+                          <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
+                        </a>
+                        {fav.memo && (
+                          <span className="text-[11px] text-neutral-400 truncate border-l border-amber-200 pl-2">
+                            {fav.memo}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 4. 관리 버튼 */}
+                      <div className="col-span-2 flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => startEditFav(fav)}
+                          title="수정"
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-amber-800 hover:bg-white transition"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteFav(fav.id)}
+                          title="삭제"
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredFavs.length === 0 && (
+                  <div className="border-2 border-dashed border-amber-300 rounded-2xl p-12 text-center text-xs font-medium text-amber-800/70 bg-amber-50/20">
+                    등록되었거나 조건에 맞는 즐겨찾기 사이트가 없습니다.
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+
+          {/* ==================== B. [가계부] 탭 화면 ==================== */}
           {currentTab === "ledger" && (
             <div className="h-full flex flex-col gap-3">
-              
-              {/* [박스 1] 상단 헤더 박스 */}
               <div className="border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
                 <div className="flex-1 flex items-center justify-between pr-6 border-r border-sky-200">
                   <button
@@ -1262,10 +1521,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 하단 2분할 영역 */}
               <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3 items-stretch">
-                
-                {/* [박스 2] 좌측 메인 가계부 달력 박스 */}
                 <div className="flex-1 h-full border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-between overflow-hidden">
                   <div className="grid grid-cols-7 text-center font-bold text-xs pb-2 border-b border-sky-100 text-neutral-700 shrink-0">
                     <span className="text-rose-600 font-extrabold">일</span>
@@ -1279,13 +1535,9 @@ export default function Home() {
 
                   <div className="flex-1 grid grid-cols-7 grid-rows-5 gap-2 pt-2 min-h-0">
                     {ledgerCalendarGrid.map((cell, idx) => {
-                      if (!cell.day) {
-                        return <div key={`empty-ledger-${idx}`} className="h-full rounded-xl" />;
-                      }
-
-                      const dayOfWeek = idx % 7;
-                      const isSunday = dayOfWeek === 0;
-                      const isSaturday = dayOfWeek === 6;
+                      if (!cell.day) return <div key={`empty-ledger-${idx}`} className="h-full rounded-xl" />;
+                      const isSunday = idx % 7 === 0;
+                      const isSaturday = idx % 7 === 6;
                       const isToday = cell.dateStr === TODAY_STR;
                       const holidayName = holidays[cell.dateStr];
                       const dayEntries = ledgerEntries.filter((s) => s.date === cell.dateStr);
@@ -1305,9 +1557,7 @@ export default function Home() {
                             setLedgerModalDate(cell.dateStr);
                           }}
                           className={`h-full border rounded-xl p-1.5 flex flex-col justify-between transition group relative cursor-pointer min-h-0 ${
-                            isToday
-                              ? "border-amber-400 bg-amber-50/70"
-                              : "border-sky-200/90 bg-white hover:border-sky-400 hover:bg-sky-50/20"
+                            isToday ? "border-amber-400 bg-amber-50/70" : "border-sky-200/90 bg-white hover:border-sky-400 hover:bg-sky-50/20"
                           }`}
                         >
                           <div className="flex items-center justify-between text-[11px] font-bold leading-tight">
@@ -1315,9 +1565,7 @@ export default function Home() {
                               {cell.day}
                             </span>
                             {holidayName ? (
-                              <span className="text-[9px] font-bold text-rose-500 truncate max-w-[55px]">
-                                {holidayName}
-                              </span>
+                              <span className="text-[9px] font-bold text-rose-500 truncate max-w-[55px]">{holidayName}</span>
                             ) : (dayIncome > 0 || dayExpense > 0) ? (
                               <span className="text-[9px] font-mono font-bold text-sky-800">
                                 {dayExpense > 0 && <span className="text-rose-500 mr-1">-{dayExpense.toLocaleString()}</span>}
@@ -1367,10 +1615,8 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* [박스 3] 우측 재정 요약 박스 */}
+                {/* 재정 요약 박스 */}
                 <div className="w-full lg:w-[280px] h-full shrink-0 border-2 border-sky-400/80 rounded-2xl bg-white/95 backdrop-blur-md p-4 shadow-sm flex flex-col justify-start gap-3 overflow-y-auto">
-                  
-                  {/* 카드 1: 이번 달 총 수입 */}
                   <div className="border border-blue-200 bg-blue-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
                     <div className="flex items-center justify-between text-xs font-bold text-blue-900">
                       <span className="flex items-center gap-1"><ArrowDownLeft className="w-3.5 h-3.5 text-blue-600" /> 총 수입</span>
@@ -1381,7 +1627,6 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* 카드 2: 이번 달 총 지출 */}
                   <div className="border border-rose-200 bg-rose-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
                     <div className="flex items-center justify-between text-xs font-bold text-rose-900">
                       <span className="flex items-center gap-1"><ArrowUpRight className="w-3.5 h-3.5 text-rose-600" /> 총 지출</span>
@@ -1392,7 +1637,6 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* 카드 3: 당월 정산 잔액 */}
                   <div className="border border-sky-200 bg-sky-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
                     <div className="flex items-center justify-between text-xs font-bold text-sky-900">
                       <span className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5 text-sky-600" /> 정산 잔액</span>
@@ -1407,7 +1651,6 @@ export default function Home() {
 
                   <div className="border-t border-sky-200/80 my-0.5 shrink-0" />
 
-                  {/* 카드 4: 🚕 택시 합산금 */}
                   <div className="border border-amber-200 bg-amber-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
                     <div className="flex items-center justify-between text-xs font-bold text-amber-900">
                       <span className="flex items-center gap-1">🚕 택시 지출 합산</span>
@@ -1416,10 +1659,8 @@ export default function Home() {
                     <div className="text-xl font-black text-amber-900 tracking-tight my-1.5">
                       {currentMonthLedgerSummary.taxiTotal.toLocaleString()}원
                     </div>
-                    <div className="text-[10px] text-neutral-500">당월 택시 이용 누적</div>
                   </div>
 
-                  {/* 카드 5: 🛵 배달 합산금 */}
                   <div className="border border-pink-200 bg-pink-50/80 rounded-2xl p-3 shadow-xs flex flex-col justify-between shrink-0">
                     <div className="flex items-center justify-between text-xs font-bold text-pink-900">
                       <span className="flex items-center gap-1">🛵 배달 지출 합산</span>
@@ -1428,10 +1669,8 @@ export default function Home() {
                     <div className="text-xl font-black text-pink-900 tracking-tight my-1.5">
                       {currentMonthLedgerSummary.deliveryTotal.toLocaleString()}원
                     </div>
-                    <div className="text-[10px] text-neutral-500">당월 배달 주문 누적</div>
                   </div>
 
-                  {/* 카드 6: 📌 고정 지출 목록 */}
                   <div className="border border-purple-200 bg-purple-50/80 rounded-2xl p-3 shadow-xs flex flex-col gap-2 shrink-0">
                     <div className="flex items-center justify-between text-xs font-bold text-purple-900">
                       <span className="flex items-center gap-1">📌 고정 지출 목록</span>
@@ -1498,12 +1737,10 @@ export default function Home() {
                       )}
                     </div>
                   </div>
-
                 </div>
-
               </div>
 
-              {/* [가계부 팝업 모달] */}
+              {/* 가계부 팝업 모달 */}
               {ledgerModalDate && (
                 <div 
                   className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -1519,9 +1756,7 @@ export default function Home() {
                     <div className="flex items-center justify-between pb-3 border-b border-neutral-200 shrink-0">
                       <div className="flex items-center gap-2">
                         <Wallet className="w-5 h-5 text-sky-500" />
-                        <h3 className="text-base font-black text-neutral-900">
-                          가계부 관리
-                        </h3>
+                        <h3 className="text-base font-black text-neutral-900">가계부 관리</h3>
                         <input
                           type="date"
                           value={ledgerModalDate}
@@ -1543,7 +1778,6 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* 등록된 내역 목록 */}
                     <div className="my-3 overflow-y-auto space-y-2 max-h-[220px] pr-1">
                       <div className="text-[11px] font-bold text-neutral-500 mb-1">
                         선택 날짜({ledgerModalDate}) 등록 내역 ({ledgerEntries.filter((s) => s.date === ledgerModalDate).length}건)
@@ -1671,7 +1905,6 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* 새 내역 추가 폼 */}
                     <form onSubmit={handleAddLedgerEntry} className="pt-3 border-t border-neutral-200 shrink-0 space-y-3">
                       <div className="text-xs font-bold text-neutral-800">새 내역 추가</div>
 
@@ -1715,7 +1948,6 @@ export default function Home() {
                         />
                       </div>
 
-                      {/* 파스텔 태그 색상 선택 */}
                       <div>
                         <div className="text-[11px] font-bold text-neutral-600 mb-1">파스텔 태그 색상</div>
                         <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
@@ -1763,35 +1995,21 @@ export default function Home() {
                   </div>
                 </div>
               )}
-
             </div>
           )}
 
-          {/* ==================== B. [일정] 탭 화면 ==================== */}
+          {/* ==================== C. [일정] 탭 화면 ==================== */}
           {currentTab === "schedule" && (
             <div className="h-full flex flex-col gap-3">
               <div className="border-2 border-pink-400/80 rounded-2xl bg-white/95 backdrop-blur-md px-5 py-3 shadow-sm flex items-center justify-between shrink-0">
                 <div className="flex-1 flex items-center justify-between pr-6 border-r border-pink-200">
-                  <button
-                    onClick={prevMonth}
-                    className="px-4 py-1.5 rounded-xl border border-pink-400 text-pink-700 hover:bg-pink-50 font-bold text-xs transition"
-                  >
-                    &lt; 이전달
-                  </button>
-
+                  <button onClick={prevMonth} className="px-4 py-1.5 rounded-xl border border-pink-400 text-pink-700 hover:bg-pink-50 font-bold text-xs transition">&lt; 이전달</button>
                   <h2 className="text-lg font-black text-pink-950 tracking-tight flex items-center gap-2">
                     <span>🗓️</span>
                     <span>{calYear}년 {calMonth}월 일정표</span>
                   </h2>
-
-                  <button
-                    onClick={nextMonth}
-                    className="px-4 py-1.5 rounded-xl border border-pink-400 text-pink-700 hover:bg-pink-50 font-bold text-xs transition"
-                  >
-                    다음달 &gt;
-                  </button>
+                  <button onClick={nextMonth} className="px-4 py-1.5 rounded-xl border border-pink-400 text-pink-700 hover:bg-pink-50 font-bold text-xs transition">다음달 &gt;</button>
                 </div>
-
                 <div className="w-[280px] pl-6 flex items-center gap-1.5 text-sm font-extrabold text-pink-900">
                   <span>📌</span>
                   <span>일정 요약</span>
@@ -1812,13 +2030,9 @@ export default function Home() {
 
                   <div className="flex-1 grid grid-cols-7 grid-rows-5 gap-2 pt-2 min-h-0">
                     {calendarGrid.map((cell, idx) => {
-                      if (!cell.day) {
-                        return <div key={`empty-${idx}`} className="h-full rounded-xl" />;
-                      }
-
-                      const dayOfWeek = idx % 7;
-                      const isSunday = dayOfWeek === 0;
-                      const isSaturday = dayOfWeek === 6;
+                      if (!cell.day) return <div key={`empty-${idx}`} className="h-full rounded-xl" />;
+                      const isSunday = idx % 7 === 0;
+                      const isSaturday = idx % 7 === 6;
                       const isToday = cell.dateStr === TODAY_STR;
                       const holidayName = holidays[cell.dateStr];
                       const daySchedules = scheduleList.filter((s) => s.date === cell.dateStr);
@@ -1828,9 +2042,7 @@ export default function Home() {
                           key={cell.dateStr}
                           onClick={() => setModalDate(cell.dateStr)}
                           className={`h-full border rounded-xl p-1.5 flex flex-col justify-between transition group relative cursor-pointer min-h-0 ${
-                            isToday
-                              ? "border-amber-400 bg-amber-50/70"
-                              : "border-pink-200/90 bg-white hover:border-pink-400 hover:bg-pink-50/20"
+                            isToday ? "border-amber-400 bg-amber-50/70" : "border-pink-200/90 bg-white hover:border-pink-400 hover:bg-pink-50/20"
                           }`}
                         >
                           <div className="flex items-center justify-between text-[11px] font-bold leading-tight">
@@ -1838,9 +2050,7 @@ export default function Home() {
                               {cell.day}
                             </span>
                             {holidayName && (
-                              <span className="text-[9px] font-bold text-rose-500 truncate max-w-[55px]">
-                                {holidayName}
-                              </span>
+                              <span className="text-[9px] font-bold text-rose-500 truncate max-w-[55px]">{holidayName}</span>
                             )}
                           </div>
 
@@ -1848,7 +2058,6 @@ export default function Home() {
                             {daySchedules.map((item) => {
                               const symbolInfo = SYMBOL_CONFIG[item.symbol] || SYMBOL_CONFIG.appointment;
                               const colorInfo = COLOR_CONFIG[item.color] || COLOR_CONFIG.pink;
-
                               return (
                                 <div
                                   key={item.id}
@@ -1858,11 +2067,7 @@ export default function Home() {
                                     <span className="text-[9px]">{symbolInfo.icon}</span>
                                     <span>{item.title}</span>
                                   </span>
-                                  <button
-                                    onClick={(e) => handleDeleteSchedule(item.id, e)}
-                                    title="삭제"
-                                    className="text-neutral-400 hover:text-rose-500 ml-1 shrink-0"
-                                  >
+                                  <button onClick={(e) => handleDeleteSchedule(item.id, e)} title="삭제" className="text-neutral-400 hover:text-rose-500 ml-1 shrink-0">
                                     <X className="w-2.5 h-2.5" />
                                   </button>
                                 </div>
@@ -1870,9 +2075,7 @@ export default function Home() {
                             })}
                           </div>
 
-                          <div className="text-[9px] text-neutral-400 text-right opacity-0 group-hover:opacity-100 transition leading-none">
-                            +추가
-                          </div>
+                          <div className="text-[9px] text-neutral-400 text-right opacity-0 group-hover:opacity-100 transition leading-none">+추가</div>
                         </div>
                       );
                     })}
@@ -1886,12 +2089,8 @@ export default function Home() {
                         <span>남은 연차 (총 16개 기준)</span>
                         <span className="text-[10px] text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full font-bold">1월 1일 리셋</span>
                       </div>
-                      <div className="text-3xl font-black text-blue-600 tracking-tight my-2">
-                        {leaveSummary.remaining} 개
-                      </div>
-                      <div className="text-[11px] text-neutral-500 font-medium">
-                        사용: {leaveSummary.used}개 (등록 {leaveSummary.count}건)
-                      </div>
+                      <div className="text-3xl font-black text-blue-600 tracking-tight my-2">{leaveSummary.remaining} 개</div>
+                      <div className="text-[11px] text-neutral-500 font-medium">사용: {leaveSummary.used}개 (등록 {leaveSummary.count}건)</div>
                     </div>
                   )}
 
@@ -1901,12 +2100,8 @@ export default function Home() {
                         <span>🎂</span>
                         <span>{birthdaySummary.title}</span>
                       </div>
-                      <div className="text-3xl font-black text-rose-600 tracking-tight my-2">
-                        {birthdaySummary.dDayText}
-                      </div>
-                      <div className="text-[11px] text-neutral-500 font-medium">
-                        ({birthdaySummary.date} 기준)
-                      </div>
+                      <div className="text-3xl font-black text-rose-600 tracking-tight my-2">{birthdaySummary.dDayText}</div>
+                      <div className="text-[11px] text-neutral-500 font-medium">({birthdaySummary.date} 기준)</div>
                     </div>
                   )}
 
@@ -1916,12 +2111,8 @@ export default function Home() {
                         <span>✂️</span>
                         <span>{hairSummary.title}</span>
                       </div>
-                      <div className="text-3xl font-black text-purple-600 tracking-tight my-2">
-                        {hairSummary.displayText}
-                      </div>
-                      <div className="text-[11px] text-neutral-500 font-medium">
-                        {hairSummary.subText}
-                      </div>
+                      <div className="text-3xl font-black text-purple-600 tracking-tight my-2">{hairSummary.displayText}</div>
+                      <div className="text-[11px] text-neutral-500 font-medium">{hairSummary.subText}</div>
                     </div>
                   )}
 
@@ -1931,9 +2122,7 @@ export default function Home() {
                         <span className="flex items-center gap-1">📌 약속: {app.title}</span>
                         <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-md font-bold">D-Day</span>
                       </div>
-                      <div className="text-[11px] text-neutral-500 font-medium mt-1">
-                        날짜: {app.date}
-                      </div>
+                      <div className="text-[11px] text-neutral-500 font-medium mt-1">날짜: {app.date}</div>
                     </div>
                   ))}
 
@@ -1949,6 +2138,7 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* 일정 팝업 모달 */}
               {modalDate && (
                 <div 
                   className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -1968,13 +2158,7 @@ export default function Home() {
                       </h3>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-neutral-400 font-medium bg-neutral-100 px-2 py-0.5 rounded-md">ESC로 닫기</span>
-                        <button
-                          onClick={() => {
-                            setModalDate(null);
-                            setPopupEditingId(null);
-                          }}
-                          className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg"
-                        >
+                        <button onClick={() => { setModalDate(null); setPopupEditingId(null); }} className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg">
                           <X className="w-5 h-5" />
                         </button>
                       </div>
@@ -2007,9 +2191,7 @@ export default function Home() {
                                     type="button"
                                     onClick={() => setEditPopupSymbol(key)}
                                     className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition ${
-                                      editPopupSymbol === key
-                                        ? "border-pink-500 bg-pink-500 text-white"
-                                        : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                                      editPopupSymbol === key ? "border-pink-500 bg-pink-500 text-white" : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
                                     }`}
                                   >
                                     {val.icon} {val.label}
@@ -2032,48 +2214,25 @@ export default function Home() {
                               </div>
 
                               <div className="flex justify-end gap-1.5 pt-1">
-                                <button
-                                  type="button"
-                                  onClick={() => savePopupEdit(item.id)}
-                                  className="px-3 py-1 bg-pink-500 text-white text-xs font-bold rounded-lg hover:bg-pink-600"
-                                >
-                                  저장
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setPopupEditingId(null)}
-                                  className="px-3 py-1 bg-white border border-neutral-300 text-neutral-600 text-xs rounded-lg hover:bg-neutral-50"
-                                >
-                                  취소
-                                </button>
+                                <button onClick={() => savePopupEdit(item.id)} className="px-3 py-1 bg-pink-500 text-white text-xs font-bold rounded-lg hover:bg-pink-600">저장</button>
+                                <button onClick={() => setPopupEditingId(null)} className="px-3 py-1 bg-white border border-neutral-300 text-neutral-600 text-xs rounded-lg hover:bg-neutral-50">취소</button>
                               </div>
                             </div>
                           );
                         }
 
                         return (
-                          <div
-                            key={item.id}
-                            className={`flex items-center justify-between p-2 rounded-xl border text-xs font-semibold ${colorObj.class}`}
-                          >
+                          <div key={item.id} className={`flex items-center justify-between p-2 rounded-xl border text-xs font-semibold ${colorObj.class}`}>
                             <div className="flex items-center gap-1.5 min-w-0 pr-2">
                               <span className="text-sm">{symbolObj.icon}</span>
                               <span className="truncate">{item.title}</span>
                               <span className="text-[10px] opacity-75 font-normal">({symbolObj.label})</span>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
-                              <button
-                                onClick={() => startPopupEdit(item)}
-                                title="수정"
-                                className="p-1 rounded-md hover:bg-black/10 text-neutral-600"
-                              >
+                              <button onClick={() => startPopupEdit(item)} title="수정" className="p-1 rounded-md hover:bg-black/10 text-neutral-600">
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
-                              <button
-                                onClick={() => handleDeleteSchedule(item.id)}
-                                title="삭제"
-                                className="p-1 rounded-md hover:bg-rose-100 text-neutral-600 hover:text-rose-600"
-                              >
+                              <button onClick={() => handleDeleteSchedule(item.id)} title="삭제" className="p-1 rounded-md hover:bg-rose-100 text-neutral-600 hover:text-rose-600">
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
@@ -2082,15 +2241,12 @@ export default function Home() {
                       })}
 
                       {scheduleList.filter((s) => s.date === modalDate).length === 0 && (
-                        <div className="text-center py-4 text-neutral-400 text-xs">
-                          등록된 일정이 없습니다.
-                        </div>
+                        <div className="text-center py-4 text-neutral-400 text-xs">등록된 일정이 없습니다.</div>
                       )}
                     </div>
 
                     <form onSubmit={handleAddPopupSchedule} className="pt-3 border-t border-neutral-200 shrink-0 space-y-3">
                       <div className="text-xs font-bold text-neutral-800">새 일정 추가</div>
-
                       <div>
                         <input
                           type="text"
@@ -2111,9 +2267,7 @@ export default function Home() {
                               type="button"
                               onClick={() => setNewSchedSymbol(key)}
                               className={`py-1.5 rounded-xl text-[11px] font-bold border flex flex-col items-center gap-0.5 transition ${
-                                newSchedSymbol === key
-                                  ? "border-pink-500 bg-pink-50 text-pink-900 font-black shadow-2xs"
-                                  : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
+                                newSchedSymbol === key ? "border-pink-500 bg-pink-50 text-pink-900 font-black shadow-2xs" : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
                               }`}
                             >
                               <span className="text-sm">{val.icon}</span>
@@ -2128,14 +2282,7 @@ export default function Home() {
                         <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
                           {Object.entries(COLOR_CONFIG).map(([key, val]) => (
                             <label key={key} className="flex items-center gap-1.5 cursor-pointer">
-                              <input
-                                type="radio"
-                                name="tagColor"
-                                value={key}
-                                checked={newSchedColor === key}
-                                onChange={() => setNewSchedColor(key)}
-                                className="hidden"
-                              />
+                              <input type="radio" name="tagColor" value={key} checked={newSchedColor === key} onChange={() => setNewSchedColor(key)} className="hidden" />
                               <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${
                                 newSchedColor === key ? "border-pink-600 scale-110 shadow-xs" : "border-transparent opacity-70"
                               }`}>
@@ -2148,32 +2295,21 @@ export default function Home() {
                       </div>
 
                       <div className="flex items-center gap-2 pt-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setModalDate(null);
-                            setPopupEditingId(null);
-                          }}
-                          className="flex-1 py-2 rounded-xl border border-neutral-300 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 transition"
-                        >
+                        <button type="button" onClick={() => { setModalDate(null); setPopupEditingId(null); }} className="flex-1 py-2 rounded-xl border border-neutral-300 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 transition">
                           닫기 (ESC)
                         </button>
-                        <button
-                          type="submit"
-                          className="flex-1 py-2 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold shadow-sm transition"
-                        >
+                        <button type="submit" className="flex-1 py-2 rounded-xl bg-pink-500 hover:bg-pink-600 text-white text-xs font-bold shadow-sm transition">
                           일정 추가
                         </button>
                       </div>
                     </form>
-
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* ==================== C. [노래책] 탭 화면 ==================== */}
+          {/* ==================== D. [노래책] 탭 화면 ==================== */}
           {currentTab === "songs" && (
             <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
               <form onSubmit={handleAddSong} className="border border-emerald-400 rounded-2xl p-3 flex flex-wrap items-center gap-2 bg-emerald-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
@@ -2285,7 +2421,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 헤더 박스: 곡명과 관리 사이에 '영상' 컬럼 추가 */}
               <div className="border border-emerald-400 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
                 <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-emerald-900 items-center">
                   <span className="col-span-2 flex items-center justify-center gap-1 text-center">🏷️ 장르</span>
@@ -2296,7 +2431,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 곡 목록 */}
               <div className="flex flex-col gap-2">
                 {filteredSongs.map((song) => {
                   const isPlayingThis = isPlayingAudio && currentSong?.id === song.id;
@@ -2381,19 +2515,16 @@ export default function Home() {
                           : "bg-emerald-50/40 border-emerald-400 hover:border-emerald-500 hover:bg-emerald-50/70"
                       }`}
                     >
-                      {/* 장르 */}
                       <div className="col-span-2 flex justify-center">
                         <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-[11px] font-bold text-center">
                           {song.genre}
                         </span>
                       </div>
 
-                      {/* 가수 */}
                       <div className="col-span-4 text-neutral-800 truncate font-bold text-[13px] text-center px-1">
                         {song.artist}
                       </div>
 
-                      {/* 곡명 */}
                       <div className="col-span-3 flex items-center justify-center gap-2 font-bold text-neutral-900 px-1 overflow-hidden">
                         <Music className={`w-3.5 h-3.5 shrink-0 ${isPlayingThis ? "text-emerald-600 animate-pulse" : "text-emerald-500"}`} />
                         <span className="truncate text-sm">{song.title}</span>
@@ -2411,7 +2542,6 @@ export default function Home() {
                         )}
                       </div>
 
-                      {/* [신규] 곡명과 관리 사이의 내부 영상 재생 팝업 버튼 */}
                       <div className="col-span-1 flex items-center justify-center">
                         {hasUrl ? (
                           <button
@@ -2427,7 +2557,6 @@ export default function Home() {
                         )}
                       </div>
 
-                      {/* 관리 버튼 */}
                       <div className="col-span-2 flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => startEditSong(song)}
@@ -2440,9 +2569,7 @@ export default function Home() {
                           onClick={() => toggleLike(song.id)}
                           title={song.liked ? "플레이리스트에서 제거" : "플레이리스트에 담기"}
                           className={`p-1.5 rounded-lg transition ${
-                            song.liked
-                              ? "text-rose-500 fill-rose-500 hover:scale-110 bg-rose-50"
-                              : "text-neutral-400 hover:text-rose-500 hover:bg-white"
+                            song.liked ? "text-rose-500 fill-rose-500 hover:scale-110 bg-rose-50" : "text-neutral-400 hover:text-rose-500 hover:bg-white"
                           }`}
                         >
                           <Heart className={`w-3.5 h-3.5 ${song.liked ? "fill-rose-500" : ""}`} />
@@ -2466,7 +2593,7 @@ export default function Home() {
                 )}
               </div>
 
-              {/* [신규] 영상 전용 클린 팝업 모달 (내용박스 크기를 넘지 않는 16:9 뷰) */}
+              {/* 영상 전용 클린 팝업 모달 */}
               {videoModalUrl && (
                 <div 
                   className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -2476,7 +2603,6 @@ export default function Home() {
                     className="bg-neutral-900 rounded-3xl overflow-hidden shadow-2xl border border-neutral-700 w-full max-w-4xl max-h-[720px] flex flex-col relative animate-in fade-in zoom-in-95 duration-150"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {/* 상단 닫기 바 */}
                     <div className="flex items-center justify-between px-4 py-2 bg-neutral-900/90 border-b border-neutral-800 text-white shrink-0">
                       <div className="flex items-center gap-2 text-xs font-bold text-neutral-300">
                         <Tv className="w-4 h-4 text-emerald-400" />
@@ -2484,16 +2610,12 @@ export default function Home() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-neutral-400 bg-neutral-800 px-2 py-0.5 rounded-md">ESC로 닫기</span>
-                        <button
-                          onClick={() => setVideoModalUrl(null)}
-                          className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
-                        >
+                        <button onClick={() => setVideoModalUrl(null)} className="p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition">
                           <X className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
 
-                    {/* 유튜브 16:9 반응형 iframe */}
                     <div className="relative w-full aspect-video bg-black flex items-center justify-center">
                       <iframe
                         src={`https://www.youtube.com/embed/${getYouTubeId(videoModalUrl)}?autoplay=1`}
@@ -2510,16 +2632,14 @@ export default function Home() {
             </div>
           )}
 
-          {/* ==================== D. 그 외 탭 ==================== */}
-          {currentTab !== "songs" && currentTab !== "schedule" && currentTab !== "ledger" && (
+          {/* ==================== E. 그 외 탭 ==================== */}
+          {currentTab !== "songs" && currentTab !== "schedule" && currentTab !== "ledger" && currentTab !== "favorites" && (
             <div className="h-full border border-dashed border-emerald-300 rounded-2xl p-20 flex flex-col items-center justify-center text-center bg-emerald-50/20 backdrop-blur-[2px]">
               <span className="text-3xl mb-2 block">🚧</span>
               <h3 className="text-sm font-bold text-emerald-900 mb-1">
                 {menuItems.find((m) => m.id === currentTab)?.label} 준비 중
               </h3>
-              <p className="text-xs text-emerald-700/80">
-                해당 탭의 기능도 곧 추가될 예정입니다.
-              </p>
+              <p className="text-xs text-emerald-700/80">해당 탭의 기능도 곧 추가될 예정입니다.</p>
             </div>
           )}
 
@@ -2540,10 +2660,7 @@ export default function Home() {
 
             <div className={`w-full pt-2 border-t ${themeClasses.borderSubtle} flex flex-col items-center`}>
               <div className="flex items-center justify-between w-full mb-1 px-1">
-                <span className="text-[10px] font-bold text-neutral-600 flex items-center gap-1">
-                  타이머
-                </span>
-                
+                <span className="text-[10px] font-bold text-neutral-600 flex items-center gap-1">타이머</span>
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => !isTimerRunning && setTimerMinutes((p) => Math.max(1, p - 1))}
@@ -2575,12 +2692,10 @@ export default function Home() {
                 <button
                   onClick={toggleTimer}
                   className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition shadow-sm ${
-                    isTimerRunning
-                      ? "bg-amber-500 hover:bg-amber-600 text-white"
-                      : themeClasses.accentBtn
+                    isTimerRunning ? "bg-amber-500 hover:bg-amber-600 text-white" : themeClasses.accentBtn
                   }`}
                 >
-                  {isTimerRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3.5 h-3.5 fill-white" />}
+                  {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
                   <span>{isTimerRunning ? "정지" : "시작"}</span>
                 </button>
                 <button
@@ -2608,11 +2723,7 @@ export default function Home() {
 
             <div className={`bg-white/80 border ${themeClasses.borderSubtle} rounded-xl p-2.5 flex flex-col gap-2 shrink-0`}>
               <div className={`text-[11px] font-bold ${themeClasses.textPrimary} truncate text-center leading-tight`}>
-                {currentSong ? (
-                  <span>🎵 {currentSong.title}</span>
-                ) : (
-                  <span className="text-neutral-400 font-normal">재생할 곡을 선택하세요</span>
-                )}
+                {currentSong ? <span>🎵 {currentSong.title}</span> : <span className="text-neutral-400 font-normal">재생할 곡을 선택하세요</span>}
               </div>
 
               <div className="space-y-1">
@@ -2633,43 +2744,18 @@ export default function Home() {
 
               <div className="flex items-center justify-between pt-0.5 px-1">
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={handlePrevSong}
-                    title="이전 곡"
-                    disabled={likedSongs.length === 0}
-                    className="p-1 rounded-md text-neutral-600 hover:text-neutral-900 disabled:opacity-30 transition"
-                  >
+                  <button onClick={handlePrevSong} title="이전 곡" disabled={likedSongs.length === 0} className="p-1 rounded-md text-neutral-600 hover:text-neutral-900 disabled:opacity-30 transition">
                     <SkipBack className="w-3.5 h-3.5" />
                   </button>
-
-                  <button
-                    onClick={togglePlayAudio}
-                    title={isPlayingAudio ? "일시정지" : "재생"}
-                    disabled={likedSongs.length === 0}
-                    className={`p-1.5 rounded-full ${themeClasses.accentBtn} disabled:opacity-30 shadow-sm transition`}
-                  >
+                  <button onClick={togglePlayAudio} title={isPlayingAudio ? "일시정지" : "재생"} disabled={likedSongs.length === 0} className={`p-1.5 rounded-full ${themeClasses.accentBtn} disabled:opacity-30 shadow-sm transition`}>
                     {isPlayingAudio ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
                   </button>
-
-                  <button
-                    onClick={handleNextSong}
-                    title="다음 곡"
-                    disabled={likedSongs.length === 0}
-                    className="p-1 rounded-md text-neutral-600 hover:text-neutral-900 disabled:opacity-30 transition"
-                  >
+                  <button onClick={handleNextSong} title="다음 곡" disabled={likedSongs.length === 0} className="p-1 rounded-md text-neutral-600 hover:text-neutral-900 disabled:opacity-30 transition">
                     <SkipForward className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                <button
-                  onClick={cycleRepeatMode}
-                  title="반복 설정"
-                  className={`p-1 rounded-md transition flex items-center gap-0.5 text-[10px] font-bold ${
-                    repeatMode !== "none"
-                      ? themeClasses.accentActive + " px-1.5"
-                      : "text-neutral-400 hover:text-neutral-600"
-                  }`}
-                >
+                <button onClick={cycleRepeatMode} title="반복 설정" className={`p-1 rounded-md transition flex items-center gap-0.5 text-[10px] font-bold ${repeatMode !== "none" ? themeClasses.accentActive + " px-1.5" : "text-neutral-400 hover:text-neutral-600"}`}>
                   {repeatMode === "one" ? (
                     <>
                       <Repeat1 className="w-3.5 h-3.5" />
@@ -2685,25 +2771,10 @@ export default function Home() {
               </div>
 
               <div className={`flex items-center gap-1.5 pt-1 border-t ${themeClasses.borderSubtle} px-0.5`}>
-                <button
-                  onClick={toggleMute}
-                  title={isMuted ? "음소거 해제" : "음소거"}
-                  className={`${themeClasses.textSecondary} hover:text-neutral-950 p-0.5 transition shrink-0`}
-                >
-                  {isMuted || volume === 0 ? (
-                    <VolumeX className="w-3.5 h-3.5 text-neutral-400" />
-                  ) : (
-                    <Volume2 className="w-3.5 h-3.5" />
-                  )}
+                <button onClick={toggleMute} title={isMuted ? "음소거 해제" : "음소거"} className={`${themeClasses.textSecondary} hover:text-neutral-950 p-0.5 transition shrink-0`}>
+                  {isMuted || volume === 0 ? <VolumeX className="w-3.5 h-3.5 text-neutral-400" /> : <Volume2 className="w-3.5 h-3.5" />}
                 </button>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={isMuted ? 0 : volume}
-                  onChange={handleVolumeChange}
-                  className={`w-full h-1 ${themeClasses.rangeBg} rounded-lg appearance-none cursor-pointer ${themeClasses.rangeAccent}`}
-                />
+                <input type="range" min={0} max={100} value={isMuted ? 0 : volume} onChange={handleVolumeChange} className={`w-full h-1 ${themeClasses.rangeBg} rounded-lg appearance-none cursor-pointer ${themeClasses.rangeAccent}`} />
               </div>
             </div>
 
@@ -2718,9 +2789,7 @@ export default function Home() {
                     key={`liked-${song.id}`}
                     onClick={() => handleSelectSong(idx)}
                     className={`flex items-center justify-between p-1.5 rounded-lg border text-[11px] cursor-pointer transition group ${
-                      isSelected
-                        ? themeClasses.activeTrack + " font-bold"
-                        : `bg-white/70 ${themeClasses.borderSubtle} hover:${themeClasses.bgLight}`
+                      isSelected ? themeClasses.activeTrack + " font-bold" : `bg-white/70 ${themeClasses.borderSubtle} hover:${themeClasses.bgLight}`
                     }`}
                   >
                     <div className="min-w-0 pr-1 flex items-center gap-1.5">
@@ -2728,31 +2797,14 @@ export default function Home() {
                       <div className="min-w-0">
                         <div className="text-neutral-900 truncate leading-tight flex items-center gap-1">
                           <span className="truncate">{song.title}</span>
-                          {isCover && (
-                            <span className="px-1 py-0.2 rounded text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-300 shrink-0">
-                              Cover
-                            </span>
-                          )}
-                          {isOriginal && (
-                            <span className="px-1 py-0.2 rounded text-[9px] font-black bg-blue-100 text-blue-800 border border-blue-300 shrink-0">
-                              Original
-                            </span>
-                          )}
+                          {isCover && <span className="px-1 py-0.2 rounded text-[9px] font-black bg-amber-100 text-amber-800 border border-amber-300 shrink-0">Cover</span>}
+                          {isOriginal && <span className="px-1 py-0.2 rounded text-[9px] font-black bg-blue-100 text-blue-800 border border-blue-300 shrink-0">Original</span>}
                         </div>
-                        <div className="text-[10px] text-neutral-500 truncate">
-                          {song.artist}
-                        </div>
+                        <div className="text-[10px] text-neutral-500 truncate">{song.artist}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleLike(song.id);
-                        }}
-                        title="제외"
-                        className="text-neutral-300 hover:text-rose-500 p-0.5"
-                      >
+                      <button onClick={(e) => { e.stopPropagation(); toggleLike(song.id); }} title="제외" className="text-neutral-300 hover:text-rose-500 p-0.5">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
