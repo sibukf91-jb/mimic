@@ -21,7 +21,26 @@ interface LedgerTabProps {
 }
 
 export default function LedgerTab({ themeClasses }: LedgerTabProps) {
-  const TODAY_STR = "2026-09-20";
+  // 실시간 오늘 날짜 자동 계산 함수 (자정이 지나면 오늘 날짜로 자동 변경)
+  const getTodayStr = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const [currentDateObj, setCurrentDateObj] = useState(new Date());
+
+  // 1초마다 시계를 갱신하여 자정(00:00:00) 통과 시 즉시 하이라이트 변경
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateObj(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const TODAY_STR = useMemo(() => getTodayStr(), [currentDateObj]);
 
   const holidays: Record<string, string> = {
     "2026-09-24": "추석 연휴",
@@ -29,50 +48,67 @@ export default function LedgerTab({ themeClasses }: LedgerTabProps) {
     "2026-09-26": "추석 연휴",
   };
 
+  // 심볼 설정 (7종): 택시, 배달, 편의점, 고정, 월급, 구입, 일반
   const LEDGER_SYMBOL_CONFIG = {
     taxi: { label: "택시", icon: "🚕" },
     delivery: { label: "배달", icon: "🛵" },
     convenience: { label: "편의점", icon: "🏪" },
     fixed: { label: "고정", icon: "📌" },
     salary: { label: "월급", icon: "💰" },
+    purchase: { label: "구입", icon: "🛍️" },
+    general: { label: "일반", icon: "📝" },
   };
 
+  // 색상 설정 (7종): 파스텔 오렌지, 파스텔 버건디 추가
   const LEDGER_COLOR_CONFIG = {
     blue: { label: "파랑", class: "bg-blue-100 text-blue-900 border-blue-300", chip: "bg-blue-300" },
     pink: { label: "핑크", class: "bg-pink-100 text-pink-900 border-pink-300", chip: "bg-pink-300" },
     green: { label: "초록", class: "bg-emerald-100 text-emerald-900 border-emerald-300", chip: "bg-emerald-300" },
     yellow: { label: "노랑", class: "bg-amber-100 text-amber-900 border-amber-300", chip: "bg-amber-300" },
     purple: { label: "보라", class: "bg-purple-100 text-purple-900 border-purple-300", chip: "bg-purple-300" },
+    orange: { label: "오렌지", class: "bg-orange-100 text-orange-900 border-orange-300", chip: "bg-orange-300" },
+    burgundy: { label: "버건디", class: "bg-rose-200 text-rose-950 border-rose-400", chip: "bg-rose-400" },
+  };
+
+  // 심볼과 색상 1:1 순서 매칭
+  const SYMBOL_TO_COLOR_MAP = {
+    taxi: "blue",
+    delivery: "pink",
+    convenience: "green",
+    fixed: "yellow",
+    salary: "purple",
+    purchase: "orange",
+    general: "burgundy",
   };
 
   const defaultLedgerEntries = [
-    { id: 1, date: "2026-09-05", type: "expense", title: "카카오택시", amount: 14800, symbol: "taxi", color: "yellow" },
-    { id: 2, date: "2026-09-10", type: "income", title: "9월 월급", amount: 3200000, symbol: "salary", color: "blue" },
+    { id: 1, date: "2026-09-05", type: "expense", title: "카카오택시", amount: 14800, symbol: "taxi", color: "blue" },
+    { id: 2, date: "2026-09-10", type: "income", title: "9월 월급", amount: 3200000, symbol: "salary", color: "purple" },
     { id: 3, date: "2026-09-12", type: "expense", title: "배달의민족", amount: 26000, symbol: "delivery", color: "pink" },
-    { id: 4, date: "2026-09-01", type: "expense", title: "인터넷", amount: 34000, symbol: "fixed", color: "pink" },
+    { id: 4, date: "2026-09-01", type: "expense", title: "인터넷", amount: 34000, symbol: "fixed", color: "yellow" },
     { id: 5, date: "2026-09-17", type: "expense", title: "GS25 편의점", amount: 6200, symbol: "convenience", color: "green" },
   ];
-  const defaultFixedTemplates = [{ id: "fixed_tpl_1", title: "인터넷", color: "pink" }];
+  const defaultFixedTemplates = [{ id: "fixed_tpl_1", title: "인터넷", color: "yellow" }];
 
   const [ledgerEntries, setLedgerEntries] = useState<any[]>([]);
   const [fixedTemplates, setFixedTemplates] = useState<any[]>([]);
   const [isLedgerLoaded, setIsLedgerLoaded] = useState(false);
-  const [ledgerYear, setLedgerYear] = useState(2026);
-  const [ledgerMonth, setLedgerMonth] = useState(9);
+  const [ledgerYear, setLedgerYear] = useState(() => new Date().getFullYear());
+  const [ledgerMonth, setLedgerMonth] = useState(() => new Date().getMonth() + 1);
   const [ledgerModalDate, setLedgerModalDate] = useState<string | null>(null);
 
   const [newLedgerTitle, setNewLedgerTitle] = useState("");
   const [newLedgerAmount, setNewLedgerAmount] = useState("");
   const [newLedgerType, setNewLedgerType] = useState<"expense" | "income">("expense");
   const [newLedgerSymbol, setNewLedgerSymbol] = useState("fixed");
-  const [newLedgerColor, setNewLedgerColor] = useState("pink");
+  const [newLedgerColor, setNewLedgerColor] = useState("yellow");
 
   const [ledgerEditingId, setLedgerEditingId] = useState<number | null>(null);
   const [editLedgerTitle, setEditLedgerTitle] = useState("");
   const [editLedgerAmount, setEditLedgerAmount] = useState("");
   const [editLedgerType, setEditLedgerType] = useState<"expense" | "income">("expense");
   const [editLedgerSymbol, setEditLedgerSymbol] = useState("fixed");
-  const [editLedgerColor, setEditLedgerColor] = useState("pink");
+  const [editLedgerColor, setEditLedgerColor] = useState("yellow");
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -130,6 +166,21 @@ export default function LedgerTab({ themeClasses }: LedgerTabProps) {
     return cells;
   }, [ledgerYear, ledgerMonth]);
 
+  // 심볼 선택 시 색상 1:1 자동 매칭
+  const handleSelectNewSymbol = (key: string) => {
+    setNewLedgerSymbol(key);
+    if (SYMBOL_TO_COLOR_MAP[key]) {
+      setNewLedgerColor(SYMBOL_TO_COLOR_MAP[key]);
+    }
+  };
+
+  const handleSelectEditSymbol = (key: string) => {
+    setEditLedgerSymbol(key);
+    if (SYMBOL_TO_COLOR_MAP[key]) {
+      setEditPopupColor(SYMBOL_TO_COLOR_MAP[key]);
+    }
+  };
+
   const handleAddLedgerEntry = (e: React.FormEvent) => {
     e.preventDefault();
     if (!ledgerModalDate || !newLedgerTitle.trim() || !newLedgerAmount) return;
@@ -162,7 +213,7 @@ export default function LedgerTab({ themeClasses }: LedgerTabProps) {
     setEditLedgerAmount(String(item.amount));
     setEditLedgerType(item.type || "expense");
     setEditLedgerSymbol(item.symbol || "fixed");
-    setEditLedgerColor(item.color || "pink");
+    setEditLedgerColor(item.color || (SYMBOL_TO_COLOR_MAP[item.symbol] || "yellow"));
   };
 
   const saveLedgerEdit = (id: number) => {
@@ -222,7 +273,7 @@ export default function LedgerTab({ themeClasses }: LedgerTabProps) {
     });
     const fixedItems = (fixedTemplates || []).map((tpl) => {
       const found = monthlyList.find((item) => item.symbol === "fixed" && item.title === tpl.title);
-      return { tplTitle: tpl.title, color: tpl.color || "pink", entry: found || null };
+      return { tplTitle: tpl.title, color: tpl.color || "yellow", entry: found || null };
     });
     return {
       income,
@@ -246,7 +297,7 @@ export default function LedgerTab({ themeClasses }: LedgerTabProps) {
       setNewLedgerAmount("");
       setNewLedgerSymbol("fixed");
       setNewLedgerType("expense");
-      setNewLedgerColor(fixedItemObj ? (fixedItemObj.color || "pink") : "pink");
+      setNewLedgerColor(fixedItemObj ? (fixedItemObj.color || "yellow") : "yellow");
     }
   };
 
@@ -307,7 +358,7 @@ export default function LedgerTab({ themeClasses }: LedgerTabProps) {
                   key={cell.dateStr}
                   onClick={() => { setLedgerEditingId(null); setLedgerModalDate(cell.dateStr); }}
                   className={`h-full border rounded-xl p-1.5 flex flex-col justify-between transition group relative cursor-pointer min-h-0 ${
-                    isToday ? "border-amber-400 bg-amber-50/70" : "border-sky-200/90 bg-white hover:border-sky-400"
+                    isToday ? "border-amber-400 bg-amber-50/70" : "border-sky-200/90 bg-white hover:border-sky-400 hover:bg-sky-50/20"
                   }`}
                 >
                   <div className="flex items-center justify-between text-[11px] font-bold leading-tight">
@@ -425,7 +476,7 @@ export default function LedgerTab({ themeClasses }: LedgerTabProps) {
         </div>
       </div>
 
-      {/* 가계부 모달 팝업 */}
+      {/* 일정 탭과 똑같은 구성의 가계부 관리 모달 팝업 */}
       {ledgerModalDate && (
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
@@ -435,45 +486,133 @@ export default function LedgerTab({ themeClasses }: LedgerTabProps) {
             className="bg-white rounded-3xl p-6 border border-sky-300 shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col animate-in fade-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* 팝업 헤더 */}
             <div className="flex items-center justify-between pb-3 border-b border-neutral-200 shrink-0">
-              <div className="flex items-center gap-2">
+              <h3 className="text-base font-black text-neutral-900 flex items-center gap-2">
                 <Wallet className="w-5 h-5 text-sky-500" />
-                <h3 className="text-base font-black text-neutral-900">가계부 관리</h3>
-                <input
-                  type="date"
-                  value={ledgerModalDate}
-                  onChange={(e) => setLedgerModalDate(e.target.value)}
-                  className="border border-sky-200 bg-sky-50/50 rounded-lg px-2 py-0.5 text-xs font-bold text-sky-900"
-                />
+                <span>{ledgerModalDate} 가계부 관리</span>
+              </h3>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-neutral-400 font-medium bg-neutral-100 px-2 py-0.5 rounded-md">ESC로 닫기</span>
+                <button onClick={() => { setLedgerModalDate(null); setLedgerEditingId(null); }} className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg">
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button onClick={() => { setLedgerModalDate(null); setLedgerEditingId(null); }} className="text-neutral-400 hover:text-neutral-600 p-1.5 rounded-lg">
-                <X className="w-5 h-5" />
-              </button>
             </div>
 
+            {/* 등록된 목록 */}
             <div className="my-3 overflow-y-auto space-y-2 max-h-[220px] pr-1">
+              <div className="text-[11px] font-bold text-neutral-500 mb-1">
+                등록된 내역 ({(ledgerEntries || []).filter((s) => s.date === ledgerModalDate).length}건)
+              </div>
+
               {(ledgerEntries || []).filter((s) => s.date === ledgerModalDate).map((item) => {
-                const isIncome = item.type === "income";
-                const colorObj = LEDGER_COLOR_CONFIG[item.color] || LEDGER_COLOR_CONFIG.pink;
+                const isEditingThis = ledgerEditingId === item.id;
                 const symbolObj = LEDGER_SYMBOL_CONFIG[item.symbol] || LEDGER_SYMBOL_CONFIG.fixed;
+                const colorObj = LEDGER_COLOR_CONFIG[item.color] || LEDGER_COLOR_CONFIG.pink;
+                const isIncome = item.type === "income";
+
+                if (isEditingThis) {
+                  return (
+                    <div key={`pop-edit-${item.id}`} className="p-3 rounded-2xl border-2 border-sky-400 bg-sky-50/50 space-y-2">
+                      <div className="flex gap-2">
+                        <select
+                          value={editLedgerType}
+                          onChange={(e) => setEditLedgerType(e.target.value as "expense" | "income")}
+                          className="border border-sky-300 rounded-lg px-2 py-1 text-xs font-bold bg-white"
+                        >
+                          <option value="expense">지출 (-)</option>
+                          <option value="income">수입 (+)</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={editLedgerTitle}
+                          onChange={(e) => setEditLedgerTitle(e.target.value)}
+                          placeholder="항목 내용"
+                          className="flex-1 border border-sky-300 rounded-lg px-2.5 py-1 text-xs font-bold text-neutral-900 bg-white focus:outline-none focus:border-sky-500"
+                        />
+                        <input
+                          type="number"
+                          value={editLedgerAmount}
+                          onChange={(e) => setEditLedgerAmount(e.target.value)}
+                          placeholder="금액"
+                          className="w-24 border border-sky-300 rounded-lg px-2 py-1 text-xs font-bold text-neutral-900 bg-white focus:outline-none focus:border-sky-500"
+                        />
+                      </div>
+
+                      {/* 수정 시 심볼 선택 (선택 시 색상 자동 연동) */}
+                      <div className="grid grid-cols-4 sm:grid-cols-7 gap-1">
+                        {Object.entries(LEDGER_SYMBOL_CONFIG).map(([key, val]) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => handleSelectEditSymbol(key)}
+                            className={`py-1 rounded-lg text-[10px] font-bold border flex flex-col items-center gap-0.5 transition ${
+                              editLedgerSymbol === key
+                                ? "border-sky-500 bg-sky-100 text-sky-950 font-black"
+                                : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                            }`}
+                          >
+                            <span className="text-xs">{val.icon}</span>
+                            <span>{val.label}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* 수정 시 색상 라디오 */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-bold text-neutral-600">색상:</span>
+                        {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setEditLedgerColor(key)}
+                            className={`w-5 h-5 rounded-full ${val.chip} border-2 transition ${
+                              editLedgerColor === key ? "border-sky-800 scale-110" : "border-white"
+                            }`}
+                          />
+                        ))}
+                      </div>
+
+                      <div className="flex justify-end gap-1.5 pt-1">
+                        <button onClick={() => saveLedgerEdit(item.id)} className="px-3 py-1 bg-sky-500 text-white text-xs font-bold rounded-lg hover:bg-sky-600">저장</button>
+                        <button onClick={() => setLedgerEditingId(null)} className="px-3 py-1 bg-white border border-neutral-300 text-neutral-600 text-xs rounded-lg hover:bg-neutral-50">취소</button>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div key={item.id} className={`flex items-center justify-between p-2 rounded-xl border text-xs font-semibold ${colorObj.class}`}>
                     <div className="flex items-center gap-2 min-w-0 pr-2">
                       <span className="text-base">{symbolObj.icon}</span>
                       <span className="font-bold truncate">{item.title}</span>
+                      <span className="text-[10px] opacity-75 font-normal">({symbolObj.label})</span>
                       <span className="font-mono font-bold whitespace-nowrap">{isIncome ? "+" : "-"}{Number(item.amount).toLocaleString()}원</span>
                     </div>
-                    <button onClick={(e) => handleDeleteLedgerEntry(item.id, e)} title="삭제" className="p-1 rounded-md hover:bg-rose-100 text-neutral-600">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => startLedgerEdit(item)} title="수정" className="p-1 rounded-md hover:bg-black/10 text-neutral-600"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={(e) => handleDeleteLedgerEntry(item.id, e)} title="삭제" className="p-1 rounded-md hover:bg-rose-100 text-neutral-600 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
                   </div>
                 );
               })}
+
+              {(ledgerEntries || []).filter((s) => s.date === ledgerModalDate).length === 0 && (
+                <div className="text-center py-4 text-neutral-400 text-xs">등록된 내역이 없습니다.</div>
+              )}
             </div>
 
+            {/* 새 내역 입력 폼 (일정 모달과 동일 구성) */}
             <form onSubmit={handleAddLedgerEntry} className="pt-3 border-t border-neutral-200 shrink-0 space-y-3">
+              <div className="text-xs font-bold text-neutral-800">새 내역 추가</div>
+              
               <div className="flex gap-2">
-                <select value={newLedgerType} onChange={(e) => setNewLedgerType(e.target.value as "expense" | "income")} className="border border-sky-300 rounded-xl px-2.5 py-2 text-xs font-bold bg-white">
+                <select
+                  value={newLedgerType}
+                  onChange={(e) => setNewLedgerType(e.target.value as "expense" | "income")}
+                  className="border border-sky-300 rounded-xl px-2.5 py-2 text-xs font-bold bg-white"
+                >
                   <option value="expense">지출 (-)</option>
                   <option value="income">수입 (+)</option>
                 </select>
@@ -482,40 +621,83 @@ export default function LedgerTab({ themeClasses }: LedgerTabProps) {
                   required
                   value={newLedgerTitle}
                   onChange={(e) => setNewLedgerTitle(e.target.value)}
-                  placeholder="항목 내용"
-                  className="flex-1 border border-sky-300 rounded-xl px-3 py-2 text-xs font-medium"
+                  placeholder="항목 내용 (예: 점심식사, 장보기)"
+                  className="flex-1 border border-sky-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500 font-medium"
                 />
-                <select value={newLedgerSymbol} onChange={(e) => setNewLedgerSymbol(e.target.value)} className="border border-sky-300 rounded-xl px-2 py-2 text-xs font-bold bg-white">
+              </div>
+
+              <div>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={newLedgerAmount}
+                  onChange={(e) => setNewLedgerAmount(e.target.value)}
+                  placeholder="금액을 입력하세요 (예: 15000)"
+                  className="w-full border border-sky-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500 font-medium font-mono"
+                />
+              </div>
+
+              {/* 심볼 선택 (선택 시 색상 1:1 자동 연동) */}
+              <div>
+                <div className="text-[11px] font-bold text-neutral-600 mb-1">심볼 선택 (선택 시 색상 자동 연동)</div>
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1">
                   {Object.entries(LEDGER_SYMBOL_CONFIG).map(([key, val]) => (
-                    <option key={key} value={key}>{val.icon} {val.label}</option>
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => handleSelectNewSymbol(key)}
+                      className={`py-1.5 rounded-xl text-[11px] font-bold border flex flex-col items-center gap-0.5 transition ${
+                        newLedgerSymbol === key
+                          ? "border-sky-500 bg-sky-100 text-sky-950 font-black shadow-2xs"
+                          : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
+                      }`}
+                    >
+                      <span className="text-sm">{val.icon}</span>
+                      <span>{val.label}</span>
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
-              <input
-                type="number"
-                required
-                min="0"
-                value={newLedgerAmount}
-                onChange={(e) => setNewLedgerAmount(e.target.value)}
-                placeholder="금액을 입력하세요 (예: 15000)"
-                className="w-full border border-sky-300 rounded-xl px-3 py-2 text-xs font-medium"
-              />
-              <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
-                {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
-                  <label key={key} className="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="ledgerTagColor" value={key} checked={newLedgerColor === key} onChange={() => setNewLedgerColor(key)} className="hidden" />
-                    <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center ${newLedgerColor === key ? "border-sky-800 scale-110 shadow-xs" : "border-transparent opacity-70"}`}>
-                      {newLedgerColor === key && <Check className="w-3 h-3 text-sky-950 stroke-[3]" />}
-                    </span>
-                    <span className="text-[11px] font-semibold text-neutral-700">{val.label}</span>
-                  </label>
-                ))}
+
+              {/* 파스텔 태그 색상 라디오 (7종) */}
+              <div>
+                <div className="text-[11px] font-bold text-neutral-600 mb-1">파스텔 태그 색상</div>
+                <div className="flex items-center gap-2.5 bg-neutral-50 p-2 rounded-xl border border-neutral-200 flex-wrap">
+                  {Object.entries(LEDGER_COLOR_CONFIG).map(([key, val]) => (
+                    <label key={key} className="flex items-center gap-1 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="ledgerTagColor"
+                        value={key}
+                        checked={newLedgerColor === key}
+                        onChange={() => setNewLedgerColor(key)}
+                        className="hidden"
+                      />
+                      <span className={`w-5 h-5 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${
+                        newLedgerColor === key ? "border-sky-800 scale-110 shadow-xs" : "border-transparent opacity-70"
+                      }`}>
+                        {newLedgerColor === key && <Check className="w-2.5 h-2.5 text-sky-950 stroke-[3]" />}
+                      </span>
+                      <span className="text-[10px] font-semibold text-neutral-700">{val.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
+
+              {/* 하단 버튼 바 */}
               <div className="flex items-center gap-2 pt-1">
-                <button type="button" onClick={() => { setLedgerModalDate(null); setLedgerEditingId(null); }} className="flex-1 py-2 rounded-xl border border-neutral-300 text-neutral-600 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => { setLedgerModalDate(null); setLedgerEditingId(null); }}
+                  className="flex-1 py-2 rounded-xl border border-neutral-300 text-neutral-600 text-xs font-semibold hover:bg-neutral-50 transition"
+                >
                   닫기 (ESC)
                 </button>
-                <button type="submit" className="flex-1 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold">
+                <button
+                  type="submit"
+                  className="flex-1 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold shadow-sm transition"
+                >
                   내역 추가
                 </button>
               </div>
