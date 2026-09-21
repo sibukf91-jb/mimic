@@ -49,15 +49,15 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
     "2026-09-26": "추석 연휴",
   };
 
-  // 심볼 설정: 기존 5개 + 구입, 일반 추가
+  // 심볼 설정: 기존 심볼 + 모임, 병원
   const SCHEDULE_SYMBOL_CONFIG = {
     leave: { label: "연차", icon: "🌴" },
     half_leave: { label: "반차", icon: "🌓" },
     hair: { label: "헤어", icon: "✂️" },
     birthday: { label: "생일", icon: "🎂" },
     appointment: { label: "약속", icon: "📌" },
-    purchase: { label: "구입", icon: "🛍️" },
-    general: { label: "일반", icon: "📝" },
+    gathering: { label: "모임", icon: "🍻" },
+    hospital: { label: "병원", icon: "🏥" },
   };
 
   const SCHEDULE_COLOR_CONFIG = {
@@ -516,7 +516,7 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
                   required
                   value={newSchedTitle}
                   onChange={(e) => setNewSchedTitle(e.target.value)}
-                  placeholder="일정 제목을 입력하세요 (예: 치과, 생일파티 등)"
+                  placeholder="일정 제목을 입력하세요 (예: 치과, 모임 등)"
                   className="w-full border border-pink-300 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-pink-500 font-medium"
                 />
               </div>
