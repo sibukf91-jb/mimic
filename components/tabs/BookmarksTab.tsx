@@ -2,169 +2,529 @@
 /* eslint-disable */
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Bookmark, Plus, Trash2, ExternalLink } from "lucide-react";
-import { supabase, getCloudData, saveCloudData } from "@/lib/supabase";
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Search,
+  Plus,
+  Minus,
+  Trash2,
+  Pencil,
+  Check,
+  X,
+  ArrowUpDown
+} from "lucide-react";
 
 interface BookmarksTabProps {
-  themeClasses: any;
-}
-
-interface BookmarkItem {
-  id: string;
-  title: string;
-  desc: string;
-  link: string;
-  createdAt: string;
+  themeClasses?: any;
 }
 
 export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
-  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const TODAY_STR = "2026-09-20";
+  const todayDateObj = new Date(TODAY_STR);
 
-  const [title, setTitle] = useState("");
-  const [desc, setDesc] = useState("");
-  const [link, setLink] = useState("");
-
-  // 클라우드 동기화 로드 및 구독
-  useEffect(() => {
-    async function loadBookmarks() {
-      const saved = await getCloudData("jb_reading_bookmarks_data", []);
-      setBookmarks(saved || []);
-      setIsLoaded(true);
+  const calculateAutoFinalEpisode = (releaseDateStr: string) => {
+    if (!releaseDateStr) return "1회";
+    let targetDate: Date;
+    if (releaseDateStr.length === 6 && !releaseDateStr.includes("-")) {
+      const yy = "20" + releaseDateStr.slice(0, 2);
+      const mm = releaseDateStr.slice(2, 4);
+      const dd = releaseDateStr.slice(4, 6);
+      targetDate = new Date(`${yy}-${mm}-${dd}`);
+    } else {
+      targetDate = new Date(releaseDateStr);
     }
-    loadBookmarks();
+    if (isNaN(targetDate.getTime())) return "1회";
+    const diffTime = todayDateObj.getTime() - targetDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return "1회";
+    const weeks = Math.floor(diffDays / 7) + 1;
+    return `${weeks}회`;
+  };
 
-    const channel = supabase
-      .channel("bookmarks_tab_sync")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "app_storage", filter: "key=eq.jb_reading_bookmarks_data" },
-        (payload) => {
-          if (payload.new?.value) {
-            setBookmarks(payload.new.value);
-          }
-        }
-      )
-      .subscribe();
+  const defaultBookmarks = [
+    {
+      id: 1,
+      category: "웹툰",
+      platform: "네이버웹툰",
+      title: "메이드 인 코리아",
+      regularUpdate: "수요일",
+      releaseDate: "260909",
+      weeklySchedule: "2회",
+      finalEpisode: "4회",
+      currentBookmark: 2,
+      isCompleted: false,
+    }
+  ];
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+  const [bookmarkList, setBookmarkList] = useState<any[]>([]);
+  const [isBookmarkLoaded, setIsBookmarkLoaded] = useState(false);
+  const [bmarkSortOrder, setBmarkSortOrder] = useState<"default" | "update_asc">("default");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("jb_bookmark_reading_list_v7");
+      setBookmarkList(saved ? JSON.parse(saved) : defaultBookmarks);
+      setIsBookmarkLoaded(true);
+    }
   }, []);
 
-  // 저장
   useEffect(() => {
-    if (isLoaded) {
-      saveCloudData("jb_reading_bookmarks_data", bookmarks);
+    if (isBookmarkLoaded && typeof window !== "undefined") {
+      localStorage.setItem("jb_bookmark_reading_list_v7", JSON.stringify(bookmarkList));
     }
-  }, [bookmarks, isLoaded]);
+  }, [bookmarkList, isBookmarkLoaded]);
 
-  const handleAdd = (e: React.FormEvent) => {
+  const [newBmarkCategory, setNewBmarkCategory] = useState("");
+  const [newBmarkPlatform, setNewBmarkPlatform] = useState("");
+  const [newBmarkTitle, setNewBmarkTitle] = useState("");
+  const [newBmarkUpdate, setNewBmarkUpdate] = useState("월요일");
+  const [newBmarkRelease, setNewBmarkRelease] = useState("");
+  const [newBmarkSchedule, setNewBmarkSchedule] = useState("");
+  const [newBmarkBookmark, setNewBmarkBookmark] = useState(0);
+
+  const [selectedBmarkCategory, setSelectedBmarkCategory] = useState("전체");
+  const [bmarkSearchQuery, setBmarkSearchQuery] = useState("");
+
+  const [editingBmarkId, setEditingBmarkId] = useState<number | null>(null);
+  const [editBmarkCategory, setEditBmarkCategory] = useState("");
+  const [editBmarkPlatform, setEditBmarkPlatform] = useState("");
+  const [editBmarkTitle, setEditBmarkTitle] = useState("");
+  const [editBmarkUpdate, setEditBmarkUpdate] = useState("월요일");
+  const [editBmarkRelease, setEditBmarkRelease] = useState("");
+  const [editBmarkSchedule, setEditBmarkSchedule] = useState("");
+  const [editBmarkEpisode, setEditBmarkEpisode] = useState("");
+  const [editBmarkBookmark, setEditBmarkBookmark] = useState(0);
+
+  const existingBmarkCategories = useMemo(() => {
+    const set = new Set<string>();
+    (bookmarkList || []).forEach((b) => {
+      if (b.category && b.category.trim()) set.add(b.category.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [bookmarkList]);
+
+  const handleAddBookmark = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!newBmarkTitle.trim()) return;
 
-    let validLink = link.trim();
-    if (validLink && !validLink.startsWith("http://") && !validLink.startsWith("https://")) {
-      validLink = "https://" + validLink;
-    }
+    const autoEp = calculateAutoFinalEpisode(newBmarkRelease.trim());
+    const schedInput = newBmarkSchedule.trim();
+    const formattedSchedule = schedInput && !schedInput.includes("회") ? `${schedInput}회` : schedInput || "1회";
 
-    const newItem: BookmarkItem = {
-      id: Date.now().toString(),
-      title: title.trim(),
-      desc: desc.trim(),
-      link: validLink,
-      createdAt: new Date().toLocaleDateString("ko-KR"),
+    const newEntry = {
+      id: Date.now(),
+      category: newBmarkCategory.trim() || "웹툰",
+      platform: newBmarkPlatform.trim() || "플랫폼",
+      title: newBmarkTitle.trim(),
+      regularUpdate: newBmarkUpdate || "월요일",
+      releaseDate: newBmarkRelease.trim() || "-",
+      weeklySchedule: formattedSchedule,
+      finalEpisode: autoEp,
+      currentBookmark: Number(newBmarkBookmark) || 0,
+      isCompleted: false
     };
 
-    setBookmarks((prev) => [newItem, ...prev]);
-    setTitle("");
-    setDesc("");
-    setLink("");
+    setBookmarkList([newEntry, ...bookmarkList]);
+    setNewBmarkCategory("");
+    setNewBmarkPlatform("");
+    setNewBmarkTitle("");
+    setNewBmarkUpdate("월요일");
+    setNewBmarkRelease("");
+    setNewBmarkSchedule("");
+    setNewBmarkBookmark(0);
   };
 
-  const handleDelete = (id: string) => {
-    setBookmarks((prev) => prev.filter((item) => item.id !== id));
+  const startEditBookmark = (item: any) => {
+    setEditingBmarkId(item.id);
+    setEditBmarkCategory(item.category || "");
+    setEditBmarkPlatform(item.platform || "");
+    setEditBmarkTitle(item.title || "");
+    setEditBmarkUpdate(item.regularUpdate || "월요일");
+    setEditBmarkRelease(item.releaseDate || "");
+    setEditBmarkSchedule((item.weeklySchedule || "").replace("회", ""));
+    setEditBmarkEpisode((item.finalEpisode || "").replace("회", ""));
+    setEditBmarkBookmark(item.currentBookmark ?? 0);
   };
+
+  const cancelEditBookmark = () => setEditingBmarkId(null);
+
+  const saveEditBookmark = (id: number) => {
+    if (!editBmarkTitle.trim()) return;
+
+    const autoEp = calculateAutoFinalEpisode(editBmarkRelease.trim());
+    const schedInput = editBmarkSchedule.trim();
+    const formattedSchedule = schedInput && !schedInput.includes("회") ? `${schedInput}회` : schedInput || "1회";
+    const finalEpInput = editBmarkEpisode.trim();
+    const formattedFinalEp = finalEpInput && !finalEpInput.includes("회") ? `${finalEpInput}회` : finalEpInput || autoEp;
+
+    setBookmarkList((prev) =>
+      prev.map((b) =>
+        b.id === id
+          ? {
+              ...b,
+              category: editBmarkCategory.trim() || "웹툰",
+              platform: editBmarkPlatform.trim() || "플랫폼",
+              title: editBmarkTitle.trim(),
+              regularUpdate: editBmarkUpdate || "월요일",
+              releaseDate: editBmarkRelease.trim() || "-",
+              weeklySchedule: formattedSchedule,
+              finalEpisode: formattedFinalEp,
+              currentBookmark: Number(editBmarkBookmark) || 0
+            }
+          : b
+      )
+    );
+    setEditingBmarkId(null);
+  };
+
+  const handleDeleteBookmark = (id: number) => {
+    setBookmarkList((prev) => prev.filter((b) => b.id !== id));
+  };
+
+  const handleUpdateBookmarkCount = (id: number, delta: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setBookmarkList((prev) =>
+      prev.map((b) => {
+        if (b.id === id) {
+          const nextVal = Math.max(0, (b.currentBookmark || 0) + delta);
+          return { ...b, currentBookmark: nextVal };
+        }
+        return b;
+      })
+    );
+  };
+
+  const handleToggleCompleted = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setBookmarkList((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, isCompleted: !b.isCompleted } : b))
+    );
+  };
+
+  const dayRankMap: Record<string, number> = {
+    "월요일": 1,
+    "화요일": 2,
+    "수요일": 3,
+    "목요일": 4,
+    "금요일": 5,
+    "토요일": 6,
+    "일요일": 7,
+    "완결": 8
+  };
+
+  const filteredBookmarks = useMemo(() => {
+    const list = (bookmarkList || []).filter((b) => {
+      const matchCategory = selectedBmarkCategory === "전체" || b.category === selectedBmarkCategory;
+      const matchSearch =
+        (b.title || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase()) ||
+        (b.platform || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase()) ||
+        (b.category || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase()) ||
+        (b.regularUpdate || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase());
+      return matchCategory && matchSearch;
+    });
+
+    if (bmarkSortOrder === "update_asc") {
+      return list.sort((a, b) => {
+        const rankA = dayRankMap[a.regularUpdate] || 99;
+        const rankB = dayRankMap[b.regularUpdate] || 99;
+        if (rankA !== rankB) return rankA - rankB;
+        return (a.title || "").localeCompare(b.title || "", "ko");
+      });
+    }
+
+    return list.sort((a, b) => (a.title || "").localeCompare(b.title || "", "ko"));
+  }, [bookmarkList, selectedBmarkCategory, bmarkSearchQuery, bmarkSortOrder]);
 
   return (
-    <div className={`w-full h-full border-2 ${themeClasses.borderSolid} rounded-2xl p-5 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col gap-4 overflow-hidden`}>
-      {/* 헤더 */}
-      <div className={`flex items-center justify-between border-b ${themeClasses.borderSubtle} pb-3 shrink-0`}>
-        <div className="flex items-center gap-2">
-          <Bookmark className="w-5 h-5 text-amber-500 fill-amber-300" />
-          <h2 className={`text-base font-bold ${themeClasses.textPrimary}`}>책갈피 및 메모 아카이브</h2>
+    <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
+      {/* 등록 바 */}
+      <form onSubmit={handleAddBookmark} className="border-2 border-amber-400/90 rounded-2xl p-3 flex flex-wrap items-center gap-1.5 bg-amber-50/40 backdrop-blur-[2px] shadow-sm shrink-0">
+        <input
+          type="text"
+          list="bmark-category-suggestions"
+          value={newBmarkCategory}
+          onChange={(e) => setNewBmarkCategory(e.target.value)}
+          placeholder="분류 (예: 웹툰)"
+          className="w-20 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-medium text-amber-950 focus:outline-none focus:border-amber-500 placeholder-neutral-400"
+        />
+        <datalist id="bmark-category-suggestions">
+          {existingBmarkCategories.map((c) => (<option key={c} value={c} />))}
+        </datalist>
+
+        <input
+          type="text"
+          value={newBmarkPlatform}
+          onChange={(e) => setNewBmarkPlatform(e.target.value)}
+          placeholder="플랫폼"
+          className="w-20 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+        />
+
+        <input
+          type="text"
+          required
+          value={newBmarkTitle}
+          onChange={(e) => setNewBmarkTitle(e.target.value)}
+          placeholder="제목 *"
+          className="flex-1 min-w-[130px] border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-bold"
+        />
+
+        <select
+          value={newBmarkUpdate}
+          onChange={(e) => setNewBmarkUpdate(e.target.value)}
+          className="w-24 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs font-bold text-amber-950 focus:outline-none focus:border-amber-500 cursor-pointer"
+        >
+          <option value="월요일">월요일</option>
+          <option value="화요일">화요일</option>
+          <option value="수요일">수요일</option>
+          <option value="목요일">목요일</option>
+          <option value="금요일">금요일</option>
+          <option value="토요일">토요일</option>
+          <option value="일요일">일요일</option>
+          <option value="완결">완결</option>
+        </select>
+
+        <input
+          type="text"
+          value={newBmarkRelease}
+          onChange={(e) => setNewBmarkRelease(e.target.value)}
+          placeholder="공개일"
+          className="w-20 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+        />
+
+        <div className="flex items-center gap-1">
+          <input
+            type="text"
+            value={newBmarkSchedule}
+            onChange={(e) => setNewBmarkSchedule(e.target.value)}
+            placeholder="편성"
+            className="w-16 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+          />
+          <span className="text-xs font-bold text-amber-950">회</span>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            min="0"
+            value={newBmarkBookmark}
+            onChange={(e) => setNewBmarkBookmark(Number(e.target.value))}
+            placeholder="회차"
+            className="w-14 border border-amber-300 bg-white/90 rounded-lg px-1.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+          />
+          <span className="text-xs font-bold text-amber-950">회</span>
+        </div>
+
+        <button
+          type="submit"
+          className="bg-amber-500 hover:bg-amber-600 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shrink-0 shadow-sm flex items-center gap-1 ml-auto"
+        >
+          <Plus className="w-3.5 h-3.5" /> 추가
+        </button>
+      </form>
+
+      {/* 검색 및 분류 필터 */}
+      <div className="border-2 border-amber-400/90 rounded-2xl p-3 bg-amber-50/40 backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0">
+        <div className="relative w-full">
+          <input
+            type="text"
+            value={bmarkSearchQuery}
+            onChange={(e) => setBmarkSearchQuery(e.target.value)}
+            placeholder="제목, 플랫폼, 분류, 정기업데이트를 검색해보세요..."
+            className="w-full border border-amber-300 bg-white/90 rounded-xl pl-9 pr-3 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+          />
+          <Search className="w-3.5 h-3.5 text-amber-600/70 absolute left-3 top-1/2 -translate-y-1/2" />
+        </div>
+
+        <div className="flex items-center gap-1.5 text-xs flex-wrap pt-0.5">
+          <span className="text-amber-950 font-semibold text-[11px] mr-1">분류:</span>
+          <button
+            onClick={() => setSelectedBmarkCategory("전체")}
+            className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+              selectedBmarkCategory === "전체"
+                ? "border-amber-500 bg-amber-200 text-amber-950 font-bold shadow-2xs"
+                : "border-amber-300/80 bg-white/70 text-neutral-700 hover:bg-white"
+            }`}
+          >
+            전체
+          </button>
+          {existingBmarkCategories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedBmarkCategory(cat)}
+              className={`px-2.5 py-0.5 rounded-full border text-[11px] transition font-medium ${
+                selectedBmarkCategory === cat
+                  ? "border-amber-500 bg-amber-200 text-amber-950 font-bold shadow-2xs"
+                  : "border-amber-300/80 bg-white/70 text-neutral-700 hover:bg-white"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+          <span className="ml-auto text-[11px] text-amber-800/80 font-medium">
+            총 {filteredBookmarks.length}개의 항목
+          </span>
         </div>
       </div>
 
-      {/* 등록 입력 창 */}
-      <form onSubmit={handleAdd} className="bg-white/80 rounded-xl border border-amber-200 p-3 shrink-0 flex flex-col gap-2">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="책갈피 제목"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="flex-1 text-xs border border-neutral-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-500"
-          />
-          <input
-            type="text"
-            placeholder="링크 URL (선택사항)"
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-            className="flex-1 text-xs border border-neutral-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-500"
-          />
+      {/* 헤더 박스 */}
+      <div className="border-2 border-amber-400/90 rounded-xl px-3 py-2.5 bg-amber-100/70 backdrop-blur-[2px] shadow-sm shrink-0">
+        <div className="grid grid-cols-12 gap-1 text-[11px] font-extrabold text-amber-950 items-center text-center">
+          <span 
+            onClick={() => setBmarkSortOrder((prev) => prev === "default" ? "update_asc" : "default")}
+            className="col-span-2 cursor-pointer hover:text-amber-700 transition flex items-center justify-center gap-0.5"
+            title="클릭 시 정기업데이트(월~일) 순서로 정렬됩니다"
+          >
+            <span>분류 / 플랫폼</span>
+            <ArrowUpDown className="w-3 h-3 text-amber-800" />
+          </span>
+          <span className="col-span-3">제목</span>
+          <span className="col-span-2">정기업데이트</span>
+          <span className="col-span-1">공개일</span>
+          <span className="col-span-1">주간편성</span>
+          <span className="col-span-1">최종회차</span>
+          <span className="col-span-1">책갈피 (+/-)</span>
+          <span className="col-span-1">관리</span>
         </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="상세 내용 및 핵심 요약 메모"
-            value={desc}
-            onChange={(e) => setDesc(e.target.value)}
-            className="flex-1 text-xs border border-neutral-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-500"
-          />
-          <button type="submit" className={`px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 ${themeClasses.accentBtn}`}>
-            <Plus className="w-3.5 h-3.5" />
-            <span>등록</span>
-          </button>
-        </div>
-      </form>
+      </div>
 
-      {/* 책갈피 카드 리스트 */}
-      <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 min-h-0">
-        {bookmarks.map((b) => (
-          <div key={b.id} className="bg-white/80 rounded-xl border border-amber-200/80 p-3.5 shadow-xs flex flex-col gap-1.5 hover:shadow-sm transition">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-amber-600 font-bold text-xs">🔖</span>
-                <h3 className="text-xs font-bold text-neutral-900 truncate">{b.title}</h3>
-                <span className="text-[10px] text-neutral-400 shrink-0 font-mono">{b.createdAt}</span>
+      {/* 리스트 */}
+      <div className="flex flex-col gap-2">
+        {filteredBookmarks.map((bmark) => {
+          const isEditing = editingBmarkId === bmark.id;
+          const finalEpNum = parseInt(String(bmark.finalEpisode).replace(/[^0-9]/g, "")) || 0;
+          const currentBmNum = Number(bmark.currentBookmark) || 0;
+
+          let cardBgClass = "bg-amber-50/40 hover:bg-amber-50/70 border-amber-400/90 text-neutral-900";
+          if (bmark.isCompleted) {
+            cardBgClass = "bg-rose-100/70 hover:bg-rose-100 border-rose-300 text-neutral-900";
+          } else if (currentBmNum === 0) {
+            cardBgClass = "bg-amber-100/80 hover:bg-amber-100 border-amber-300 text-neutral-900";
+          } else if (currentBmNum < finalEpNum) {
+            cardBgClass = "bg-pink-50/70 hover:bg-pink-50 border-pink-300 text-neutral-900";
+          }
+
+          if (isEditing) {
+            return (
+              <div
+                key={`edit-bmark-${bmark.id}`}
+                className="grid grid-cols-12 gap-1 items-center p-2.5 rounded-2xl border-2 border-amber-400 bg-amber-50/90 shadow-md text-center"
+              >
+                <div className="col-span-2 flex flex-col gap-1 px-1">
+                  <input type="text" value={editBmarkCategory} onChange={(e) => setEditBmarkCategory(e.target.value)} placeholder="분류" className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[11px] font-bold" />
+                  <input type="text" value={editBmarkPlatform} onChange={(e) => setEditBmarkPlatform(e.target.value)} placeholder="플랫폼" className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[10px]" />
+                </div>
+                <div className="col-span-3 px-1">
+                  <input type="text" required value={editBmarkTitle} onChange={(e) => setEditBmarkTitle(e.target.value)} placeholder="제목" className="w-full border border-amber-300 bg-white rounded px-2 py-1 text-[11px] font-bold" />
+                </div>
+                <div className="col-span-2 px-1">
+                  <select value={editBmarkUpdate} onChange={(e) => setEditBmarkUpdate(e.target.value)} className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[11px] font-bold">
+                    <option value="월요일">월요일</option>
+                    <option value="화요일">화요일</option>
+                    <option value="수요일">수요일</option>
+                    <option value="목요일">목요일</option>
+                    <option value="금요일">금요일</option>
+                    <option value="토요일">토요일</option>
+                    <option value="일요일">일요일</option>
+                    <option value="완결">완결</option>
+                  </select>
+                </div>
+                <div className="col-span-1 px-0.5">
+                  <input type="text" value={editBmarkRelease} onChange={(e) => setEditBmarkRelease(e.target.value)} placeholder="공개일" className="w-full border border-amber-300 bg-white rounded px-1 py-1 text-[11px]" />
+                </div>
+                <div className="col-span-1 flex items-center justify-center gap-0.5 px-0.5">
+                  <input type="text" value={editBmarkSchedule} onChange={(e) => setEditBmarkSchedule(e.target.value)} placeholder="편성" className="w-full border border-amber-300 bg-white rounded px-1 py-1 text-[11px]" />
+                  <span className="text-[10px] font-bold">회</span>
+                </div>
+                <div className="col-span-1 flex items-center justify-center gap-0.5 px-0.5">
+                  <input type="text" value={editBmarkEpisode} onChange={(e) => setEditBmarkEpisode(e.target.value)} placeholder="최종" className="w-full border border-amber-300 bg-white rounded px-1 py-1 text-[11px]" />
+                  <span className="text-[10px] font-bold">회</span>
+                </div>
+                <div className="col-span-1 flex items-center justify-center gap-0.5 px-0.5">
+                  <input type="number" min="0" value={editBmarkBookmark} onChange={(e) => setEditBmarkBookmark(Number(e.target.value))} placeholder="회" className="w-full border border-amber-300 bg-white rounded px-0.5 py-1 text-[11px]" />
+                  <span className="text-[10px] font-bold">회</span>
+                </div>
+                <div className="col-span-1 flex items-center justify-center gap-1">
+                  <button onClick={() => saveEditBookmark(bmark.id)} title="저장" className="p-1 rounded bg-amber-500 text-white font-bold text-[10px]"><Check className="w-3 h-3" /></button>
+                  <button onClick={cancelEditBookmark} title="취소" className="p-1 rounded border border-neutral-300 bg-white text-neutral-600 text-[10px]"><X className="w-3 h-3" /></button>
+                </div>
               </div>
-              <button onClick={() => handleDelete(b.id)} className="text-neutral-300 hover:text-rose-500 transition">
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            );
+          }
 
-            {b.desc && <p className="text-xs text-neutral-600 whitespace-pre-wrap">{b.desc}</p>}
+          return (
+            <div
+              key={bmark.id}
+              className={`grid grid-cols-12 gap-1 items-center text-[11px] p-2.5 rounded-2xl border-2 transition shadow-2xs text-center ${cardBgClass}`}
+            >
+              <div className="col-span-2 flex flex-col items-center justify-center">
+                <span className="px-2 py-0.5 rounded-md bg-amber-100/90 text-amber-950 border border-amber-300 font-bold shadow-2xs">
+                  {bmark.category}
+                </span>
+                <span className="text-[10px] text-neutral-600 font-semibold mt-0.5">{bmark.platform}</span>
+              </div>
 
-            {b.link && (
-              <div className="pt-1">
-                <a
-                  href={b.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] text-amber-700 hover:underline font-medium"
+              <div className="col-span-3 text-neutral-900 font-black truncate px-1" title={bmark.title}>
+                {bmark.title}
+              </div>
+
+              <div className="col-span-2 text-neutral-800 truncate px-1 font-semibold">
+                {bmark.regularUpdate}
+              </div>
+
+              <div className="col-span-1 text-neutral-600 truncate font-mono font-medium">
+                {bmark.releaseDate}
+              </div>
+
+              <div className="col-span-1 text-neutral-700 truncate font-bold">
+                {bmark.weeklySchedule}
+              </div>
+
+              <div className="col-span-1 text-neutral-900 font-black truncate font-mono">
+                {bmark.finalEpisode || calculateAutoFinalEpisode(bmark.releaseDate)}
+              </div>
+
+              <div className="col-span-1 flex items-center justify-center gap-0.5 font-mono font-bold">
+                <button
+                  onClick={(e) => handleUpdateBookmarkCount(bmark.id, -1, e)}
+                  className="w-4 h-4 rounded bg-white/90 border border-amber-300 hover:bg-amber-200 text-amber-950 flex items-center justify-center shadow-2xs transition active:scale-95"
+                  title="1화 감소"
                 >
-                  <ExternalLink className="w-3 h-3" />
-                  <span className="truncate">{b.link}</span>
-                </a>
+                  <Minus className="w-2.5 h-2.5" />
+                </button>
+                <span className="min-w-[20px] text-center text-neutral-900 font-black">
+                  {bmark.currentBookmark ?? 0}
+                </span>
+                <button
+                  onClick={(e) => handleUpdateBookmarkCount(bmark.id, 1, e)}
+                  className="w-4 h-4 rounded bg-white/90 border border-amber-300 hover:bg-amber-200 text-amber-950 flex items-center justify-center shadow-2xs transition active:scale-95"
+                  title="1화 증가"
+                >
+                  <Plus className="w-2.5 h-2.5" />
+                </button>
               </div>
-            )}
-          </div>
-        ))}
-        {bookmarks.length === 0 && (
-          <div className="py-16 text-center text-xs text-neutral-400">
-            등록된 책갈피가 없습니다.
+
+              <div className="col-span-1 flex items-center justify-center gap-1">
+                <button
+                  onClick={(e) => handleToggleCompleted(bmark.id, e)}
+                  className={`px-1 py-0.5 rounded text-[10px] font-black border transition ${
+                    bmark.isCompleted
+                      ? "bg-rose-600 text-white border-rose-700 shadow-xs"
+                      : "bg-white/80 text-neutral-700 border-amber-300 hover:bg-amber-100"
+                  }`}
+                  title="완결 여부 토글"
+                >
+                  완결
+                </button>
+                <button onClick={() => startEditBookmark(bmark)} title="수정" className="p-1 rounded text-neutral-500 hover:text-amber-900 hover:bg-white transition"><Pencil className="w-3 h-3" /></button>
+                <button onClick={() => handleDeleteBookmark(bmark.id)} title="삭제" className="p-1 rounded text-neutral-500 hover:text-rose-600 hover:bg-white transition"><Trash2 className="w-3 h-3" /></button>
+              </div>
+            </div>
+          );
+        })}
+
+        {filteredBookmarks.length === 0 && (
+          <div className="border-2 border-dashed border-amber-300 rounded-2xl p-12 text-center text-xs font-medium text-amber-800/70 bg-amber-50/20">
+            등록되었거나 조건에 맞는 책갈피 기록이 없습니다.
           </div>
         )}
       </div>
