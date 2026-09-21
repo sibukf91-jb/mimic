@@ -47,7 +47,7 @@ export default function Home() {
   const [newPasswordInput, setNewPasswordInput] = useState("");
   const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
 
-  // 비밀번호 입력 후 처음 보이는 기본 탭을 '일정(schedule)'으로 설정
+  // 기본 첫 화면: 일정 탭
   const [currentTab, setCurrentTab] = useState("schedule");
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
 
@@ -275,7 +275,6 @@ export default function Home() {
     }
     loadSongs();
 
-    // 다른 기기에서 변경 시 실시간 반영
     const channel = supabase
       .channel("app_storage_changes")
       .on(
@@ -301,7 +300,7 @@ export default function Home() {
     }
   }, [songList, isSongLoaded]);
 
-  // 하트(liked: true)가 켜진 노래만 플레이리스트에 실시간 반영
+  // 하트(liked: true) 곡 필터링
   const likedSongs = useMemo(() => {
     return (songList || []).filter((s) => s && s.liked);
   }, [songList]);
@@ -544,7 +543,6 @@ export default function Home() {
   ];
 
   // 4. 탭별 우측 하단 배너 캐릭터 얼굴 좌표 설정 (hadejju.jpg 기준)
-  // orders, cart, recipes는 비워두기 위해 null 반환
   const rightBottomCharacter = useMemo(() => {
     switch (currentTab) {
       case "schedule":
@@ -660,21 +658,6 @@ export default function Home() {
               >
                 <span>입장하기</span>
                 <ArrowRight className="w-4 h-4" />
-              </button>
-              
-              <button
-                type="button"
-                onClick={async () => {
-                  if (confirm("비밀번호를 새로 등록하시겠습니까? (기존 비밀번호가 초기화됩니다)")) {
-                    await saveCloudData("jb_space_custom_password", null);
-                    setStoredPassword(null);
-                    setIsSettingNewPassword(true);
-                    setErrorMsg("");
-                  }
-                }}
-                className="text-[11px] text-neutral-500 hover:text-neutral-300 underline pt-2"
-              >
-                비밀번호를 잊으셨나요? (재설정)
               </button>
             </form>
           )}
@@ -859,7 +842,7 @@ export default function Home() {
           {currentTab === "recipes" && <RecipesTab themeClasses={themeClasses} />}
         </section>
 
-        {/* [3] 우측 사이드바 (시계 카드 - 플레이리스트 - 하단 배너 균등 여백 배치) */}
+        {/* [3] 우측 사이드바 */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px] flex flex-col justify-between">
           
           {/* 상단: 시계 & 타이머 */}
@@ -902,7 +885,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 중단: 플레이리스트 위젯 (사이즈 고정 h-[340px]) */}
+          {/* 중단: 플레이리스트 위젯 */}
           <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col gap-2 h-[340px] shrink-0 overflow-hidden`}>
             <div className={`flex items-center justify-between border-b ${themeClasses.borderSubtle} pb-1.5 shrink-0`}>
               <div className={`flex items-center gap-1.5 text-xs font-bold ${themeClasses.textPrimary}`}>
@@ -957,7 +940,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 재생목록 리스트 (스크롤/드롭다운) */}
+            {/* 재생목록 리스트 */}
             <div className="overflow-y-auto space-y-1 pr-1 flex-1 min-h-0">
               {likedSongs.map((song, idx) => (
                 <div
@@ -991,10 +974,9 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 하단: 우측 하단 배너 (구매물품, 장바구니, 레시피는 비워두고, 나머지 5개 탭만 캐릭터 표시) */}
+          {/* 하단: 우측 하단 배너 */}
           {rightBottomCharacter ? (
             <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl shrink-0 h-[220px] relative overflow-hidden shadow-sm transition-all duration-300 group`}>
-              {/* 캐릭터 얼굴 배경 레이어 */}
               <div
                 className="absolute inset-0 transition-all duration-500 bg-no-repeat group-hover:scale-105"
                 style={{
@@ -1004,7 +986,6 @@ export default function Home() {
                 }}
               />
 
-              {/* 하단 캐릭터 이름 뱃지 오버레이 */}
               <div className="absolute inset-x-0 bottom-0 p-2.5 bg-gradient-to-t from-black/75 via-black/35 to-transparent flex items-end justify-between pointer-events-none">
                 <span className="text-[11px] font-black text-white px-2 py-0.5 rounded-md bg-black/40 backdrop-blur-xs border border-white/20 shadow-xs flex items-center gap-1">
                   <span>🎀</span>
