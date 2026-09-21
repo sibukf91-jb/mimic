@@ -793,146 +793,142 @@ export default function Home() {
           {currentTab === "recipes" && <RecipesTab themeClasses={themeClasses} />}
         </section>
 
-        {/* [3] 우측 사이드바 (플레이리스트 + 하단 고정 반응형 배너) */}
-        <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px] flex flex-col gap-3 justify-between">
+        {/* [3] 우측 사이드바 (사이즈 고정: 시계 카드 - 플레이리스트 - 하단 배너 균등 여백 배치) */}
+        <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px] flex flex-col justify-between">
           
-          <div className="flex flex-col gap-3 flex-1 min-h-0">
-            {/* 시계 & 타이머 */}
-            <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col items-center text-center shrink-0 transition-colors duration-200`}>
-              <div className={`flex items-center gap-1 text-[10px] font-semibold ${themeClasses.textSecondary} mb-0.5`}>
-                <Clock className="w-3 h-3" />
-                <span>{dateString}</span>
-              </div>
-              <div className={`text-base font-black ${themeClasses.textPrimary} tracking-tight mb-2`}>
-                {timeString}
-              </div>
-
-              <div className={`w-full pt-2 border-t ${themeClasses.borderSubtle} flex flex-col items-center`}>
-                <div className="flex items-center justify-between w-full mb-1 px-1">
-                  <span className="text-[10px] font-bold text-neutral-600">타이머</span>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => !isTimerRunning && setTimerMinutes((p) => Math.max(1, p - 1))} disabled={isTimerRunning} className={`p-0.5 rounded ${themeClasses.accentBtnSub}`}>
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <span className={`text-[10px] font-bold ${themeClasses.textPrimary} min-w-[24px]`}>{timerMinutes}분</span>
-                    <button onClick={() => !isTimerRunning && setTimerMinutes((p) => p + 1)} disabled={isTimerRunning} className={`p-0.5 rounded ${themeClasses.accentBtnSub}`}>
-                      <Plus className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className={`text-xl font-black my-1 font-mono tracking-wider ${themeClasses.textPrimary}`}>
-                  {timerMin}:{timerSec}
-                </div>
-
-                <div className="flex items-center gap-1.5 w-full mt-1">
-                  <button onClick={toggleTimer} className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 ${isTimerRunning ? "bg-amber-500 text-white" : themeClasses.accentBtn}`}>
-                    {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
-                    <span>{isTimerRunning ? "정지" : "시작"}</span>
-                  </button>
-                  <button onClick={resetTimer} title="초기화" className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60`}>
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
+          {/* 상단: 시계 & 타이머 (높이 고정) */}
+          <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col items-center text-center shrink-0 transition-colors duration-200`}>
+            <div className={`flex items-center gap-1 text-[10px] font-semibold ${themeClasses.textSecondary} mb-0.5`}>
+              <Clock className="w-3 h-3" />
+              <span>{dateString}</span>
+            </div>
+            <div className={`text-base font-black ${themeClasses.textPrimary} tracking-tight mb-2`}>
+              {timeString}
             </div>
 
-            {/* 플레이리스트 위젯: 곡 수에 따라 부드럽게 확장되고 넘치면 내부 드롭다운 스크롤 */}
-            <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col gap-2 flex-1 min-h-[220px] max-h-[380px] transition-all duration-300 overflow-hidden`}>
-              <div className={`flex items-center justify-between border-b ${themeClasses.borderSubtle} pb-1.5 shrink-0`}>
-                <div className={`flex items-center gap-1.5 text-xs font-bold ${themeClasses.textPrimary}`}>
-                  <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
-                  <span>플레이리스트</span>
-                </div>
-                <span className={`text-[10px] ${themeClasses.textSecondary} font-bold ${themeClasses.bgHeader} px-1.5 py-0.5 rounded-full`}>
-                  {likedSongs.length}곡
-                </span>
-              </div>
-
-              {/* 플레이어 미니 바 */}
-              <div className={`bg-white/80 border ${themeClasses.borderSubtle} rounded-xl p-2.5 flex flex-col gap-2 shrink-0`}>
-                <div className={`text-[11px] font-bold ${themeClasses.textPrimary} truncate text-center leading-tight`}>
-                  {currentSong ? <span>🎵 {currentSong.title}</span> : <span className="text-neutral-400 font-normal">곡을 선택하세요</span>}
-                </div>
-
-                <div className="space-y-1">
-                  <input
-                    type="range"
-                    min={0}
-                    max={durationSec > 0 ? durationSec : 100}
-                    value={currentTimeSec}
-                    onChange={handleSeek}
-                    disabled={!currentSong}
-                    className={`w-full h-1 ${themeClasses.rangeBg} rounded-lg appearance-none cursor-pointer ${themeClasses.rangeAccent}`}
-                  />
-                  <div className={`flex justify-between text-[9px] ${themeClasses.textSecondary} font-mono`}>
-                    <span>{formatSeconds(currentTimeSec)}</span>
-                    <span>{formatSeconds(durationSec)}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-0.5 px-1">
-                  <div className="flex items-center gap-1">
-                    <button onClick={handlePrevSong} disabled={likedSongs.length === 0} className="p-1 rounded text-neutral-600"><SkipBack className="w-3.5 h-3.5" /></button>
-                    <button onClick={togglePlayAudio} disabled={likedSongs.length === 0} className={`p-1.5 rounded-full ${themeClasses.accentBtn}`}>
-                      {isPlayingAudio ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
-                    </button>
-                    <button onClick={handleNextSong} disabled={likedSongs.length === 0} className="p-1 rounded text-neutral-600"><SkipForward className="w-3.5 h-3.5" /></button>
-                  </div>
-                  <button onClick={() => setRepeatMode(repeatMode === "all" ? "one" : repeatMode === "one" ? "none" : "all")} className={`p-1 rounded text-[10px] font-bold ${repeatMode !== "none" ? themeClasses.accentActive + " px-1.5" : "text-neutral-400"}`}>
-                    <Repeat className="w-3.5 h-3.5" />
+            <div className={`w-full pt-2 border-t ${themeClasses.borderSubtle} flex flex-col items-center`}>
+              <div className="flex items-center justify-between w-full mb-1 px-1">
+                <span className="text-[10px] font-bold text-neutral-600">타이머</span>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => !isTimerRunning && setTimerMinutes((p) => Math.max(1, p - 1))} disabled={isTimerRunning} className={`p-0.5 rounded ${themeClasses.accentBtnSub}`}>
+                    <Minus className="w-3 h-3" />
                   </button>
-                </div>
-
-                <div className={`flex items-center gap-1.5 pt-1 border-t ${themeClasses.borderSubtle} px-0.5`}>
-                  <button onClick={toggleMute} className={`${themeClasses.textSecondary} p-0.5`}>
-                    {isMuted || volume === 0 ? <VolumeX className="w-3.5 h-3.5 text-neutral-400" /> : <Volume2 className="w-3.5 h-3.5" />}
+                  <span className={`text-[10px] font-bold ${themeClasses.textPrimary} min-w-[24px]`}>{timerMinutes}분</span>
+                  <button onClick={() => !isTimerRunning && setTimerMinutes((p) => p + 1)} disabled={isTimerRunning} className={`p-0.5 rounded ${themeClasses.accentBtnSub}`}>
+                    <Plus className="w-3 h-3" />
                   </button>
-                  <input type="range" min={0} max={100} value={isMuted ? 0 : volume} onChange={handleVolumeChange} className={`w-full h-1 ${themeClasses.rangeBg} rounded-lg appearance-none cursor-pointer ${themeClasses.rangeAccent}`} />
                 </div>
               </div>
 
-              {/* 재생목록 리스트 (더 많아지면 드롭다운/스크롤 처리) */}
-              <div className="overflow-y-auto space-y-1 pr-1 flex-1 min-h-0">
-                {likedSongs.map((song, idx) => (
-                  <div
-                    key={`liked-${song.id}`}
-                    onClick={() => handleSelectSong(idx)}
-                    className={`flex items-center justify-between p-1.5 rounded-lg border text-[11px] cursor-pointer transition ${
-                      currentPlayingIndex === idx ? themeClasses.activeTrack + " font-bold" : `bg-white/70 hover:bg-white ${themeClasses.borderSubtle}`
-                    }`}
-                  >
-                    <div className="min-w-0 pr-1 flex items-center gap-1.5">
-                      <Play className={`w-3.5 h-3.5 shrink-0 ${currentPlayingIndex === idx && isPlayingAudio ? themeClasses.playIcon + " animate-pulse" : "text-neutral-400"}`} />
-                      <span className="truncate">{song.title}</span>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSongList((prev) => prev.map((s) => s.id === song.id ? { ...s, liked: false } : s));
-                      }}
-                      title="플레이리스트에서 빼기"
-                      className="text-neutral-300 hover:text-rose-500 p-0.5 shrink-0"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-                {likedSongs.length === 0 && (
-                  <div className="py-6 text-center text-[10px] text-neutral-400">
-                    하트를 누르면 이곳에 담깁니다.
-                  </div>
-                )}
+              <div className={`text-xl font-black my-1 font-mono tracking-wider ${themeClasses.textPrimary}`}>
+                {timerMin}:{timerSec}
+              </div>
+
+              <div className="flex items-center gap-1.5 w-full mt-1">
+                <button onClick={toggleTimer} className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 ${isTimerRunning ? "bg-amber-500 text-white" : themeClasses.accentBtn}`}>
+                  {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
+                  <span>{isTimerRunning ? "정지" : "시작"}</span>
+                </button>
+                <button onClick={resetTimer} title="초기화" className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60`}>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           </div>
 
-          {/* 우측 하단 배너: 하단 고정, 플레이리스트 곡 증가 시 상단부터 절반(min-h-[75px])까지 축소 */}
-          <div className={`border-2 border-dashed ${themeClasses.borderDashed} rounded-2xl p-2.5 shrink-0 transition-all duration-300 flex flex-col items-center justify-center text-center ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm overflow-hidden ${
-            likedSongs.length > 3 ? "h-[75px]" : "h-[150px]"
-          }`}>
-            <span className="text-lg mb-0.5 shrink-0">🖼️</span>
-            <span className={`text-[11px] font-semibold ${themeClasses.textSecondary} truncate`}>우측 하단 배너</span>
+          {/* 중단: 플레이리스트 위젯 (사이즈 고정 h-[340px], 곡 많아지면 내부 스크롤) */}
+          <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col gap-2 h-[340px] shrink-0 overflow-hidden`}>
+            <div className={`flex items-center justify-between border-b ${themeClasses.borderSubtle} pb-1.5 shrink-0`}>
+              <div className={`flex items-center gap-1.5 text-xs font-bold ${themeClasses.textPrimary}`}>
+                <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+                <span>플레이리스트</span>
+              </div>
+              <span className={`text-[10px] ${themeClasses.textSecondary} font-bold ${themeClasses.bgHeader} px-1.5 py-0.5 rounded-full`}>
+                {likedSongs.length}곡
+              </span>
+            </div>
+
+            {/* 플레이어 미니 바 */}
+            <div className={`bg-white/80 border ${themeClasses.borderSubtle} rounded-xl p-2.5 flex flex-col gap-2 shrink-0`}>
+              <div className={`text-[11px] font-bold ${themeClasses.textPrimary} truncate text-center leading-tight`}>
+                {currentSong ? <span>🎵 {currentSong.title}</span> : <span className="text-neutral-400 font-normal">곡을 선택하세요</span>}
+              </div>
+
+              <div className="space-y-1">
+                <input
+                  type="range"
+                  min={0}
+                  max={durationSec > 0 ? durationSec : 100}
+                  value={currentTimeSec}
+                  onChange={handleSeek}
+                  disabled={!currentSong}
+                  className={`w-full h-1 ${themeClasses.rangeBg} rounded-lg appearance-none cursor-pointer ${themeClasses.rangeAccent}`}
+                />
+                <div className={`flex justify-between text-[9px] ${themeClasses.textSecondary} font-mono`}>
+                  <span>{formatSeconds(currentTimeSec)}</span>
+                  <span>{formatSeconds(durationSec)}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-0.5 px-1">
+                <div className="flex items-center gap-1">
+                  <button onClick={handlePrevSong} disabled={likedSongs.length === 0} className="p-1 rounded text-neutral-600"><SkipBack className="w-3.5 h-3.5" /></button>
+                  <button onClick={togglePlayAudio} disabled={likedSongs.length === 0} className={`p-1.5 rounded-full ${themeClasses.accentBtn}`}>
+                    {isPlayingAudio ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
+                  </button>
+                  <button onClick={handleNextSong} disabled={likedSongs.length === 0} className="p-1 rounded text-neutral-600"><SkipForward className="w-3.5 h-3.5" /></button>
+                </div>
+                <button onClick={() => setRepeatMode(repeatMode === "all" ? "one" : repeatMode === "one" ? "none" : "all")} className={`p-1 rounded text-[10px] font-bold ${repeatMode !== "none" ? themeClasses.accentActive + " px-1.5" : "text-neutral-400"}`}>
+                  <Repeat className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className={`flex items-center gap-1.5 pt-1 border-t ${themeClasses.borderSubtle} px-0.5`}>
+                <button onClick={toggleMute} className={`${themeClasses.textSecondary} p-0.5`}>
+                  {isMuted || volume === 0 ? <VolumeX className="w-3.5 h-3.5 text-neutral-400" /> : <Volume2 className="w-3.5 h-3.5" />}
+                </button>
+                <input type="range" min={0} max={100} value={isMuted ? 0 : volume} onChange={handleVolumeChange} className={`w-full h-1 ${themeClasses.rangeBg} rounded-lg appearance-none cursor-pointer ${themeClasses.rangeAccent}`} />
+              </div>
+            </div>
+
+            {/* 재생목록 리스트 (더 많아지면 드롭다운/스크롤 처리) */}
+            <div className="overflow-y-auto space-y-1 pr-1 flex-1 min-h-0">
+              {likedSongs.map((song, idx) => (
+                <div
+                  key={`liked-${song.id}`}
+                  onClick={() => handleSelectSong(idx)}
+                  className={`flex items-center justify-between p-1.5 rounded-lg border text-[11px] cursor-pointer transition ${
+                    currentPlayingIndex === idx ? themeClasses.activeTrack + " font-bold" : `bg-white/70 hover:bg-white ${themeClasses.borderSubtle}`
+                  }`}
+                >
+                  <div className="min-w-0 pr-1 flex items-center gap-1.5">
+                    <Play className={`w-3.5 h-3.5 shrink-0 ${currentPlayingIndex === idx && isPlayingAudio ? themeClasses.playIcon + " animate-pulse" : "text-neutral-400"}`} />
+                    <span className="truncate">{song.title}</span>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSongList((prev) => prev.map((s) => s.id === song.id ? { ...s, liked: false } : s));
+                    }}
+                    title="플레이리스트에서 빼기"
+                    className="text-neutral-300 hover:text-rose-500 p-0.5 shrink-0"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+              {likedSongs.length === 0 && (
+                <div className="py-6 text-center text-[10px] text-neutral-400">
+                  하트를 누르면 이곳에 담깁니다.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 하단: 우측 하단 배너 (상단으로 확장하여 균등 여백 유지 및 고정 h-[220px]) */}
+          <div className={`border-2 border-dashed ${themeClasses.borderDashed} rounded-2xl p-2.5 shrink-0 flex flex-col items-center justify-center text-center ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm overflow-hidden h-[220px]`}>
+            <span className="text-xl mb-1 shrink-0">🖼️</span>
+            <span className={`text-xs font-semibold ${themeClasses.textSecondary} truncate`}>우측 하단 배너</span>
           </div>
 
         </aside>
