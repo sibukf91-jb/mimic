@@ -42,7 +42,7 @@ export default function SongsTab({
   const activeModalUrl = videoModalUrl !== undefined ? videoModalUrl : localModalUrl;
   const setActiveModalUrl = setVideoModalUrl || setLocalModalUrl;
 
-  // 장르 아이콘 (버추얼: 여자얼굴 👧, 보컬로이드: 로봇얼굴 🤖 적용)
+  // 장르 아이콘 (버추얼: 여자얼굴 👧, 보컬로이드: 로봇얼굴 🤖)
   const getGenreIcon = (genre: string) => {
     const g = (genre || "").trim().toLowerCase();
     if (g.includes("버추얼")) return "👧";
@@ -123,8 +123,9 @@ export default function SongsTab({
   const [selectedGenre, setSelectedGenre] = useState("전체");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // 기본 장르 및 등록된 장르를 중복 없이 1개씩만 합쳐서 정렬
   const existingGenres = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(["버추얼", "보컬로이드"]);
     (songList || []).forEach((s) => {
       if (s.genre && s.genre.trim()) set.add(s.genre.trim());
     });
@@ -151,7 +152,7 @@ export default function SongsTab({
     setNewSongType("none");
   };
 
-  // 하트 토글 시 상위 상태 변경 및 localStorage 저장 트리거
+  // 하트 토글
   const toggleLike = (id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setSongList((prev) =>
@@ -159,8 +160,11 @@ export default function SongsTab({
     );
   };
 
+  // 삭제 시 확인창(Confirm) 추가
   const handleDeleteSong = (id: number) => {
-    setSongList((prev) => prev.filter((s) => s.id !== id));
+    if (window.confirm("정말 삭제하시겠습니까?")) {
+      setSongList((prev) => prev.filter((s) => s.id !== id));
+    }
   };
 
   const filteredSongs = useMemo(() => {
@@ -193,9 +197,8 @@ export default function SongsTab({
             placeholder="장르 입력"
             className="w-24 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-500 placeholder-neutral-400"
           />
+          {/* 중복 없이 단 한 번만 생성되는 datalist */}
           <datalist id="genre-suggestions">
-            <option value="버추얼" />
-            <option value="보컬로이드" />
             {existingGenres.map((g) => (
               <option key={g} value={g} />
             ))}
