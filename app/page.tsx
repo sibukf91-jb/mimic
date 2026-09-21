@@ -519,6 +519,44 @@ export default function Home() {
     { id: "recipes", label: "레시피", icon: "🍳" }
   ];
 
+  // 3. 탭별 우측 하단 배너 캐릭터 얼굴 좌표 설정 (hadejju.jpg 기준)
+  // 1: 챈나(가계부), 2: 솜주먹(일정), 3: 연초록(노래책), 4: 띵귤(책갈피), 5: 키마(즐겨찾기)
+  const rightBottomCharacter = useMemo(() => {
+    switch (currentTab) {
+      case "schedule":
+        return {
+          name: "솜주먹",
+          position: "30% 50%",
+          scale: "440%"
+        };
+      case "ledger":
+        return {
+          name: "챈나",
+          position: "7% 50%",
+          scale: "440%"
+        };
+      case "favorites":
+        return {
+          name: "키마",
+          position: "93% 49%",
+          scale: "440%"
+        };
+      case "bookmarks":
+        return {
+          name: "띵귤",
+          position: "71% 50%",
+          scale: "440%"
+        };
+      case "songs":
+      default:
+        return {
+          name: "연초록",
+          position: "50% 49%",
+          scale: "440%"
+        };
+    }
+  }, [currentTab]);
+
   if (!isUnlocked) {
     return (
       <main className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4 relative select-none">
@@ -793,10 +831,10 @@ export default function Home() {
           {currentTab === "recipes" && <RecipesTab themeClasses={themeClasses} />}
         </section>
 
-        {/* [3] 우측 사이드바 (사이즈 고정: 시계 카드 - 플레이리스트 - 하단 배너 균등 여백 배치) */}
+        {/* [3] 우측 사이드바 (시계 카드 - 플레이리스트 - 하단 배너 균등 여백 배치) */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px] flex flex-col justify-between">
           
-          {/* 상단: 시계 & 타이머 (높이 고정) */}
+          {/* 상단: 시계 & 타이머 */}
           <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col items-center text-center shrink-0 transition-colors duration-200`}>
             <div className={`flex items-center gap-1 text-[10px] font-semibold ${themeClasses.textSecondary} mb-0.5`}>
               <Clock className="w-3 h-3" />
@@ -836,7 +874,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 중단: 플레이리스트 위젯 (사이즈 고정 h-[340px], 곡 많아지면 내부 스크롤) */}
+          {/* 중단: 플레이리스트 위젯 (사이즈 고정 h-[340px]) */}
           <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col gap-2 h-[340px] shrink-0 overflow-hidden`}>
             <div className={`flex items-center justify-between border-b ${themeClasses.borderSubtle} pb-1.5 shrink-0`}>
               <div className={`flex items-center gap-1.5 text-xs font-bold ${themeClasses.textPrimary}`}>
@@ -891,7 +929,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 재생목록 리스트 (더 많아지면 드롭다운/스크롤 처리) */}
+            {/* 재생목록 리스트 (스크롤/드롭다운) */}
             <div className="overflow-y-auto space-y-1 pr-1 flex-1 min-h-0">
               {likedSongs.map((song, idx) => (
                 <div
@@ -925,10 +963,28 @@ export default function Home() {
             </div>
           </div>
 
-          {/* 하단: 우측 하단 배너 (상단으로 확장하여 균등 여백 유지 및 고정 h-[220px]) */}
-          <div className={`border-2 border-dashed ${themeClasses.borderDashed} rounded-2xl p-2.5 shrink-0 flex flex-col items-center justify-center text-center ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm overflow-hidden h-[220px]`}>
-            <span className="text-xl mb-1 shrink-0">🖼️</span>
-            <span className={`text-xs font-semibold ${themeClasses.textSecondary} truncate`}>우측 하단 배너</span>
+          {/* 하단: 우측 하단 배너 (탭별 캐릭터 얼굴 메인 클로즈업 크롭) */}
+          <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl shrink-0 h-[220px] relative overflow-hidden shadow-sm transition-all duration-300 group`}>
+            {/* 캐릭터 얼굴 배경 레이어 */}
+            <div
+              className="absolute inset-0 transition-all duration-500 bg-no-repeat group-hover:scale-105"
+              style={{
+                backgroundImage: "url('/hadejju.jpg')",
+                backgroundPosition: rightBottomCharacter.position,
+                backgroundSize: rightBottomCharacter.scale,
+              }}
+            />
+
+            {/* 하단 캐릭터 이름 뱃지 오버레이 */}
+            <div className="absolute inset-x-0 bottom-0 p-2.5 bg-gradient-to-t from-black/75 via-black/35 to-transparent flex items-end justify-between pointer-events-none">
+              <span className="text-[11px] font-black text-white px-2 py-0.5 rounded-md bg-black/40 backdrop-blur-xs border border-white/20 shadow-xs flex items-center gap-1">
+                <span>🎀</span>
+                <span>{rightBottomCharacter.name}</span>
+              </span>
+              <span className="text-[9px] font-bold text-white/80 uppercase tracking-tight">
+                {currentTab}
+              </span>
+            </div>
           </div>
 
         </aside>
