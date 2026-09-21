@@ -35,6 +35,7 @@ import SongsTab from "@/components/tabs/SongsTab";
 import OrdersTab from "@/components/tabs/OrdersTab";
 import CartTab from "@/components/tabs/CartTab";
 import RecipesTab from "@/components/tabs/RecipesTab";
+import { supabase, getCloudData, saveCloudData } from "@/lib/supabase";
 
 export default function Home() {
   const [pin, setPin] = useState("");
@@ -49,20 +50,21 @@ export default function Home() {
   const [currentTab, setCurrentTab] = useState("songs");
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
 
-  // 비밀번호 확인
+  // 1. 비밀번호 클라우드 실시간 동기화
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedPw = localStorage.getItem("jb_space_custom_password");
-      if (savedPw) {
-        setStoredPassword(savedPw);
+    async function initPassword() {
+      const pw = await getCloudData("jb_space_custom_password", null);
+      if (pw) {
+        setStoredPassword(pw);
         setIsSettingNewPassword(false);
       } else {
         setIsSettingNewPassword(true);
       }
     }
+    initPassword();
   }, []);
 
-  const handleRegisterPassword = (e: React.FormEvent) => {
+  const handleRegisterPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPasswordInput.trim()) {
       setErrorMsg("비밀번호를 입력해주세요.");
@@ -73,7 +75,7 @@ export default function Home() {
       return;
     }
 
-    localStorage.setItem("jb_space_custom_password", newPasswordInput);
+    await saveCloudData("jb_space_custom_password", newPasswordInput);
     setStoredPassword(newPasswordInput);
     setIsSettingNewPassword(false);
     setIsUnlocked(true);
@@ -95,7 +97,7 @@ export default function Home() {
     }
   };
 
-  // 1. 테마 색상 동적 매핑
+  // 2. 테마 색상 동적 매핑
   const themeClasses = useMemo(() => {
     if (currentTab === "recipes") {
       return {
@@ -249,7 +251,7 @@ export default function Home() {
     };
   }, [currentTab]);
 
-  // 2. 노래 데이터 영구 보존 및 동기화
+  // 3. 노래 데이터 클라우드 실시간 동기화
   const defaultSongs = [
     { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
     { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
@@ -263,17 +265,38 @@ export default function Home() {
   const [songList, setSongList] = useState<any[]>([]);
   const [isSongLoaded, setIsSongLoaded] = useState(false);
 
+  // 클라우드 초기 로드 및 실시간 구독
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("jb_bookmark_song_list");
-      setSongList(saved ? JSON.parse(saved) : defaultSongs);
+    async function loadSongs() {
+      const data = await getCloudData("jb_bookmark_song_list", defaultSongs);
+      setSongList(data);
       setIsSongLoaded(true);
     }
+    loadSongs();
+
+    // 다른 기기에서 변경 시 실시간 반영
+    const channel = supabase
+      .channel("app_storage_changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "app_storage", filter: "key=eq.jb_bookmark_song_list" },
+        (payload) => {
+          if (payload.new && payload.new.value) {
+            setSongList(payload.new.value);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
+  // 노래 목록 변경 시 클라우드 저장
   useEffect(() => {
-    if (isSongLoaded && typeof window !== "undefined") {
-      localStorage.setItem("jb_bookmark_song_list", JSON.stringify(songList));
+    if (isSongLoaded) {
+      saveCloudData("jb_bookmark_song_list", songList);
     }
   }, [songList, isSongLoaded]);
 
@@ -519,7 +542,7 @@ export default function Home() {
     { id: "recipes", label: "레시피", icon: "🍳" }
   ];
 
-  // 3. 탭별 우측 하단 배너 캐릭터 얼굴 좌표 설정
+  // 4. 탭별 우측 하단 배너 캐릭터 얼굴 좌표 설정 (hadejju.jpg 기준)
   // orders, cart, recipes는 비워두기 위해 null 반환
   const rightBottomCharacter = useMemo(() => {
     switch (currentTab) {
@@ -640,9 +663,9 @@ export default function Home() {
               
               <button
                 type="button"
-                onClick={() => {
+                onClick={async () => {
                   if (confirm("비밀번호를 새로 등록하시겠습니까? (기존 비밀번호가 초기화됩니다)")) {
-                    localStorage.removeItem("jb_space_custom_password");
+                    await saveCloudData("jb_space_custom_password", null);
                     setStoredPassword(null);
                     setIsSettingNewPassword(true);
                     setErrorMsg("");
