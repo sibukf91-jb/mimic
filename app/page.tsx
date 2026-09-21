@@ -47,7 +47,8 @@ export default function Home() {
   const [newPasswordInput, setNewPasswordInput] = useState("");
   const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
 
-  const [currentTab, setCurrentTab] = useState("songs");
+  // 비밀번호 입력 후 처음 보이는 기본 탭을 '일정(schedule)'으로 설정
+  const [currentTab, setCurrentTab] = useState("schedule");
   const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
 
   // 1. 비밀번호 클라우드 실시간 동기화
@@ -55,7 +56,7 @@ export default function Home() {
     async function initPassword() {
       const pw = await getCloudData("jb_space_custom_password", null);
       if (pw) {
-        setStoredPassword(pw);
+        setStoredPassword(String(pw));
         setIsSettingNewPassword(false);
       } else {
         setIsSettingNewPassword(true);
@@ -75,8 +76,8 @@ export default function Home() {
       return;
     }
 
-    await saveCloudData("jb_space_custom_password", newPasswordInput);
-    setStoredPassword(newPasswordInput);
+    await saveCloudData("jb_space_custom_password", newPasswordInput.trim());
+    setStoredPassword(newPasswordInput.trim());
     setIsSettingNewPassword(false);
     setIsUnlocked(true);
     setPin("");
@@ -87,7 +88,7 @@ export default function Home() {
 
   const handleUnlock = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (pin === storedPassword) {
+    if (String(pin).trim() === String(storedPassword).trim()) {
       setErrorMsg("");
       setIsUnlocked(true);
       setPin("");
