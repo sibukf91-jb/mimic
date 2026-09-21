@@ -13,7 +13,8 @@ import {
   X,
   User,
   Key,
-  Copy
+  Copy,
+  Heart
 } from "lucide-react";
 
 interface FavoritesTabProps {
@@ -36,7 +37,7 @@ export default function FavoritesTab({ themeClasses }: FavoritesTabProps) {
   };
 
   const defaultFavorites = [
-    { id: 1, category: "포털", name: "네이버", url: "https://www.naver.com", memo: "뉴스, 지도, 블로그", username: "my_naver_id", pwHint: "초록창12#$" },
+    { id: 1, category: "포털", name: "네이버", url: "https://www.naver.com", memo: "뉴스, 지도, 블로그", username: "my_naver_id", pwHint: "초록창12#$", isPinned: false },
   ];
 
   const [favList, setFavList] = useState<any[]>([]);
@@ -108,7 +109,8 @@ export default function FavoritesTab({ themeClasses }: FavoritesTabProps) {
       url: formattedUrl,
       memo: newFavMemo.trim(),
       username: newFavUsername.trim(),
-      pwHint: newFavPwHint.trim()
+      pwHint: newFavPwHint.trim(),
+      isPinned: false
     };
     setFavList([newFav, ...favList]);
     setNewFavCategory("");
@@ -117,6 +119,13 @@ export default function FavoritesTab({ themeClasses }: FavoritesTabProps) {
     setNewFavMemo("");
     setNewFavUsername("");
     setNewFavPwHint("");
+  };
+
+  const togglePinFav = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setFavList((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, isPinned: !f.isPinned } : f))
+    );
   };
 
   const startEditFav = (fav: any) => {
@@ -159,6 +168,7 @@ export default function FavoritesTab({ themeClasses }: FavoritesTabProps) {
     setFavList((prev) => prev.filter((f) => f.id !== id));
   };
 
+  // 하트 상단 고정(isPinned) 우선 정렬 후 각각 가나다순 정렬
   const filteredFavs = useMemo(() => {
     return (favList || [])
       .filter((fav) => {
@@ -171,7 +181,14 @@ export default function FavoritesTab({ themeClasses }: FavoritesTabProps) {
           (fav.username || "").toLowerCase().includes(favSearchQuery.toLowerCase());
         return matchCategory && matchSearch;
       })
-      .sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
+      .sort((a, b) => {
+        const pinA = Boolean(a.isPinned);
+        const pinB = Boolean(b.isPinned);
+        if (pinA !== pinB) {
+          return pinA ? -1 : 1; // 상단 고정된 항목 우선 배치
+        }
+        return (a.name || "").localeCompare(b.name || "", "ko"); // 가나다순 정렬
+      });
   }, [favList, selectedFavCategory, favSearchQuery]);
 
   return (
@@ -304,6 +321,7 @@ export default function FavoritesTab({ themeClasses }: FavoritesTabProps) {
           const isEditing = editingFavId === fav.id;
           const isCopied = copiedId === fav.id;
           const catIcon = getCategoryIcon(fav.category);
+          const isPinned = Boolean(fav.isPinned);
 
           if (isEditing) {
             return (
@@ -328,7 +346,11 @@ export default function FavoritesTab({ themeClasses }: FavoritesTabProps) {
           return (
             <div
               key={fav.id}
-              className="grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border-2 border-purple-400/80 bg-purple-50/40 hover:bg-purple-50/70 transition shadow-2xs"
+              className={`grid grid-cols-12 gap-2 items-center text-xs p-3 rounded-2xl border-2 transition shadow-2xs ${
+                isPinned
+                  ? "border-purple-500 bg-purple-100/70 shadow-xs"
+                  : "border-purple-400/80 bg-purple-50/40 hover:bg-purple-50/70"
+              }`}
             >
               <div className="col-span-2 flex justify-center">
                 <span className="px-2.5 py-1 rounded-lg bg-purple-100 text-purple-900 border border-purple-300 text-[11px] font-bold text-center flex items-center gap-1 shadow-2xs">
@@ -336,7 +358,9 @@ export default function FavoritesTab({ themeClasses }: FavoritesTabProps) {
                   <span>{fav.category}</span>
                 </span>
               </div>
-              <div className="col-span-3 text-neutral-900 truncate font-black text-[13px] text-center px-1">{fav.name}</div>
+              <div className="col-span-3 text-neutral-900 truncate font-black text-[13px] text-center px-1">
+                {fav.name}
+              </div>
               <div className="col-span-1 flex justify-center">
                 <a href={fav.url} target="_blank" rel="noreferrer" className="px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-[11px] flex items-center gap-1 shadow-2xs transition active:scale-95" title={`${fav.name} 바로가기`}>
                   <ExternalLink className="w-3 h-3" />
@@ -361,6 +385,19 @@ export default function FavoritesTab({ themeClasses }: FavoritesTabProps) {
               <div className="col-span-2 flex items-center justify-center gap-1.5">
                 <button onClick={() => startEditFav(fav)} title="수정" className="p-1.5 rounded-lg text-neutral-400 hover:text-purple-800 hover:bg-white transition"><Pencil className="w-3.5 h-3.5" /></button>
                 <button onClick={() => handleDeleteFav(fav.id)} title="삭제" className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-500 hover:bg-white transition"><Trash2 className="w-3.5 h-3.5" /></button>
+                <button
+                  onClick={(e) => togglePinFav(fav.id, e)}
+                  title={isPinned ? "상단 고정 해제" : "상단 고정 (하트)"}
+                  className="p-1.5 rounded-lg hover:bg-white transition active:scale-125"
+                >
+                  <Heart
+                    className={`w-4 h-4 transition ${
+                      isPinned
+                        ? "text-rose-500 fill-rose-500 hover:opacity-80"
+                        : "text-neutral-300 hover:text-rose-400"
+                    }`}
+                  />
+                </button>
               </div>
             </div>
           );
