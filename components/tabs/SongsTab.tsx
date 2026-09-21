@@ -24,6 +24,8 @@ interface SongsTabProps {
   currentSong?: any;
   setVideoModalUrl?: (url: string | null) => void;
   videoModalUrl?: string | null;
+  songList: any[];
+  setSongList: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
 export default function SongsTab({
@@ -31,27 +33,20 @@ export default function SongsTab({
   isPlayingAudio,
   currentSong,
   setVideoModalUrl,
-  videoModalUrl
+  videoModalUrl,
+  songList = [],
+  setSongList
 }: SongsTabProps) {
-  const defaultSongs = [
-    { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
-    { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
-    { id: 3, genre: "K-POP", title: "만개화", artist: "안예은", url: "", songType: "none", liked: false },
-    { id: 4, genre: "J-POP", title: "베텔기우스 (Betelgeuse)", artist: "Yuuri", url: "https://www.youtube.com/watch?v=cbqvxDTLMPS", songType: "Cover", liked: true },
-    { id: 5, genre: "OST", title: "그대라는 시", artist: "태연", url: "", songType: "Original", liked: false },
-    { id: 6, genre: "POP", title: "Love Story", artist: "Taylor Swift", url: "", songType: "Original", liked: false },
-    { id: 7, genre: "K-POP", title: "사건의 지평선", artist: "윤하", url: "", songType: "Original", liked: false },
-  ];
-
-  const [songList, setSongList] = useState<any[]>([]);
-  const [isSongDataLoaded, setIsSongDataLoaded] = useState(false);
   const [localModalUrl, setLocalModalUrl] = useState<string | null>(null);
 
   const activeModalUrl = videoModalUrl !== undefined ? videoModalUrl : localModalUrl;
   const setActiveModalUrl = setVideoModalUrl || setLocalModalUrl;
 
+  // 장르 아이콘 (버추얼: 여자얼굴 👧, 보컬로이드: 로봇얼굴 🤖 적용)
   const getGenreIcon = (genre: string) => {
     const g = (genre || "").trim().toLowerCase();
+    if (g.includes("버추얼")) return "👧";
+    if (g.includes("보컬로이드")) return "🤖";
     if (g.includes("k-pop") || g.includes("kpop") || g.includes("가요")) return "🇰🇷";
     if (g.includes("j-pop") || g.includes("jpop") || g.includes("애니")) return "🇯🇵";
     if (g.includes("pop") || g.includes("팝")) return "🌎";
@@ -82,20 +77,6 @@ export default function SongsTab({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeModalUrl]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("jb_bookmark_song_list");
-      setSongList(saved ? JSON.parse(saved) : defaultSongs);
-      setIsSongDataLoaded(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isSongDataLoaded && typeof window !== "undefined") {
-      localStorage.setItem("jb_bookmark_song_list", JSON.stringify(songList));
-    }
-  }, [songList, isSongDataLoaded]);
 
   const [editingSongId, setEditingSongId] = useState<number | null>(null);
   const [editGenre, setEditGenre] = useState("");
@@ -162,7 +143,7 @@ export default function SongsTab({
       songType: newSongType,
       liked: false
     };
-    setSongList([newSong, ...songList]);
+    setSongList([newSong, ...(songList || [])]);
     setNewGenre("");
     setNewArtist("");
     setNewTitle("");
@@ -170,8 +151,12 @@ export default function SongsTab({
     setNewSongType("none");
   };
 
-  const toggleLike = (id: number) => {
-    setSongList((prev) => prev.map((s) => (s.id === id ? { ...s, liked: !s.liked } : s)));
+  // 하트 토글 시 상위 상태 변경 및 localStorage 저장 트리거
+  const toggleLike = (id: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSongList((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, liked: !s.liked } : s))
+    );
   };
 
   const handleDeleteSong = (id: number) => {
@@ -209,6 +194,8 @@ export default function SongsTab({
             className="w-24 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-500 placeholder-neutral-400"
           />
           <datalist id="genre-suggestions">
+            <option value="버추얼" />
+            <option value="보컬로이드" />
             {existingGenres.map((g) => (
               <option key={g} value={g} />
             ))}
@@ -455,9 +442,9 @@ export default function SongsTab({
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={() => toggleLike(song.id)}
+                  onClick={(e) => toggleLike(song.id, e)}
                   title={song.liked ? "플레이리스트에서 제거" : "플레이리스트에 담기"}
-                  className={`p-1.5 rounded-lg transition ${
+                  className={`p-1.5 rounded-lg transition active:scale-125 ${
                     song.liked ? "text-rose-500 fill-rose-500 hover:scale-110 bg-rose-50" : "text-neutral-400 hover:text-rose-500 hover:bg-white"
                   }`}
                 >
