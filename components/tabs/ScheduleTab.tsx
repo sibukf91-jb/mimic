@@ -49,7 +49,7 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
     "2026-09-26": "추석 연휴",
   };
 
-  // 심볼 설정: 기존 심볼 + 모임, 병원
+  // 심볼 설정 (순서: 연차, 반차, 헤어, 생일, 약속, 모임, 병원)
   const SCHEDULE_SYMBOL_CONFIG = {
     leave: { label: "연차", icon: "🌴" },
     half_leave: { label: "반차", icon: "🌓" },
@@ -60,18 +60,32 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
     hospital: { label: "병원", icon: "🏥" },
   };
 
+  // 색상 설정: 기존 5종 + 파스텔 오렌지, 파스텔 코랄 (순서 일치)
   const SCHEDULE_COLOR_CONFIG = {
     pink: { label: "핑크", class: "bg-pink-100 text-pink-900 border-pink-300", chip: "bg-pink-300" },
     blue: { label: "파랑", class: "bg-blue-100 text-blue-900 border-blue-300", chip: "bg-blue-300" },
     purple: { label: "보라", class: "bg-purple-100 text-purple-900 border-purple-300", chip: "bg-purple-300" },
     yellow: { label: "노랑", class: "bg-amber-100 text-amber-900 border-amber-300", chip: "bg-amber-300" },
     green: { label: "초록", class: "bg-emerald-100 text-emerald-900 border-emerald-300", chip: "bg-emerald-300" },
+    orange: { label: "오렌지", class: "bg-orange-100 text-orange-900 border-orange-300", chip: "bg-orange-300" },
+    coral: { label: "코랄", class: "bg-rose-100 text-rose-900 border-rose-300", chip: "bg-rose-300" },
+  };
+
+  // 심볼 클릭 시 같은 순서의 색상 자동 매칭 매퍼
+  const SYMBOL_TO_COLOR_MAP = {
+    leave: "pink",
+    half_leave: "blue",
+    hair: "purple",
+    birthday: "yellow",
+    appointment: "green",
+    gathering: "orange",
+    hospital: "coral",
   };
 
   const defaultSchedules = [
-    { id: 1, date: "2026-09-06", title: "홍대 1주년 카페", symbol: "appointment", color: "pink" },
+    { id: 1, date: "2026-09-06", title: "홍대 1주년 카페", symbol: "appointment", color: "green" },
     { id: 2, date: "2026-09-16", title: "위어스헤어", symbol: "hair", color: "purple" },
-    { id: 3, date: "2026-09-16", title: "오후 반차", symbol: "half_leave", color: "green" },
+    { id: 3, date: "2026-09-16", title: "오후 반차", symbol: "half_leave", color: "blue" },
   ];
 
   const [scheduleList, setScheduleList] = useState<any[]>([]);
@@ -82,12 +96,12 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
 
   const [newSchedTitle, setNewSchedTitle] = useState("");
   const [newSchedSymbol, setNewSchedSymbol] = useState("appointment");
-  const [newSchedColor, setNewSchedColor] = useState("pink");
+  const [newSchedColor, setNewSchedColor] = useState("green");
 
   const [popupEditingId, setPopupEditingId] = useState<number | null>(null);
   const [editPopupTitle, setEditPopupTitle] = useState("");
   const [editPopupSymbol, setEditPopupSymbol] = useState("appointment");
-  const [editPopupColor, setEditPopupColor] = useState("pink");
+  const [editPopupColor, setEditPopupColor] = useState("green");
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -142,6 +156,22 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
     return cells;
   }, [calYear, calMonth]);
 
+  // 새 일정 심볼 선택 시 같은 순서 색상으로 자동 연동
+  const handleSelectNewSymbol = (key: string) => {
+    setNewSchedSymbol(key);
+    if (SYMBOL_TO_COLOR_MAP[key]) {
+      setNewSchedColor(SYMBOL_TO_COLOR_MAP[key]);
+    }
+  };
+
+  // 수정 시 심볼 선택 시 같은 순서 색상으로 자동 연동
+  const handleSelectEditSymbol = (key: string) => {
+    setEditPopupSymbol(key);
+    if (SYMBOL_TO_COLOR_MAP[key]) {
+      setEditPopupColor(SYMBOL_TO_COLOR_MAP[key]);
+    }
+  };
+
   const handleAddPopupSchedule = (e: React.FormEvent) => {
     e.preventDefault();
     if (!modalDate || !newSchedTitle.trim()) return;
@@ -160,7 +190,7 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
     setPopupEditingId(item.id);
     setEditPopupTitle(item.title);
     setEditPopupSymbol(item.symbol || "appointment");
-    setEditPopupColor(item.color || "pink");
+    setEditPopupColor(item.color || (SYMBOL_TO_COLOR_MAP[item.symbol] || "pink"));
   };
 
   const savePopupEdit = (id: number) => {
@@ -455,7 +485,7 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
                           <button
                             key={key}
                             type="button"
-                            onClick={() => setEditPopupSymbol(key)}
+                            onClick={() => handleSelectEditSymbol(key)}
                             className={`px-2 py-0.5 rounded-md text-[10px] font-bold border transition ${
                               editPopupSymbol === key
                                 ? "border-pink-500 bg-pink-50 text-pink-900 font-black"
@@ -466,7 +496,7 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
                           </button>
                         ))}
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[10px] font-bold text-neutral-600">색상:</span>
                         {Object.entries(SCHEDULE_COLOR_CONFIG).map(([key, val]) => (
                           <button
@@ -521,13 +551,13 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
                 />
               </div>
               <div>
-                <div className="text-[11px] font-bold text-neutral-600 mb-1">심볼 선택</div>
+                <div className="text-[11px] font-bold text-neutral-600 mb-1">심볼 선택 (선택 시 색상 자동 연동)</div>
                 <div className="grid grid-cols-4 sm:grid-cols-7 gap-1">
                   {Object.entries(SCHEDULE_SYMBOL_CONFIG).map(([key, val]) => (
                     <button
                       key={key}
                       type="button"
-                      onClick={() => setNewSchedSymbol(key)}
+                      onClick={() => handleSelectNewSymbol(key)}
                       className={`py-1.5 rounded-xl text-[11px] font-bold border flex flex-col items-center gap-0.5 transition ${
                         newSchedSymbol === key
                           ? "border-pink-500 bg-pink-50 text-pink-900 font-black shadow-2xs"
@@ -542,9 +572,9 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
               </div>
               <div>
                 <div className="text-[11px] font-bold text-neutral-600 mb-1">파스텔 태그 색상</div>
-                <div className="flex items-center gap-3 bg-neutral-50 p-2 rounded-xl border border-neutral-200">
+                <div className="flex items-center gap-2.5 bg-neutral-50 p-2 rounded-xl border border-neutral-200 flex-wrap">
                   {Object.entries(SCHEDULE_COLOR_CONFIG).map(([key, val]) => (
-                    <label key={key} className="flex items-center gap-1.5 cursor-pointer">
+                    <label key={key} className="flex items-center gap-1 cursor-pointer">
                       <input
                         type="radio"
                         name="tagColor"
@@ -553,12 +583,12 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
                         onChange={() => setNewSchedColor(key)}
                         className="hidden"
                       />
-                      <span className={`w-6 h-6 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${
+                      <span className={`w-5 h-5 rounded-full ${val.chip} border-2 flex items-center justify-center transition ${
                         newSchedColor === key ? "border-pink-600 scale-110 shadow-xs" : "border-transparent opacity-70"
                       }`}>
-                        {newSchedColor === key && <Check className="w-3 h-3 text-pink-950 stroke-[3]" />}
+                        {newSchedColor === key && <Check className="w-2.5 h-2.5 text-pink-950 stroke-[3]" />}
                       </span>
-                      <span className="text-[11px] font-semibold text-neutral-700">{val.label}</span>
+                      <span className="text-[10px] font-semibold text-neutral-700">{val.label}</span>
                     </label>
                   ))}
                 </div>
