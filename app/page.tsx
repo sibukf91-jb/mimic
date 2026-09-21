@@ -41,15 +41,15 @@ export default function Home() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   
-  // 비밀번호 등록/변경 관련 상태
   const [storedPassword, setStoredPassword] = useState<string | null>(null);
   const [isSettingNewPassword, setIsSettingNewPassword] = useState(false);
   const [newPasswordInput, setNewPasswordInput] = useState("");
   const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
 
-  const [currentTab, setCurrentTab] = useState("schedule");
+  const [currentTab, setCurrentTab] = useState("songs");
+  const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
 
-  // 초기 로딩 시 저장된 비밀번호 확인
+  // 비밀번호 확인
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedPw = localStorage.getItem("jb_space_custom_password");
@@ -62,7 +62,6 @@ export default function Home() {
     }
   }, []);
 
-  // 비밀번호 등록 처리
   const handleRegisterPassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newPasswordInput.trim()) {
@@ -84,7 +83,6 @@ export default function Home() {
     setConfirmPasswordInput("");
   };
 
-  // 등록된 비밀번호로 로그인
   const handleUnlock = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (pin === storedPassword) {
@@ -97,7 +95,7 @@ export default function Home() {
     }
   };
 
-  // ================= 1. 테마 색상 동적 매핑 =================
+  // 1. 테마 색상 동적 매핑
   const themeClasses = useMemo(() => {
     if (currentTab === "recipes") {
       return {
@@ -251,16 +249,39 @@ export default function Home() {
     };
   }, [currentTab]);
 
-  // ================= 2. 공용 플레이리스트 & 시계 =================
+  // 2. 노래 데이터 영구 보존 및 동기화
+  const defaultSongs = [
+    { id: 1, genre: "K-POP", title: "비밀번호 486", artist: "윤하", url: "https://www.youtube.com/watch?v=3g8L_8cRkY4", songType: "Original", liked: true },
+    { id: 2, genre: "발라드", title: "일기예보", artist: "연초록", url: "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", songType: "Cover", liked: true },
+    { id: 3, genre: "K-POP", title: "만개화", artist: "안예은", url: "", songType: "none", liked: false },
+    { id: 4, genre: "J-POP", title: "베텔기우스 (Betelgeuse)", artist: "Yuuri", url: "https://www.youtube.com/watch?v=cbqvxDTLMPS", songType: "Cover", liked: true },
+    { id: 5, genre: "OST", title: "그대라는 시", artist: "태연", url: "", songType: "Original", liked: false },
+    { id: 6, genre: "POP", title: "Love Story", artist: "Taylor Swift", url: "", songType: "Original", liked: false },
+    { id: 7, genre: "K-POP", title: "사건의 지평선", artist: "윤하", url: "", songType: "Original", liked: false },
+  ];
+
   const [songList, setSongList] = useState<any[]>([]);
+  const [isSongLoaded, setIsSongLoaded] = useState(false);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("jb_bookmark_song_list");
-      if (saved) setSongList(JSON.parse(saved));
+      setSongList(saved ? JSON.parse(saved) : defaultSongs);
+      setIsSongLoaded(true);
     }
   }, []);
 
-  const likedSongs = (songList || []).filter((s) => s.liked);
+  useEffect(() => {
+    if (isSongLoaded && typeof window !== "undefined") {
+      localStorage.setItem("jb_bookmark_song_list", JSON.stringify(songList));
+    }
+  }, [songList, isSongLoaded]);
+
+  // 하트(liked: true)가 켜진 노래만 플레이리스트에 실시간 반영
+  const likedSongs = useMemo(() => {
+    return (songList || []).filter((s) => s && s.liked);
+  }, [songList]);
+
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [repeatMode, setRepeatMode] = useState<"none" | "all" | "one">("all");
@@ -425,6 +446,7 @@ export default function Home() {
     return `${m}:${String(s).padStart(2, "0")}`;
   };
 
+  // 실시간 시계 & 타이머
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [timerMinutes, setTimerMinutes] = useState(4);
   const [timeLeft, setTimeLeft] = useState(4 * 60);
@@ -497,7 +519,6 @@ export default function Home() {
     { id: "recipes", label: "레시피", icon: "🍳" }
   ];
 
-  // 잠금 화면 / 비밀번호 등록 화면 렌더링
   if (!isUnlocked) {
     return (
       <main className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4 relative select-none">
@@ -519,31 +540,27 @@ export default function Home() {
 
           {isSettingNewPassword ? (
             <form onSubmit={handleRegisterPassword} className="w-full space-y-3">
-              <div className="relative">
-                <input
-                  type="password"
-                  value={newPasswordInput}
-                  autoFocus
-                  onChange={(e) => {
-                    setNewPasswordInput(e.target.value);
-                    if (errorMsg) setErrorMsg("");
-                  }}
-                  placeholder="새 비밀번호 입력"
-                  className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-center text-white tracking-widest text-sm focus:outline-none focus:border-amber-500"
-                />
-              </div>
-              <div className="relative">
-                <input
-                  type="password"
-                  value={confirmPasswordInput}
-                  onChange={(e) => {
-                    setConfirmPasswordInput(e.target.value);
-                    if (errorMsg) setErrorMsg("");
-                  }}
-                  placeholder="비밀번호 확인"
-                  className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-center text-white tracking-widest text-sm focus:outline-none focus:border-amber-500"
-                />
-              </div>
+              <input
+                type="password"
+                value={newPasswordInput}
+                autoFocus
+                onChange={(e) => {
+                  setNewPasswordInput(e.target.value);
+                  if (errorMsg) setErrorMsg("");
+                }}
+                placeholder="새 비밀번호 입력"
+                className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-center text-white tracking-widest text-sm focus:outline-none focus:border-amber-500"
+              />
+              <input
+                type="password"
+                value={confirmPasswordInput}
+                onChange={(e) => {
+                  setConfirmPasswordInput(e.target.value);
+                  if (errorMsg) setErrorMsg("");
+                }}
+                placeholder="비밀번호 확인"
+                className="w-full bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-3 text-center text-white tracking-widest text-sm focus:outline-none focus:border-amber-500"
+              />
               {errorMsg && <p className="text-xs text-rose-400 font-medium">{errorMsg}</p>}
               <button
                 type="submit"
@@ -674,136 +691,76 @@ export default function Home() {
       {/* 본문 3단 레이아웃 */}
       <main className="max-w-[1720px] mx-auto w-full px-6 py-6 flex flex-col lg:flex-row gap-5 items-start flex-1 relative z-10">
         
-        {/* [1] 좌측 배너 (일정: 핑크, 가계부: 블루, 즐겨찾기: 퍼플, 책갈피: 옐로우, 노래책: 민트, 그 외: 기본 영역) */}
+        {/* [1] 좌측 배너 */}
         <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px]">
           {currentTab === "schedule" ? (
             <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-pink-400/90 shadow-sm relative bg-[#fbcfe8]">
-              <img
-                src="/schedule-banner.jpg"
-                alt="일정 배너"
-                className="w-full h-full object-cover relative z-10"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
+              <img src="/schedule-banner.jpg" alt="일정 배너" className="w-full h-full object-cover relative z-10" onError={(e) => { e.currentTarget.style.display = "none"; }} />
               <div className="absolute inset-0 flex flex-col items-center justify-between p-4 z-0 text-center bg-gradient-to-b from-[#fbcfe8] via-[#f472b6] to-[#831843]">
                 <div className="pt-6">
                   <span className="text-3xl block filter drop-shadow">💖</span>
                   <span className="text-xs font-black text-white tracking-widest uppercase block mt-1">Schedule Space</span>
                 </div>
-                <div className="w-full flex flex-col items-center gap-2">
-                  <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg">
-                    <Clock className="w-10 h-10 text-pink-100 animate-pulse" />
-                  </div>
-                  <span className="text-[11px] font-bold text-pink-100 mt-2">JB's Calendar</span>
+                <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg">
+                  <Clock className="w-10 h-10 text-pink-100 animate-pulse" />
                 </div>
-                <div className="pb-4 text-[10px] text-pink-200 font-medium">
-                  HADES Illustration
-                </div>
+                <div className="pb-4 text-[10px] text-pink-200 font-medium">HADES Illustration</div>
               </div>
             </div>
           ) : currentTab === "ledger" ? (
             <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-sky-400/90 shadow-sm relative bg-[#bae6fd]">
-              <img
-                src="/ledger-banner.jpg"
-                alt="가계부 배너"
-                className="w-full h-full object-cover relative z-10"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
+              <img src="/ledger-banner.jpg" alt="가계부 배너" className="w-full h-full object-cover relative z-10" onError={(e) => { e.currentTarget.style.display = "none"; }} />
               <div className="absolute inset-0 flex flex-col items-center justify-between p-4 z-0 text-center bg-gradient-to-b from-[#bae6fd] via-[#60a5fa] to-[#1e3a8a]">
                 <div className="pt-6">
                   <span className="text-3xl block filter drop-shadow">💎</span>
                   <span className="text-xs font-black text-white tracking-widest uppercase block mt-1">Ledger Space</span>
                 </div>
-                <div className="w-full flex flex-col items-center gap-2">
-                  <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg">
-                    <Wallet className="w-10 h-10 text-sky-100 animate-pulse" />
-                  </div>
-                  <span className="text-[11px] font-bold text-sky-100 mt-2">JB's Finance</span>
+                <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg">
+                  <Wallet className="w-10 h-10 text-sky-100 animate-pulse" />
                 </div>
-                <div className="pb-4 text-[10px] text-sky-200 font-medium">
-                  HADES Illustration
-                </div>
+                <div className="pb-4 text-[10px] text-sky-200 font-medium">HADES Illustration</div>
               </div>
             </div>
           ) : currentTab === "favorites" ? (
             <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-purple-400/90 shadow-sm relative bg-[#e9d5ff]">
-              <img
-                src="/favorites-banner.jpg"
-                alt="즐겨찾기 배너"
-                className="w-full h-full object-cover relative z-10"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
+              <img src="/favorites-banner.jpg" alt="즐겨찾기 배너" className="w-full h-full object-cover relative z-10" onError={(e) => { e.currentTarget.style.display = "none"; }} />
               <div className="absolute inset-0 flex flex-col items-center justify-between p-4 z-0 text-center bg-gradient-to-b from-[#e9d5ff] via-[#c084fc] to-[#581c87]">
                 <div className="pt-6">
                   <span className="text-3xl block filter drop-shadow">✨</span>
                   <span className="text-xs font-black text-white tracking-widest uppercase block mt-1">Favorites Space</span>
                 </div>
-                <div className="w-full flex flex-col items-center gap-2">
-                  <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg">
-                    <Star className="w-10 h-10 text-purple-100 fill-purple-200/80 animate-pulse" />
-                  </div>
-                  <span className="text-[11px] font-bold text-purple-100 mt-2">JB's Bookmarks</span>
+                <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg">
+                  <Star className="w-10 h-10 text-purple-100 fill-purple-200/80 animate-pulse" />
                 </div>
-                <div className="pb-4 text-[10px] text-purple-200 font-medium">
-                  HADES Illustration
-                </div>
+                <div className="pb-4 text-[10px] text-purple-200 font-medium">HADES Illustration</div>
               </div>
             </div>
           ) : currentTab === "bookmarks" ? (
             <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-amber-400/90 shadow-sm relative bg-[#fef3c7]">
-              <img
-                src="/bookmarks-banner.jpg"
-                alt="책갈피 배너"
-                className="w-full h-full object-cover relative z-10"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
+              <img src="/bookmarks-banner.jpg" alt="책갈피 배너" className="w-full h-full object-cover relative z-10" onError={(e) => { e.currentTarget.style.display = "none"; }} />
               <div className="absolute inset-0 flex flex-col items-center justify-between p-4 z-0 text-center bg-gradient-to-b from-[#fef3c7] via-[#f59e0b] to-[#78350f]">
                 <div className="pt-6">
                   <span className="text-3xl block filter drop-shadow">🍊</span>
                   <span className="text-xs font-black text-white tracking-widest uppercase block mt-1">Reading Space</span>
                 </div>
-                <div className="w-full flex flex-col items-center gap-2">
-                  <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg">
-                    <Bookmark className="w-10 h-10 text-amber-100 fill-amber-200/80 animate-pulse" />
-                  </div>
-                  <span className="text-[11px] font-bold text-amber-100 mt-2">JB's Reading</span>
+                <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg">
+                  <Bookmark className="w-10 h-10 text-amber-100 fill-amber-200/80 animate-pulse" />
                 </div>
-                <div className="pb-4 text-[10px] text-amber-200 font-medium">
-                  HADES Illustration
-                </div>
+                <div className="pb-4 text-[10px] text-amber-200 font-medium">HADES Illustration</div>
               </div>
             </div>
           ) : currentTab === "songs" ? (
             <div className="w-full h-full rounded-2xl overflow-hidden border-2 border-emerald-400/90 shadow-sm relative bg-[#8ec7b3]">
-              <img
-                src="/song-banner.jpg"
-                alt="노래책 배너"
-                className="w-full h-full object-cover relative z-10"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
+              <img src="/song-banner.jpg" alt="노래책 배너" className="w-full h-full object-cover relative z-10" onError={(e) => { e.currentTarget.style.display = "none"; }} />
               <div className="absolute inset-0 flex flex-col items-center justify-between p-4 z-0 text-center bg-gradient-to-b from-[#8ec7b3] via-[#7abda8] to-[#1e2a26]">
                 <div className="pt-6">
                   <span className="text-3xl block filter drop-shadow">🍀</span>
                   <span className="text-xs font-black text-white tracking-widest uppercase block mt-1">Music Space</span>
                 </div>
-                <div className="w-full flex flex-col items-center gap-2">
-                  <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg">
-                    <Heart className="w-10 h-10 text-emerald-100 fill-emerald-200/80 animate-pulse" />
-                  </div>
-                  <span className="text-[11px] font-bold text-emerald-100 mt-2">JB's Playlist</span>
+                <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center shadow-lg">
+                  <Heart className="w-10 h-10 text-emerald-100 fill-emerald-200/80 animate-pulse" />
                 </div>
-                <div className="pb-4 text-[10px] text-emerald-200/80 font-medium">
-                  HADES Illustration
-                </div>
+                <div className="pb-4 text-[10px] text-emerald-200/80 font-medium">연초록 Illustration</div>
               </div>
             </div>
           ) : (
@@ -814,132 +771,168 @@ export default function Home() {
           )}
         </aside>
 
-        {/* [2] 중앙 내용 영역 (컴포넌트 연동) */}
+        {/* [2] 중앙 내용 영역 */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
           {currentTab === "schedule" && <ScheduleTab themeClasses={themeClasses} />}
           {currentTab === "ledger" && <LedgerTab themeClasses={themeClasses} />}
           {currentTab === "favorites" && <FavoritesTab themeClasses={themeClasses} />}
           {currentTab === "bookmarks" && <BookmarksTab themeClasses={themeClasses} />}
-          {currentTab === "songs" && <SongsTab themeClasses={themeClasses} isPlayingAudio={isPlayingAudio} currentSong={currentSong} />}
+          {currentTab === "songs" && (
+            <SongsTab
+              themeClasses={themeClasses}
+              isPlayingAudio={isPlayingAudio}
+              currentSong={currentSong}
+              setVideoModalUrl={setVideoModalUrl}
+              videoModalUrl={videoModalUrl}
+              songList={songList}
+              setSongList={setSongList}
+            />
+          )}
           {currentTab === "orders" && <OrdersTab themeClasses={themeClasses} />}
           {currentTab === "cart" && <CartTab themeClasses={themeClasses} />}
           {currentTab === "recipes" && <RecipesTab themeClasses={themeClasses} />}
         </section>
 
-        {/* [3] 우측 배너 */}
-        <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px] flex flex-col gap-3">
+        {/* [3] 우측 사이드바 (플레이리스트 + 하단 고정 반응형 배너) */}
+        <aside className="w-full lg:w-[200px] h-[760px] shrink-0 sticky top-[73px] flex flex-col gap-3 justify-between">
           
-          {/* 시계 & 타이머 */}
-          <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col items-center text-center shrink-0 transition-colors duration-200`}>
-            <div className={`flex items-center gap-1 text-[10px] font-semibold ${themeClasses.textSecondary} mb-0.5`}>
-              <Clock className="w-3 h-3" />
-              <span>{dateString}</span>
-            </div>
-            <div className={`text-base font-black ${themeClasses.textPrimary} tracking-tight mb-2`}>
-              {timeString}
-            </div>
-
-            <div className={`w-full pt-2 border-t ${themeClasses.borderSubtle} flex flex-col items-center`}>
-              <div className="flex items-center justify-between w-full mb-1 px-1">
-                <span className="text-[10px] font-bold text-neutral-600">타이머</span>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => !isTimerRunning && setTimerMinutes((p) => Math.max(1, p - 1))} disabled={isTimerRunning} className={`p-0.5 rounded ${themeClasses.accentBtnSub}`}>
-                    <Minus className="w-3 h-3" />
-                  </button>
-                  <span className={`text-[10px] font-bold ${themeClasses.textPrimary} min-w-[24px]`}>{timerMinutes}분</span>
-                  <button onClick={() => !isTimerRunning && setTimerMinutes((p) => p + 1)} disabled={isTimerRunning} className={`p-0.5 rounded ${themeClasses.accentBtnSub}`}>
-                    <Plus className="w-3 h-3" />
-                  </button>
-                </div>
+          <div className="flex flex-col gap-3 flex-1 min-h-0">
+            {/* 시계 & 타이머 */}
+            <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col items-center text-center shrink-0 transition-colors duration-200`}>
+              <div className={`flex items-center gap-1 text-[10px] font-semibold ${themeClasses.textSecondary} mb-0.5`}>
+                <Clock className="w-3 h-3" />
+                <span>{dateString}</span>
+              </div>
+              <div className={`text-base font-black ${themeClasses.textPrimary} tracking-tight mb-2`}>
+                {timeString}
               </div>
 
-              <div className={`text-xl font-black my-1 font-mono tracking-wider ${themeClasses.textPrimary}`}>
-                {timerMin}:{timerSec}
-              </div>
-
-              <div className="flex items-center gap-1.5 w-full mt-1">
-                <button onClick={toggleTimer} className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 ${isTimerRunning ? "bg-amber-500 text-white" : themeClasses.accentBtn}`}>
-                  {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
-                  <span>{isTimerRunning ? "정지" : "시작"}</span>
-                </button>
-                <button onClick={resetTimer} title="초기화" className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60`}>
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* 플레이리스트 위젯 */}
-          <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col gap-2 shrink-0 max-h-[460px] overflow-hidden transition-colors duration-200`}>
-            <div className={`flex items-center justify-between border-b ${themeClasses.borderSubtle} pb-1.5 shrink-0`}>
-              <div className={`flex items-center gap-1.5 text-xs font-bold ${themeClasses.textPrimary}`}>
-                <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
-                <span>플레이리스트</span>
-              </div>
-              <span className={`text-[10px] ${themeClasses.textSecondary} font-bold ${themeClasses.bgHeader} px-1.5 py-0.5 rounded-full`}>
-                {likedSongs.length}곡
-              </span>
-            </div>
-
-            <div className={`bg-white/80 border ${themeClasses.borderSubtle} rounded-xl p-2.5 flex flex-col gap-2 shrink-0`}>
-              <div className={`text-[11px] font-bold ${themeClasses.textPrimary} truncate text-center leading-tight`}>
-                {currentSong ? <span>🎵 {currentSong.title}</span> : <span className="text-neutral-400 font-normal">곡을 선택하세요</span>}
-              </div>
-
-              <div className="space-y-1">
-                <input
-                  type="range"
-                  min={0}
-                  max={durationSec > 0 ? durationSec : 100}
-                  value={currentTimeSec}
-                  onChange={handleSeek}
-                  disabled={!currentSong}
-                  className={`w-full h-1 ${themeClasses.rangeBg} rounded-lg appearance-none cursor-pointer ${themeClasses.rangeAccent}`}
-                />
-                <div className={`flex justify-between text-[9px] ${themeClasses.textSecondary} font-mono`}>
-                  <span>{formatSeconds(currentTimeSec)}</span>
-                  <span>{formatSeconds(durationSec)}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-0.5 px-1">
-                <div className="flex items-center gap-1">
-                  <button onClick={handlePrevSong} disabled={likedSongs.length === 0} className="p-1 rounded text-neutral-600"><SkipBack className="w-3.5 h-3.5" /></button>
-                  <button onClick={togglePlayAudio} disabled={likedSongs.length === 0} className={`p-1.5 rounded-full ${themeClasses.accentBtn}`}>
-                    {isPlayingAudio ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
-                  </button>
-                  <button onClick={handleNextSong} disabled={likedSongs.length === 0} className="p-1 rounded text-neutral-600"><SkipForward className="w-3.5 h-3.5" /></button>
-                </div>
-                <button onClick={() => setRepeatMode(repeatMode === "all" ? "one" : repeatMode === "one" ? "none" : "all")} className={`p-1 rounded text-[10px] font-bold ${repeatMode !== "none" ? themeClasses.accentActive + " px-1.5" : "text-neutral-400"}`}>
-                  <Repeat className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              <div className={`flex items-center gap-1.5 pt-1 border-t ${themeClasses.borderSubtle} px-0.5`}>
-                <button onClick={toggleMute} className={`${themeClasses.textSecondary} p-0.5`}>
-                  {isMuted || volume === 0 ? <VolumeX className="w-3.5 h-3.5 text-neutral-400" /> : <Volume2 className="w-3.5 h-3.5" />}
-                </button>
-                <input type="range" min={0} max={100} value={isMuted ? 0 : volume} onChange={handleVolumeChange} className={`w-full h-1 ${themeClasses.rangeBg} rounded-lg appearance-none cursor-pointer ${themeClasses.rangeAccent}`} />
-              </div>
-            </div>
-
-            <div className="overflow-y-auto space-y-1 pr-1 max-h-[140px]">
-              {likedSongs.map((song, idx) => (
-                <div key={`liked-${song.id}`} onClick={() => handleSelectSong(idx)} className={`flex items-center justify-between p-1.5 rounded-lg border text-[11px] cursor-pointer ${currentPlayingIndex === idx ? themeClasses.activeTrack + " font-bold" : `bg-white/70 ${themeClasses.borderSubtle}`}`}>
-                  <div className="min-w-0 pr-1 flex items-center gap-1.5">
-                    <Play className={`w-3.5 h-3.5 shrink-0 ${currentPlayingIndex === idx && isPlayingAudio ? themeClasses.playIcon + " animate-pulse" : "text-neutral-400"}`} />
-                    <span className="truncate">{song.title}</span>
+              <div className={`w-full pt-2 border-t ${themeClasses.borderSubtle} flex flex-col items-center`}>
+                <div className="flex items-center justify-between w-full mb-1 px-1">
+                  <span className="text-[10px] font-bold text-neutral-600">타이머</span>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => !isTimerRunning && setTimerMinutes((p) => Math.max(1, p - 1))} disabled={isTimerRunning} className={`p-0.5 rounded ${themeClasses.accentBtnSub}`}>
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className={`text-[10px] font-bold ${themeClasses.textPrimary} min-w-[24px]`}>{timerMinutes}분</span>
+                    <button onClick={() => !isTimerRunning && setTimerMinutes((p) => p + 1)} disabled={isTimerRunning} className={`p-0.5 rounded ${themeClasses.accentBtnSub}`}>
+                      <Plus className="w-3 h-3" />
+                    </button>
                   </div>
-                  <button onClick={(e) => { e.stopPropagation(); }} className="text-neutral-300 hover:text-rose-500 p-0.5"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
-              ))}
+
+                <div className={`text-xl font-black my-1 font-mono tracking-wider ${themeClasses.textPrimary}`}>
+                  {timerMin}:{timerSec}
+                </div>
+
+                <div className="flex items-center gap-1.5 w-full mt-1">
+                  <button onClick={toggleTimer} className={`flex-1 py-1 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 ${isTimerRunning ? "bg-amber-500 text-white" : themeClasses.accentBtn}`}>
+                    {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
+                    <span>{isTimerRunning ? "정지" : "시작"}</span>
+                  </button>
+                  <button onClick={resetTimer} title="초기화" className={`p-1 rounded-lg border ${themeClasses.borderSubtle} hover:bg-white/60`}>
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 플레이리스트 위젯: 곡 수에 따라 부드럽게 확장되고 넘치면 내부 드롭다운 스크롤 */}
+            <div className={`border-2 ${themeClasses.borderSolid} rounded-2xl p-3 ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm flex flex-col gap-2 flex-1 min-h-[220px] max-h-[380px] transition-all duration-300 overflow-hidden`}>
+              <div className={`flex items-center justify-between border-b ${themeClasses.borderSubtle} pb-1.5 shrink-0`}>
+                <div className={`flex items-center gap-1.5 text-xs font-bold ${themeClasses.textPrimary}`}>
+                  <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+                  <span>플레이리스트</span>
+                </div>
+                <span className={`text-[10px] ${themeClasses.textSecondary} font-bold ${themeClasses.bgHeader} px-1.5 py-0.5 rounded-full`}>
+                  {likedSongs.length}곡
+                </span>
+              </div>
+
+              {/* 플레이어 미니 바 */}
+              <div className={`bg-white/80 border ${themeClasses.borderSubtle} rounded-xl p-2.5 flex flex-col gap-2 shrink-0`}>
+                <div className={`text-[11px] font-bold ${themeClasses.textPrimary} truncate text-center leading-tight`}>
+                  {currentSong ? <span>🎵 {currentSong.title}</span> : <span className="text-neutral-400 font-normal">곡을 선택하세요</span>}
+                </div>
+
+                <div className="space-y-1">
+                  <input
+                    type="range"
+                    min={0}
+                    max={durationSec > 0 ? durationSec : 100}
+                    value={currentTimeSec}
+                    onChange={handleSeek}
+                    disabled={!currentSong}
+                    className={`w-full h-1 ${themeClasses.rangeBg} rounded-lg appearance-none cursor-pointer ${themeClasses.rangeAccent}`}
+                  />
+                  <div className={`flex justify-between text-[9px] ${themeClasses.textSecondary} font-mono`}>
+                    <span>{formatSeconds(currentTimeSec)}</span>
+                    <span>{formatSeconds(durationSec)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-0.5 px-1">
+                  <div className="flex items-center gap-1">
+                    <button onClick={handlePrevSong} disabled={likedSongs.length === 0} className="p-1 rounded text-neutral-600"><SkipBack className="w-3.5 h-3.5" /></button>
+                    <button onClick={togglePlayAudio} disabled={likedSongs.length === 0} className={`p-1.5 rounded-full ${themeClasses.accentBtn}`}>
+                      {isPlayingAudio ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-white" />}
+                    </button>
+                    <button onClick={handleNextSong} disabled={likedSongs.length === 0} className="p-1 rounded text-neutral-600"><SkipForward className="w-3.5 h-3.5" /></button>
+                  </div>
+                  <button onClick={() => setRepeatMode(repeatMode === "all" ? "one" : repeatMode === "one" ? "none" : "all")} className={`p-1 rounded text-[10px] font-bold ${repeatMode !== "none" ? themeClasses.accentActive + " px-1.5" : "text-neutral-400"}`}>
+                    <Repeat className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className={`flex items-center gap-1.5 pt-1 border-t ${themeClasses.borderSubtle} px-0.5`}>
+                  <button onClick={toggleMute} className={`${themeClasses.textSecondary} p-0.5`}>
+                    {isMuted || volume === 0 ? <VolumeX className="w-3.5 h-3.5 text-neutral-400" /> : <Volume2 className="w-3.5 h-3.5" />}
+                  </button>
+                  <input type="range" min={0} max={100} value={isMuted ? 0 : volume} onChange={handleVolumeChange} className={`w-full h-1 ${themeClasses.rangeBg} rounded-lg appearance-none cursor-pointer ${themeClasses.rangeAccent}`} />
+                </div>
+              </div>
+
+              {/* 재생목록 리스트 (더 많아지면 드롭다운/스크롤 처리) */}
+              <div className="overflow-y-auto space-y-1 pr-1 flex-1 min-h-0">
+                {likedSongs.map((song, idx) => (
+                  <div
+                    key={`liked-${song.id}`}
+                    onClick={() => handleSelectSong(idx)}
+                    className={`flex items-center justify-between p-1.5 rounded-lg border text-[11px] cursor-pointer transition ${
+                      currentPlayingIndex === idx ? themeClasses.activeTrack + " font-bold" : `bg-white/70 hover:bg-white ${themeClasses.borderSubtle}`
+                    }`}
+                  >
+                    <div className="min-w-0 pr-1 flex items-center gap-1.5">
+                      <Play className={`w-3.5 h-3.5 shrink-0 ${currentPlayingIndex === idx && isPlayingAudio ? themeClasses.playIcon + " animate-pulse" : "text-neutral-400"}`} />
+                      <span className="truncate">{song.title}</span>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSongList((prev) => prev.map((s) => s.id === song.id ? { ...s, liked: false } : s));
+                      }}
+                      title="플레이리스트에서 빼기"
+                      className="text-neutral-300 hover:text-rose-500 p-0.5 shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {likedSongs.length === 0 && (
+                  <div className="py-6 text-center text-[10px] text-neutral-400">
+                    하트를 누르면 이곳에 담깁니다.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* 우측 하단 배너 */}
-          <div className={`border-2 border-dashed ${themeClasses.borderDashed} rounded-2xl p-3 flex-1 min-h-0 flex flex-col items-center justify-center text-center ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm overflow-hidden transition-colors duration-200`}>
-            <span className="text-xl mb-1 shrink-0">🖼️</span>
-            <span className={`text-xs font-semibold ${themeClasses.textSecondary} truncate`}>우측 하단 배너</span>
+          {/* 우측 하단 배너: 하단 고정, 플레이리스트 곡 증가 시 상단부터 절반(min-h-[75px])까지 축소 */}
+          <div className={`border-2 border-dashed ${themeClasses.borderDashed} rounded-2xl p-2.5 shrink-0 transition-all duration-300 flex flex-col items-center justify-center text-center ${themeClasses.bgLight} backdrop-blur-[2px] shadow-sm overflow-hidden ${
+            likedSongs.length > 3 ? "h-[75px]" : "h-[150px]"
+          }`}>
+            <span className="text-lg mb-0.5 shrink-0">🖼️</span>
+            <span className={`text-[11px] font-semibold ${themeClasses.textSecondary} truncate`}>우측 하단 배너</span>
           </div>
 
         </aside>
