@@ -17,8 +17,31 @@ interface ScheduleTabProps {
 }
 
 export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
-  const TODAY_STR = "2026-09-20";
-  const todayDateObj = new Date(TODAY_STR);
+  // 실시간 오늘 날짜 자동 계산 함수 (자정이 지나면 오늘 날짜로 자동 이동)
+  const getTodayStr = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const [currentDateObj, setCurrentDateObj] = useState(new Date());
+
+  // 1초마다 시계를 갱신하여 자정(00:00:00) 통과 시 즉시 하이라이트 변경
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateObj(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const TODAY_STR = useMemo(() => getTodayStr(), [currentDateObj]);
+  const todayDateObj = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, [currentDateObj]);
 
   const holidays: Record<string, string> = {
     "2026-09-24": "추석 연휴",
@@ -26,12 +49,15 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
     "2026-09-26": "추석 연휴",
   };
 
+  // 심볼 설정: 기존 5개 + 구입, 일반 추가
   const SCHEDULE_SYMBOL_CONFIG = {
     leave: { label: "연차", icon: "🌴" },
     half_leave: { label: "반차", icon: "🌓" },
     hair: { label: "헤어", icon: "✂️" },
     birthday: { label: "생일", icon: "🎂" },
     appointment: { label: "약속", icon: "📌" },
+    purchase: { label: "구입", icon: "🛍️" },
+    general: { label: "일반", icon: "📝" },
   };
 
   const SCHEDULE_COLOR_CONFIG = {
@@ -50,8 +76,8 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
 
   const [scheduleList, setScheduleList] = useState<any[]>([]);
   const [isScheduleLoaded, setIsScheduleLoaded] = useState(false);
-  const [calYear, setCalYear] = useState(2026);
-  const [calMonth, setCalMonth] = useState(9);
+  const [calYear, setCalYear] = useState(() => new Date().getFullYear());
+  const [calMonth, setCalMonth] = useState(() => new Date().getMonth() + 1);
   const [modalDate, setModalDate] = useState<string | null>(null);
 
   const [newSchedTitle, setNewSchedTitle] = useState("");
@@ -181,13 +207,14 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
     if (birthdays.length === 0) return null;
     let nextBday = birthdays.find((s) => s.date >= TODAY_STR) || birthdays[birthdays.length - 1];
     const bdayDate = new Date(nextBday.date);
+    bdayDate.setHours(0, 0, 0, 0);
     const diffDays = Math.ceil((bdayDate.getTime() - todayDateObj.getTime()) / (1000 * 60 * 60 * 24));
     return {
       title: nextBday.title || "생일",
       date: nextBday.date,
       dDayText: diffDays === 0 ? "D-Day" : diffDays > 0 ? `D-${diffDays}` : `D+${Math.abs(diffDays)}`
     };
-  }, [scheduleList]);
+  }, [scheduleList, TODAY_STR, todayDateObj]);
 
   const hairSummary = useMemo(() => {
     const hairList = (scheduleList || [])
@@ -200,6 +227,7 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
 
     if (nextHair) {
       const nDate = new Date(nextHair.date);
+      nDate.setHours(0, 0, 0, 0);
       const diffDays = Math.ceil((nDate.getTime() - todayDateObj.getTime()) / (1000 * 60 * 60 * 24));
       return {
         mode: "next",
@@ -210,6 +238,7 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
       };
     } else if (lastHair) {
       const lDate = new Date(lastHair.date);
+      lDate.setHours(0, 0, 0, 0);
       const diffDays = Math.floor((todayDateObj.getTime() - lDate.getTime()) / (1000 * 60 * 60 * 24));
       return {
         mode: "past",
@@ -220,14 +249,14 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
       };
     }
     return null;
-  }, [scheduleList]);
+  }, [scheduleList, TODAY_STR, todayDateObj]);
 
   const upcomingAppointments = useMemo(() => {
     return (scheduleList || [])
       .filter((s) => s.symbol === "appointment" && s.date >= TODAY_STR)
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(0, 2);
-  }, [scheduleList]);
+  }, [scheduleList, TODAY_STR]);
 
   const hasAnyScheduleSummary = leaveSummary || birthdaySummary || hairSummary || upcomingAppointments.length > 0;
 
@@ -493,7 +522,7 @@ export default function ScheduleTab({ themeClasses }: ScheduleTabProps) {
               </div>
               <div>
                 <div className="text-[11px] font-bold text-neutral-600 mb-1">심볼 선택</div>
-                <div className="grid grid-cols-5 gap-1">
+                <div className="grid grid-cols-4 sm:grid-cols-7 gap-1">
                   {Object.entries(SCHEDULE_SYMBOL_CONFIG).map(([key, val]) => (
                     <button
                       key={key}
