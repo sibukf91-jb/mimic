@@ -20,26 +20,55 @@ interface BookmarksTabProps {
 }
 
 export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
-  const TODAY_STR = "2026-09-20";
-  const todayDateObj = new Date(TODAY_STR);
+  // 요일 매핑 (0: 일요일, 1: 월요일, ... 6: 토요일)
+  const dayIndexMap: Record<string, number> = {
+    "일요일": 0,
+    "월요일": 1,
+    "화요일": 2,
+    "수요일": 3,
+    "목요일": 4,
+    "금요일": 5,
+    "토요일": 6,
+  };
 
-  const calculateAutoFinalEpisode = (releaseDateStr: string) => {
-    if (!releaseDateStr) return "1회";
-    let targetDate: Date;
-    if (releaseDateStr.length === 6 && !releaseDateStr.includes("-")) {
-      const yy = "20" + releaseDateStr.slice(0, 2);
-      const mm = releaseDateStr.slice(2, 4);
-      const dd = releaseDateStr.slice(4, 6);
-      targetDate = new Date(`${yy}-${mm}-${dd}`);
+  // 정기업데이트 자정 경과 횟수 기반 최종회차 자동 계산
+  const calculateAutoFinalEpisode = (releaseDateStr: string, regularUpdate: string, weeklyScheduleStr: string) => {
+    if (!releaseDateStr || releaseDateStr === "-") return "1회";
+
+    let startDate: Date;
+    const cleanRel = String(releaseDateStr).trim();
+
+    if (cleanRel.length === 6 && !cleanRel.includes("-")) {
+      const yy = "20" + cleanRel.slice(0, 2);
+      const mm = cleanRel.slice(2, 4);
+      const dd = cleanRel.slice(4, 6);
+      startDate = new Date(`${yy}-${mm}-${dd}T00:00:00`);
     } else {
-      targetDate = new Date(releaseDateStr);
+      startDate = new Date(cleanRel.includes("T") ? cleanRel : `${cleanRel}T00:00:00`);
     }
-    if (isNaN(targetDate.getTime())) return "1회";
-    const diffTime = todayDateObj.getTime() - targetDate.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays < 0) return "1회";
-    const weeks = Math.floor(diffDays / 7) + 1;
-    return `${weeks}회`;
+
+    if (isNaN(startDate.getTime())) return "1회";
+
+    const targetDayIdx = dayIndexMap[regularUpdate];
+    if (targetDayIdx === undefined) return "1회";
+
+    const weeklyCount = parseInt(String(weeklyScheduleStr).replace(/[^0-9]/g, ""), 10) || 1;
+    const now = new Date();
+
+    // 시작일(공개일) 자정부터 현재 시점까지 정기업데이트 요일 자정을 지난 횟수 카운트
+    let passedCount = 0;
+    let cursor = new Date(startDate);
+    cursor.setDate(cursor.getDate() + 1); // 공개 당일 이후부터 경과 체크
+
+    while (cursor <= now) {
+      if (cursor.getDay() === targetDayIdx) {
+        passedCount++;
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    const calculatedEpisode = 1 + (passedCount * weeklyCount);
+    return `${calculatedEpisode}회`;
   };
 
   const defaultBookmarks = [
@@ -128,9 +157,9 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
       cleanLink = "https://" + cleanLink;
     }
 
-    const autoEp = calculateAutoFinalEpisode(newBmarkRelease.trim());
     const schedInput = newBmarkSchedule.trim();
     const formattedSchedule = schedInput && !schedInput.includes("회") ? `${schedInput}회` : schedInput || "1회";
+    const autoEp = calculateAutoFinalEpisode(newBmarkRelease.trim(), newBmarkUpdate, formattedSchedule);
 
     const newEntry = {
       id: Date.now(),
@@ -180,9 +209,9 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
       cleanLink = "https://" + cleanLink;
     }
 
-    const autoEp = calculateAutoFinalEpisode(editBmarkRelease.trim());
     const schedInput = editBmarkSchedule.trim();
     const formattedSchedule = schedInput && !schedInput.includes("회") ? `${schedInput}회` : schedInput || "1회";
+    const autoEp = calculateAutoFinalEpisode(editBmarkRelease.trim(), editBmarkUpdate, formattedSchedule);
     const finalEpInput = editBmarkEpisode.trim();
     const formattedFinalEp = finalEpInput && !finalEpInput.includes("회") ? `${finalEpInput}회` : finalEpInput || autoEp;
 
@@ -243,7 +272,14 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
   };
 
   const filteredBookmarks = useMemo(() => {
-    const list = (bookmarkList || []).filter((b) => {
+    const list = (bookmarkList || []).map((b) => {
+      // 완결이 아닌 경우 실시간(자정 기준) 최종회차를 동적으로 계산하여 표시
+      if (!b.isCompleted && b.releaseDate && b.releaseDate !== "-") {
+        const dynamicFinalEp = calculateAutoFinalEpisode(b.releaseDate, b.regularUpdate, b.weeklySchedule);
+        return { ...b, finalEpisode: dynamicFinalEp };
+      }
+      return b;
+    }).filter((b) => {
       const matchCategory = selectedBmarkCategory === "전체" || b.category === selectedBmarkCategory;
       const matchSearch =
         (b.title || "").toLowerCase().includes(bmarkSearchQuery.toLowerCase()) ||
@@ -281,7 +317,6 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
           {existingBmarkCategories.map((c) => (<option key={c} value={c} />))}
         </datalist>
 
-        {/* 플랫폼 입력창 (첫 글자 입력 시 자동완성 datalist) */}
         <input
           type="text"
           list="bmark-platform-suggestions"
@@ -294,7 +329,6 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
           {existingBmarkPlatforms.map((p) => (<option key={p} value={p} />))}
         </datalist>
 
-        {/* 플랫폼과 제목 사이 플랫폼 링크(URL) 입력창 */}
         <input
           type="text"
           value={newBmarkLink}
@@ -312,7 +346,6 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
           className="flex-1 min-w-[130px] border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-bold"
         />
 
-        {/* 요일 드롭다운 */}
         <select
           value={newBmarkUpdate}
           onChange={(e) => setNewBmarkUpdate(e.target.value)}
@@ -435,7 +468,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
       <div className="flex flex-col gap-2">
         {filteredBookmarks.map((bmark) => {
           const isEditing = editingBmarkId === bmark.id;
-          const finalEpNum = parseInt(String(bmark.finalEpisode).replace(/[^0-9]/g, "")) || 0;
+          const finalEpNum = parseInt(String(bmark.finalEpisode).replace(/[^0-9]/g, ""), 10) || 0;
           const currentBmNum = Number(bmark.currentBookmark) || 0;
 
           let cardBgClass = "bg-amber-50/40 hover:bg-amber-50/70 border-amber-400/90 text-neutral-900";
@@ -470,7 +503,6 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
                     <option value="금요일">금요일</option>
                     <option value="토요일">토요일</option>
                     <option value="일요일">일요일</option>
-                    <option value="완결">완결</option>
                   </select>
                 </div>
                 <div className="col-span-1 px-0.5">
@@ -522,7 +554,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
                 </div>
               </div>
 
-              {/* 제목 (제목 옆 바로가기 버튼 제거 완료) */}
+              {/* 제목 */}
               <div className="col-span-3 text-neutral-900 font-black truncate px-1" title={bmark.title}>
                 {bmark.title}
               </div>
@@ -540,7 +572,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
               </div>
 
               <div className="col-span-1 text-neutral-900 font-black truncate font-mono">
-                {bmark.finalEpisode || calculateAutoFinalEpisode(bmark.releaseDate)}
+                {bmark.finalEpisode}
               </div>
 
               <div className="col-span-1 flex items-center justify-center gap-0.5 font-mono font-bold">
