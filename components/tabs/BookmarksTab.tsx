@@ -12,7 +12,8 @@ import {
   Check,
   X,
   ArrowUpDown,
-  ExternalLink
+  ExternalLink,
+  Sparkles
 } from "lucide-react";
 
 interface BookmarksTabProps {
@@ -30,6 +31,8 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
     "금요일": 5,
     "토요일": 6,
   };
+
+  const dayNames = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
 
   // 정기업데이트 자정 경과 횟수 기반 최종회차 자동 계산
   const calculateAutoFinalEpisode = (releaseDateStr: string, regularUpdate: string, weeklyScheduleStr: string) => {
@@ -55,10 +58,9 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
     const weeklyCount = parseInt(String(weeklyScheduleStr).replace(/[^0-9]/g, ""), 10) || 1;
     const now = new Date();
 
-    // 시작일(공개일) 자정부터 현재 시점까지 정기업데이트 요일 자정을 지난 횟수 카운트
     let passedCount = 0;
     let cursor = new Date(startDate);
-    cursor.setDate(cursor.getDate() + 1); // 공개 당일 이후부터 경과 체크
+    cursor.setDate(cursor.getDate() + 1);
 
     while (cursor <= now) {
       if (cursor.getDay() === targetDayIdx) {
@@ -84,6 +86,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
       finalEpisode: "4회",
       currentBookmark: 2,
       isCompleted: false,
+      isManualEpisode: false,
     }
   ];
 
@@ -172,7 +175,8 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
       weeklySchedule: formattedSchedule,
       finalEpisode: autoEp,
       currentBookmark: Number(newBmarkBookmark) || 0,
-      isCompleted: false
+      isCompleted: false,
+      isManualEpisode: false // 신규 등록 시 기본은 자동 계산 활성화
     };
 
     setBookmarkList([newEntry, ...bookmarkList]);
@@ -215,6 +219,9 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
     const finalEpInput = editBmarkEpisode.trim();
     const formattedFinalEp = finalEpInput && !finalEpInput.includes("회") ? `${finalEpInput}회` : finalEpInput || autoEp;
 
+    // 사용자가 최종회차를 직접 입력해서 저장했으면 수동 모드(isManualEpisode: true)로 전환하여 고정
+    const isManual = Boolean(finalEpInput);
+
     setBookmarkList((prev) =>
       prev.map((b) =>
         b.id === id
@@ -228,7 +235,8 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
               releaseDate: editBmarkRelease.trim() || "-",
               weeklySchedule: formattedSchedule,
               finalEpisode: formattedFinalEp,
-              currentBookmark: Number(editBmarkBookmark) || 0
+              currentBookmark: Number(editBmarkBookmark) || 0,
+              isManualEpisode: isManual
             }
           : b
       )
@@ -271,10 +279,16 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
     "완결": 8
   };
 
+  // 오늘 요일 이름 (예: "월요일")
+  const todayDayName = useMemo(() => {
+    const todayIdx = new Date().getDay();
+    return dayNames[todayIdx];
+  }, []);
+
   const filteredBookmarks = useMemo(() => {
     const list = (bookmarkList || []).map((b) => {
-      // 완결이 아닌 경우 실시간(자정 기준) 최종회차를 동적으로 계산하여 표시
-      if (!b.isCompleted && b.releaseDate && b.releaseDate !== "-") {
+      // 4. 수정한 회차(isManualEpisode: true)를 우선시하고, 자동 계산은 수동 수정하지 않은 경우에만 적용
+      if (!b.isCompleted && !b.isManualEpisode && b.releaseDate && b.releaseDate !== "-") {
         const dynamicFinalEp = calculateAutoFinalEpisode(b.releaseDate, b.regularUpdate, b.weeklySchedule);
         return { ...b, finalEpisode: dynamicFinalEp };
       }
@@ -471,6 +485,9 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
           const finalEpNum = parseInt(String(bmark.finalEpisode).replace(/[^0-9]/g, ""), 10) || 0;
           const currentBmNum = Number(bmark.currentBookmark) || 0;
 
+          // 5. 정기업데이트 당일(자정~23:59:59)인지 체크 (완결이 아닐 때만 NEW 심볼 표시)
+          const isUpdateToday = !bmark.isCompleted && bmark.regularUpdate === todayDayName;
+
           let cardBgClass = "bg-amber-50/40 hover:bg-amber-50/70 border-amber-400/90 text-neutral-900";
           if (bmark.isCompleted) {
             cardBgClass = "bg-rose-100/70 hover:bg-rose-100 border-rose-300 text-neutral-900";
@@ -554,9 +571,15 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
                 </div>
               </div>
 
-              {/* 제목 */}
-              <div className="col-span-3 text-neutral-900 font-black truncate px-1" title={bmark.title}>
-                {bmark.title}
+              {/* 제목 (정기업데이트 당일일 경우 NEW 뱃지 표시) */}
+              <div className="col-span-3 text-neutral-900 font-black truncate px-1 flex items-center justify-center gap-1.5" title={bmark.title}>
+                <span className="truncate">{bmark.title}</span>
+                {isUpdateToday && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-full text-[9px] font-black bg-rose-500 text-white shadow-xs animate-pulse shrink-0 tracking-tight">
+                    <Sparkles className="w-2.5 h-2.5 fill-white" />
+                    <span>NEW</span>
+                  </span>
+                )}
               </div>
 
               <div className="col-span-2 text-neutral-800 truncate px-1 font-semibold">
