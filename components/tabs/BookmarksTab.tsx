@@ -312,7 +312,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
           className="flex-1 min-w-[130px] border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-bold"
         />
 
-        {/* 요일 드롭다운 (완결 항목 제거 완료) */}
+        {/* 요일 드롭다운 */}
         <select
           value={newBmarkUpdate}
           onChange={(e) => setNewBmarkUpdate(e.target.value)}
@@ -522,21 +522,9 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
                 </div>
               </div>
 
-              {/* 제목 (플랫폼 링크가 있을 경우 클릭 가능한 바로가기 링크 지원) */}
-              <div className="col-span-3 text-neutral-900 font-black truncate px-1 flex items-center justify-center gap-1.5" title={bmark.title}>
-                <span className="truncate">{bmark.title}</span>
-                {bmark.link && (
-                  <a
-                    href={bmark.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-200/80 hover:bg-amber-300 text-amber-900 font-bold text-[10px] transition shrink-0 shadow-2xs"
-                    title="바로가기"
-                  >
-                    <span>바로가기</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                )}
+              {/* 제목 (제목 옆 바로가기 버튼 제거 완료) */}
+              <div className="col-span-3 text-neutral-900 font-black truncate px-1" title={bmark.title}>
+                {bmark.title}
               </div>
 
               <div className="col-span-2 text-neutral-800 truncate px-1 font-semibold">
