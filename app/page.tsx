@@ -98,6 +98,109 @@ export default function Home() {
     }
   };
 
+  // -------------------------------------------------------------
+  // [전체 탭 통합 자동 동기화 엔진]
+  // 탭 컴포넌트들을 전혀 수정하지 않고도 모든 입력내용을 실시간 공유합니다.
+  // -------------------------------------------------------------
+  const [storageSyncTrigger, setStorageSyncTrigger] = useState(0);
+
+  useEffect(() => {
+    if (!isUnlocked) return;
+
+    let isRemoteUpdate = false;
+
+    // 1) 초기 진입 시: 클라우드 데이터를 내려받아 로컬스토리지에 병합 & 로컬의 기존 데이터는 클라우드로 백업
+    async function syncAllStorage() {
+      try {
+        const { data, error } = await supabase.from("app_storage").select("key, value");
+        if (!error && data) {
+          const cloudMap = new Map();
+          data.forEach((row) => cloudMap.set(row.key, row.value));
+
+          // A. 클라우드에 있는 데이터를 내 브라우저에 복원
+          for (const [key, value] of cloudMap.entries()) {
+            if (key === "jb_space_custom_password") continue;
+            const strVal = typeof value === "string" ? value : JSON.stringify(value);
+            const currentLocal = localStorage.getItem(key);
+            if (currentLocal !== strVal) {
+              isRemoteUpdate = true;
+              localStorage.setItem(key, strVal);
+              isRemoteUpdate = false;
+            }
+          }
+
+          // B. 내 브라우저에만 있고 클라우드에 없는 기존 작성 내용(일정, 가계부 등)을 클라우드로 업로드
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (!key || key === "jb_space_custom_password") continue;
+            if (!cloudMap.has(key)) {
+              let val = localStorage.getItem(key);
+              try {
+                val = JSON.parse(val);
+              } catch (_) {}
+              await saveCloudData(key, val);
+            }
+          }
+          setStorageSyncTrigger((prev) => prev + 1);
+        }
+      } catch (err) {
+        console.error("Storage sync initialization error:", err);
+      }
+    }
+
+    syncAllStorage();
+
+    // 2) 브라우저 로컬스토리지 변경 감지 (내 화면에서 일정을 쓰거나 가계부를 수정할 때)
+    const originalSetItem = localStorage.setItem;
+    localStorage.setItem = function (key, value) {
+      originalSetItem.apply(this, arguments);
+      if (!isRemoteUpdate && key !== "jb_space_custom_password") {
+        let parsed = value;
+        try {
+          parsed = JSON.parse(value);
+        } catch (_) {}
+        saveCloudData(key, parsed);
+      }
+    };
+
+    const originalRemoveItem = localStorage.removeItem;
+    localStorage.removeItem = function (key) {
+      originalRemoveItem.apply(this, arguments);
+      if (!isRemoteUpdate && key !== "jb_space_custom_password") {
+        supabase.from("app_storage").delete().eq("key", key).then();
+      }
+    };
+
+    // 3) 다른 컴퓨터나 기기에서 변경되었을 때 실시간 수신하여 내 브라우저에 즉시 반영
+    const realtimeChannel = supabase
+      .channel("global_all_storage_sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "app_storage" },
+        (payload) => {
+          if (payload.new && payload.new.key && payload.new.key !== "jb_space_custom_password") {
+            const key = payload.new.key;
+            const value = payload.new.value;
+            const strVal = typeof value === "string" ? value : JSON.stringify(value);
+            if (localStorage.getItem(key) !== strVal) {
+              isRemoteUpdate = true;
+              localStorage.setItem(key, strVal);
+              isRemoteUpdate = false;
+              setStorageSyncTrigger((prev) => prev + 1);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      localStorage.setItem = originalSetItem;
+      localStorage.removeItem = originalRemoveItem;
+      supabase.removeChannel(realtimeChannel);
+    };
+  }, [isUnlocked]);
+  // -------------------------------------------------------------
+
   // 2. 테마 색상 동적 매핑
   const themeClasses = useMemo(() => {
     if (currentTab === "recipes") {
@@ -266,7 +369,6 @@ export default function Home() {
   const [songList, setSongList] = useState<any[]>([]);
   const [isSongLoaded, setIsSongLoaded] = useState(false);
 
-  // 클라우드 초기 로드 및 실시간 구독
   useEffect(() => {
     async function loadSongs() {
       const data = await getCloudData("jb_bookmark_song_list", defaultSongs);
@@ -293,14 +395,12 @@ export default function Home() {
     };
   }, []);
 
-  // 노래 목록 변경 시 클라우드 저장
   useEffect(() => {
     if (isSongLoaded) {
       saveCloudData("jb_bookmark_song_list", songList);
     }
   }, [songList, isSongLoaded]);
 
-  // 하트(liked: true) 곡 필터링
   const likedSongs = useMemo(() => {
     return (songList || []).filter((s) => s && s.liked);
   }, [songList]);
@@ -820,8 +920,8 @@ export default function Home() {
           )}
         </aside>
 
-        {/* [2] 중앙 내용 영역 */}
-        <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col">
+        {/* [2] 중앙 내용 영역 (key에 storageSyncTrigger를 전달하여 실시간 업데이트 시 자동으로 새 내용 반영) */}
+        <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col" key={`content-sync-${storageSyncTrigger}`}>
           {currentTab === "schedule" && <ScheduleTab themeClasses={themeClasses} />}
           {currentTab === "ledger" && <LedgerTab themeClasses={themeClasses} />}
           {currentTab === "favorites" && <FavoritesTab themeClasses={themeClasses} />}
@@ -864,7 +964,7 @@ export default function Home() {
                   </button>
                   <span className={`text-[10px] font-bold ${themeClasses.textPrimary} min-w-[24px]`}>{timerMinutes}분</span>
                   <button onClick={() => !isTimerRunning && setTimerMinutes((p) => p + 1)} disabled={isTimerRunning} className={`p-0.5 rounded ${themeClasses.accentBtnSub}`}>
-                    <Plus className="w-3 h-3" />
+                    <Plus className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
