@@ -42,7 +42,7 @@ export default function SongsTab({
   const activeModalUrl = videoModalUrl !== undefined ? videoModalUrl : localModalUrl;
   const setActiveModalUrl = setVideoModalUrl || setLocalModalUrl;
 
-  // 장르 아이콘 (버추얼: 여자얼굴 👧, 보컬로이드: 로봇얼굴 🤖)
+  // 장르 아이콘
   const getGenreIcon = (genre: string) => {
     const g = (genre || "").trim().toLowerCase();
     if (g.includes("버추얼")) return "👧";
@@ -98,6 +98,29 @@ export default function SongsTab({
 
   const saveEditSong = (id: number) => {
     if (!editTitle.trim()) return;
+
+    // 수정 시 중복 검사 (자기 자신 제외)
+    const normalizedTitle = editTitle.trim().toLowerCase();
+    const cleanUrl = editUrl.trim();
+
+    const isDuplicateTitle = (songList || []).some(
+      (s) => s.id !== id && (s.title || "").trim().toLowerCase() === normalizedTitle
+    );
+    if (isDuplicateTitle) {
+      alert("이미 등록된 동일한 곡 제목이 존재합니다.");
+      return;
+    }
+
+    if (cleanUrl) {
+      const isDuplicateUrl = (songList || []).some(
+        (s) => s.id !== id && (s.url || "").trim() === cleanUrl
+      );
+      if (isDuplicateUrl) {
+        alert("이미 등록된 동일한 유튜브 링크가 존재합니다.");
+        return;
+      }
+    }
+
     setSongList((prev) =>
       prev.map((s) =>
         s.id === id
@@ -106,7 +129,7 @@ export default function SongsTab({
               genre: editGenre.trim() || "기타",
               artist: editArtist.trim() || "미상",
               title: editTitle.trim(),
-              url: editUrl.trim(),
+              url: cleanUrl,
               songType: editSongType
             }
           : s
@@ -123,7 +146,7 @@ export default function SongsTab({
   const [selectedGenre, setSelectedGenre] = useState("전체");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 기본 장르 및 등록된 장르를 중복 없이 1개씩만 합쳐서 정렬
+  // 기본 장르 및 등록된 장르 목록
   const existingGenres = useMemo(() => {
     const set = new Set<string>(["버추얼", "보컬로이드"]);
     (songList || []).forEach((s) => {
@@ -132,18 +155,56 @@ export default function SongsTab({
     return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
   }, [songList]);
 
+  // 등록된 아티스트 자동완성용 중복 없는 목록
+  const existingArtists = useMemo(() => {
+    const set = new Set<string>();
+    (songList || []).forEach((s) => {
+      if (s.artist && s.artist.trim() && s.artist.trim() !== "미상") {
+        set.add(s.artist.trim());
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [songList]);
+
+  // 신규 등록 (제목 및 유튜브 링크 중복 검사)
   const handleAddSong = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
+
+    const cleanTitle = newTitle.trim();
+    const cleanUrl = newUrl.trim();
+    const normalizedTitle = cleanTitle.toLowerCase();
+
+    // 1. 제목 중복 검사
+    const isDuplicateTitle = (songList || []).some(
+      (s) => (s.title || "").trim().toLowerCase() === normalizedTitle
+    );
+    if (isDuplicateTitle) {
+      alert("이미 등록되어 있는 노래 제목입니다.");
+      return;
+    }
+
+    // 2. 유튜브 링크 중복 검사 (링크가 입력되어 있는 경우에만 검사)
+    if (cleanUrl) {
+      const isDuplicateUrl = (songList || []).some(
+        (s) => (s.url || "").trim() === cleanUrl
+      );
+      if (isDuplicateUrl) {
+        alert("이미 등록되어 있는 노래 링크입니다.");
+        return;
+      }
+    }
+
     const newSong = {
       id: Date.now(),
       genre: newGenre.trim() || "기타",
       artist: newArtist.trim() || "미상",
-      title: newTitle.trim(),
-      url: newUrl.trim(),
+      title: cleanTitle,
+      url: cleanUrl,
       songType: newSongType,
       liked: false
     };
+
     setSongList([newSong, ...(songList || [])]);
     setNewGenre("");
     setNewArtist("");
@@ -152,7 +213,7 @@ export default function SongsTab({
     setNewSongType("none");
   };
 
-  // 하트 단일 토글
+  // 개별 하트 토글
   const toggleLike = (id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setSongList((prev) =>
@@ -160,7 +221,7 @@ export default function SongsTab({
     );
   };
 
-  // 삭제 시 확인창(Confirm)
+  // 삭제 확인창
   const handleDeleteSong = (id: number) => {
     if (window.confirm("정말 삭제하시겠습니까?")) {
       setSongList((prev) => prev.filter((s) => s.id !== id));
@@ -184,7 +245,7 @@ export default function SongsTab({
       });
   }, [songList, selectedGenre, searchQuery]);
 
-  // 관리 헤더: 전체선택 / 전체해제 계산 및 핸들러
+  // 관리 헤더: 전체선택 / 전체해제
   const isAllFilteredLiked = useMemo(() => {
     if (filteredSongs.length === 0) return false;
     return filteredSongs.every((s) => s.liked);
@@ -219,13 +280,22 @@ export default function SongsTab({
           </datalist>
         </div>
 
-        <input
-          type="text"
-          value={newArtist}
-          onChange={(e) => setNewArtist(e.target.value)}
-          placeholder="가수 / 아티스트"
-          className="w-36 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
-        />
+        {/* 가수 / 아티스트 입력창 (자동완성 datalist 연결) */}
+        <div className="relative">
+          <input
+            type="text"
+            list="artist-suggestions"
+            value={newArtist}
+            onChange={(e) => setNewArtist(e.target.value)}
+            placeholder="가수 / 아티스트"
+            className="w-36 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-emerald-500 placeholder-neutral-500 font-medium"
+          />
+          <datalist id="artist-suggestions">
+            {existingArtists.map((a) => (
+              <option key={a} value={a} />
+            ))}
+          </datalist>
+        </div>
 
         <input
           type="text"
@@ -313,12 +383,12 @@ export default function SongsTab({
         </div>
       </div>
 
-      {/* 헤더 박스: 가수를 왼쪽(배경 5칸 정도)으로 당기고, 곡명을 중앙에 배치, 관리 영역에 하트 전체선택/해제 배치 */}
+      {/* 헤더 박스 (가수 -ml-8 이동 유지, 곡명은 모눈종이 3칸(-ml-[18px]) 왼쪽 이동) */}
       <div className="border-2 border-emerald-400/90 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
         <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-emerald-900 items-center">
           <span className="col-span-2 flex items-center justify-center gap-1 text-center">🏷️ 장르</span>
           <span className="col-span-3 flex items-center justify-center gap-1 text-center -ml-8">🎤 가수 / 아티스트</span>
-          <span className="col-span-4 flex items-center justify-center gap-1 text-center">🎵 곡명</span>
+          <span className="col-span-4 flex items-center justify-center gap-1 text-center -ml-[18px]">🎵 곡명</span>
           <span className="col-span-1 flex items-center justify-center gap-1 text-center">🎬 영상</span>
           <div className="col-span-2 flex items-center justify-center gap-1.5 text-center">
             <span>관리</span>
@@ -363,6 +433,7 @@ export default function SongsTab({
                 />
                 <input
                   type="text"
+                  list="artist-suggestions"
                   value={editArtist}
                   onChange={(e) => setEditArtist(e.target.value)}
                   placeholder="가수"
@@ -429,13 +500,13 @@ export default function SongsTab({
                 </span>
               </div>
 
-              {/* 가수 / 아티스트: 배경 5칸(약 32px) 왼쪽으로 이동 */}
+              {/* 가수 / 아티스트 */}
               <div className="col-span-3 text-neutral-800 truncate font-bold text-[13px] text-center px-1 -ml-8">
                 {song.artist}
               </div>
 
-              {/* 곡명: 중앙에 위치 및 마우스 오버 시 풀제목 툴팁 노출 */}
-              <div className="col-span-4 flex items-center justify-center gap-2 font-bold text-neutral-900 px-1 overflow-hidden">
+              {/* 곡명 (모눈종이 3칸 = -ml-[18px] 이동 및 마우스 오버 툴팁) */}
+              <div className="col-span-4 flex items-center justify-center gap-2 font-bold text-neutral-900 px-1 overflow-hidden -ml-[18px]">
                 <Music className={`w-3.5 h-3.5 shrink-0 ${isPlayingThis ? "text-emerald-600 animate-pulse" : "text-emerald-500"}`} />
                 <span
                   title={song.title}
@@ -473,7 +544,7 @@ export default function SongsTab({
                 )}
               </div>
 
-              {/* 관리 (수정, 하트 개별 토글, 삭제) */}
+              {/* 관리 (수정, 하트 토글, 삭제) */}
               <div className="col-span-2 flex items-center justify-center gap-1.5">
                 <button
                   onClick={() => startEditSong(song)}
