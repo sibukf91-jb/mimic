@@ -11,7 +11,8 @@ import {
   Pencil,
   Check,
   X,
-  ArrowUpDown
+  ArrowUpDown,
+  ExternalLink
 } from "lucide-react";
 
 interface BookmarksTabProps {
@@ -46,6 +47,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
       id: 1,
       category: "웹툰",
       platform: "네이버웹툰",
+      link: "https://comic.naver.com",
       title: "메이드 인 코리아",
       regularUpdate: "수요일",
       releaseDate: "260909",
@@ -76,6 +78,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
 
   const [newBmarkCategory, setNewBmarkCategory] = useState("");
   const [newBmarkPlatform, setNewBmarkPlatform] = useState("");
+  const [newBmarkLink, setNewBmarkLink] = useState("");
   const [newBmarkTitle, setNewBmarkTitle] = useState("");
   const [newBmarkUpdate, setNewBmarkUpdate] = useState("월요일");
   const [newBmarkRelease, setNewBmarkRelease] = useState("");
@@ -88,6 +91,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
   const [editingBmarkId, setEditingBmarkId] = useState<number | null>(null);
   const [editBmarkCategory, setEditBmarkCategory] = useState("");
   const [editBmarkPlatform, setEditBmarkPlatform] = useState("");
+  const [editBmarkLink, setEditBmarkLink] = useState("");
   const [editBmarkTitle, setEditBmarkTitle] = useState("");
   const [editBmarkUpdate, setEditBmarkUpdate] = useState("월요일");
   const [editBmarkRelease, setEditBmarkRelease] = useState("");
@@ -95,6 +99,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
   const [editBmarkEpisode, setEditBmarkEpisode] = useState("");
   const [editBmarkBookmark, setEditBmarkBookmark] = useState(0);
 
+  // 분류 목록 (중복 제거)
   const existingBmarkCategories = useMemo(() => {
     const set = new Set<string>();
     (bookmarkList || []).forEach((b) => {
@@ -103,9 +108,25 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
     return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
   }, [bookmarkList]);
 
+  // 플랫폼 자동완성용 중복 없는 목록
+  const existingBmarkPlatforms = useMemo(() => {
+    const set = new Set<string>();
+    (bookmarkList || []).forEach((b) => {
+      if (b.platform && b.platform.trim() && b.platform.trim() !== "플랫폼") {
+        set.add(b.platform.trim());
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "ko"));
+  }, [bookmarkList]);
+
   const handleAddBookmark = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newBmarkTitle.trim()) return;
+
+    let cleanLink = newBmarkLink.trim();
+    if (cleanLink && !cleanLink.startsWith("http://") && !cleanLink.startsWith("https://")) {
+      cleanLink = "https://" + cleanLink;
+    }
 
     const autoEp = calculateAutoFinalEpisode(newBmarkRelease.trim());
     const schedInput = newBmarkSchedule.trim();
@@ -115,6 +136,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
       id: Date.now(),
       category: newBmarkCategory.trim() || "웹툰",
       platform: newBmarkPlatform.trim() || "플랫폼",
+      link: cleanLink,
       title: newBmarkTitle.trim(),
       regularUpdate: newBmarkUpdate || "월요일",
       releaseDate: newBmarkRelease.trim() || "-",
@@ -127,6 +149,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
     setBookmarkList([newEntry, ...bookmarkList]);
     setNewBmarkCategory("");
     setNewBmarkPlatform("");
+    setNewBmarkLink("");
     setNewBmarkTitle("");
     setNewBmarkUpdate("월요일");
     setNewBmarkRelease("");
@@ -138,6 +161,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
     setEditingBmarkId(item.id);
     setEditBmarkCategory(item.category || "");
     setEditBmarkPlatform(item.platform || "");
+    setEditBmarkLink(item.link || "");
     setEditBmarkTitle(item.title || "");
     setEditBmarkUpdate(item.regularUpdate || "월요일");
     setEditBmarkRelease(item.releaseDate || "");
@@ -150,6 +174,11 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
 
   const saveEditBookmark = (id: number) => {
     if (!editBmarkTitle.trim()) return;
+
+    let cleanLink = editBmarkLink.trim();
+    if (cleanLink && !cleanLink.startsWith("http://") && !cleanLink.startsWith("https://")) {
+      cleanLink = "https://" + cleanLink;
+    }
 
     const autoEp = calculateAutoFinalEpisode(editBmarkRelease.trim());
     const schedInput = editBmarkSchedule.trim();
@@ -164,6 +193,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
               ...b,
               category: editBmarkCategory.trim() || "웹툰",
               platform: editBmarkPlatform.trim() || "플랫폼",
+              link: cleanLink,
               title: editBmarkTitle.trim(),
               regularUpdate: editBmarkUpdate || "월요일",
               releaseDate: editBmarkRelease.trim() || "-",
@@ -251,12 +281,26 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
           {existingBmarkCategories.map((c) => (<option key={c} value={c} />))}
         </datalist>
 
+        {/* 플랫폼 입력창 (첫 글자 입력 시 자동완성 datalist) */}
         <input
           type="text"
+          list="bmark-platform-suggestions"
           value={newBmarkPlatform}
           onChange={(e) => setNewBmarkPlatform(e.target.value)}
           placeholder="플랫폼"
           className="w-20 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
+        />
+        <datalist id="bmark-platform-suggestions">
+          {existingBmarkPlatforms.map((p) => (<option key={p} value={p} />))}
+        </datalist>
+
+        {/* 플랫폼과 제목 사이 플랫폼 링크(URL) 입력창 */}
+        <input
+          type="text"
+          value={newBmarkLink}
+          onChange={(e) => setNewBmarkLink(e.target.value)}
+          placeholder="플랫폼 링크 (URL)"
+          className="w-32 border border-amber-300 bg-white/90 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-medium"
         />
 
         <input
@@ -268,6 +312,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
           className="flex-1 min-w-[130px] border border-amber-300 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:border-amber-500 placeholder-neutral-500 font-bold"
         />
 
+        {/* 요일 드롭다운 (완결 항목 제거 완료) */}
         <select
           value={newBmarkUpdate}
           onChange={(e) => setNewBmarkUpdate(e.target.value)}
@@ -280,7 +325,6 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
           <option value="금요일">금요일</option>
           <option value="토요일">토요일</option>
           <option value="일요일">일요일</option>
-          <option value="완결">완결</option>
         </select>
 
         <input
@@ -411,10 +455,11 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
               >
                 <div className="col-span-2 flex flex-col gap-1 px-1">
                   <input type="text" value={editBmarkCategory} onChange={(e) => setEditBmarkCategory(e.target.value)} placeholder="분류" className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[11px] font-bold" />
-                  <input type="text" value={editBmarkPlatform} onChange={(e) => setEditBmarkPlatform(e.target.value)} placeholder="플랫폼" className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[10px]" />
+                  <input type="text" list="bmark-platform-suggestions" value={editBmarkPlatform} onChange={(e) => setEditBmarkPlatform(e.target.value)} placeholder="플랫폼" className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[10px]" />
                 </div>
-                <div className="col-span-3 px-1">
+                <div className="col-span-3 px-1 flex flex-col gap-1">
                   <input type="text" required value={editBmarkTitle} onChange={(e) => setEditBmarkTitle(e.target.value)} placeholder="제목" className="w-full border border-amber-300 bg-white rounded px-2 py-1 text-[11px] font-bold" />
+                  <input type="text" value={editBmarkLink} onChange={(e) => setEditBmarkLink(e.target.value)} placeholder="플랫폼 링크 (선택)" className="w-full border border-amber-300 bg-white rounded px-2 py-0.5 text-[10px]" />
                 </div>
                 <div className="col-span-2 px-1">
                   <select value={editBmarkUpdate} onChange={(e) => setEditBmarkUpdate(e.target.value)} className="w-full border border-amber-300 bg-white rounded px-1.5 py-1 text-[11px] font-bold">
@@ -456,15 +501,42 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
               key={bmark.id}
               className={`grid grid-cols-12 gap-1 items-center text-[11px] p-2.5 rounded-2xl border-2 transition shadow-2xs text-center ${cardBgClass}`}
             >
+              {/* 분류 / 플랫폼 */}
               <div className="col-span-2 flex flex-col items-center justify-center">
                 <span className="px-2 py-0.5 rounded-md bg-amber-100/90 text-amber-950 border border-amber-300 font-bold shadow-2xs">
                   {bmark.category}
                 </span>
-                <span className="text-[10px] text-neutral-600 font-semibold mt-0.5">{bmark.platform}</span>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-[10px] text-neutral-600 font-semibold">{bmark.platform}</span>
+                  {bmark.link && (
+                    <a
+                      href={bmark.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-amber-700 hover:text-amber-900 transition"
+                      title="플랫폼 바로가기"
+                    >
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  )}
+                </div>
               </div>
 
-              <div className="col-span-3 text-neutral-900 font-black truncate px-1" title={bmark.title}>
-                {bmark.title}
+              {/* 제목 (플랫폼 링크가 있을 경우 클릭 가능한 바로가기 링크 지원) */}
+              <div className="col-span-3 text-neutral-900 font-black truncate px-1 flex items-center justify-center gap-1.5" title={bmark.title}>
+                <span className="truncate">{bmark.title}</span>
+                {bmark.link && (
+                  <a
+                    href={bmark.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-200/80 hover:bg-amber-300 text-amber-900 font-bold text-[10px] transition shrink-0 shadow-2xs"
+                    title="바로가기"
+                  >
+                    <span>바로가기</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                )}
               </div>
 
               <div className="col-span-2 text-neutral-800 truncate px-1 font-semibold">
