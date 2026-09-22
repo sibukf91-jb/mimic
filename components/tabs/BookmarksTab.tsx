@@ -176,7 +176,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
       finalEpisode: autoEp,
       currentBookmark: Number(newBmarkBookmark) || 0,
       isCompleted: false,
-      isManualEpisode: false // 신규 등록 시 기본은 자동 계산 활성화
+      isManualEpisode: false
     };
 
     setBookmarkList([newEntry, ...bookmarkList]);
@@ -219,7 +219,6 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
     const finalEpInput = editBmarkEpisode.trim();
     const formattedFinalEp = finalEpInput && !finalEpInput.includes("회") ? `${finalEpInput}회` : finalEpInput || autoEp;
 
-    // 사용자가 최종회차를 직접 입력해서 저장했으면 수동 모드(isManualEpisode: true)로 전환하여 고정
     const isManual = Boolean(finalEpInput);
 
     setBookmarkList((prev) =>
@@ -279,7 +278,6 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
     "완결": 8
   };
 
-  // 오늘 요일 이름 (예: "월요일")
   const todayDayName = useMemo(() => {
     const todayIdx = new Date().getDay();
     return dayNames[todayIdx];
@@ -287,7 +285,6 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
 
   const filteredBookmarks = useMemo(() => {
     const list = (bookmarkList || []).map((b) => {
-      // 4. 수정한 회차(isManualEpisode: true)를 우선시하고, 자동 계산은 수동 수정하지 않은 경우에만 적용
       if (!b.isCompleted && !b.isManualEpisode && b.releaseDate && b.releaseDate !== "-") {
         const dynamicFinalEp = calculateAutoFinalEpisode(b.releaseDate, b.regularUpdate, b.weeklySchedule);
         return { ...b, finalEpisode: dynamicFinalEp };
@@ -485,8 +482,9 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
           const finalEpNum = parseInt(String(bmark.finalEpisode).replace(/[^0-9]/g, ""), 10) || 0;
           const currentBmNum = Number(bmark.currentBookmark) || 0;
 
-          // 5. 정기업데이트 당일(자정~23:59:59)인지 체크 (완결이 아닐 때만 NEW 심볼 표시)
-          const isUpdateToday = !bmark.isCompleted && bmark.regularUpdate === todayDayName;
+          // 정기업데이트 당일(자정~23:59:59)이고, 아직 최종회차까지 다 읽지 않은 경우(currentBmNum < finalEpNum)에만 NEW 표시
+          // 최종회차 = 책갈피 같아지면 NEW 심볼 소멸
+          const isUpdateToday = !bmark.isCompleted && bmark.regularUpdate === todayDayName && currentBmNum < finalEpNum;
 
           let cardBgClass = "bg-amber-50/40 hover:bg-amber-50/70 border-amber-400/90 text-neutral-900";
           if (bmark.isCompleted) {
@@ -571,7 +569,7 @@ export default function BookmarksTab({ themeClasses }: BookmarksTabProps) {
                 </div>
               </div>
 
-              {/* 제목 (정기업데이트 당일일 경우 NEW 뱃지 표시) */}
+              {/* 제목 (정기업데이트 당일 & 책갈피 미달성일 경우 NEW 뱃지 표시) */}
               <div className="col-span-3 text-neutral-900 font-black truncate px-1 flex items-center justify-center gap-1.5" title={bmark.title}>
                 <span className="truncate">{bmark.title}</span>
                 {isUpdateToday && (
