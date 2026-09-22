@@ -19,6 +19,7 @@ import {
   SkipBack,
   SkipForward,
   Repeat,
+  Shuffle,
   Volume2,
   VolumeX,
   Settings,
@@ -100,7 +101,6 @@ export default function Home() {
 
   // -------------------------------------------------------------
   // [전체 탭 통합 자동 동기화 엔진]
-  // 탭 컴포넌트들을 전혀 수정하지 않고도 모든 입력내용을 실시간 공유합니다.
   // -------------------------------------------------------------
   const [storageSyncTrigger, setStorageSyncTrigger] = useState(0);
 
@@ -109,7 +109,6 @@ export default function Home() {
 
     let isRemoteUpdate = false;
 
-    // 1) 초기 진입 시: 클라우드 데이터를 내려받아 로컬스토리지에 병합 & 로컬의 기존 데이터는 클라우드로 백업
     async function syncAllStorage() {
       try {
         const { data, error } = await supabase.from("app_storage").select("key, value");
@@ -117,7 +116,6 @@ export default function Home() {
           const cloudMap = new Map();
           data.forEach((row) => cloudMap.set(row.key, row.value));
 
-          // A. 클라우드에 있는 데이터를 내 브라우저에 복원
           for (const [key, value] of cloudMap.entries()) {
             if (key === "jb_space_custom_password") continue;
             const strVal = typeof value === "string" ? value : JSON.stringify(value);
@@ -129,7 +127,6 @@ export default function Home() {
             }
           }
 
-          // B. 내 브라우저에만 있고 클라우드에 없는 기존 작성 내용(일정, 가계부 등)을 클라우드로 업로드
           for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (!key || key === "jb_space_custom_password") continue;
@@ -150,7 +147,6 @@ export default function Home() {
 
     syncAllStorage();
 
-    // 2) 브라우저 로컬스토리지 변경 감지 (내 화면에서 일정을 쓰거나 가계부를 수정할 때)
     const originalSetItem = localStorage.setItem;
     localStorage.setItem = function (key, value) {
       originalSetItem.apply(this, arguments);
@@ -171,7 +167,6 @@ export default function Home() {
       }
     };
 
-    // 3) 다른 컴퓨터나 기기에서 변경되었을 때 실시간 수신하여 내 브라우저에 즉시 반영
     const realtimeChannel = supabase
       .channel("global_all_storage_sync")
       .on(
@@ -408,6 +403,7 @@ export default function Home() {
   const [currentPlayingIndex, setCurrentPlayingIndex] = useState<number | null>(null);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [repeatMode, setRepeatMode] = useState<"none" | "all" | "one">("all");
+  const [isShuffle, setIsShuffle] = useState(false);
   const [currentTimeSec, setCurrentTimeSec] = useState(0);
   const [durationSec, setDurationSec] = useState(0);
   const [volume, setVolume] = useState(80);
@@ -415,6 +411,12 @@ export default function Home() {
   const playerRef = useRef<any>(null);
   const repeatModeRef = useRef(repeatMode);
   repeatModeRef.current = repeatMode;
+  const isShuffleRef = useRef(isShuffle);
+  isShuffleRef.current = isShuffle;
+  const likedSongsRef = useRef(likedSongs);
+  likedSongsRef.current = likedSongs;
+  const currentPlayingIndexRef = useRef(currentPlayingIndex);
+  currentPlayingIndexRef.current = currentPlayingIndex;
 
   const currentSong = currentPlayingIndex !== null ? likedSongs[currentPlayingIndex] : null;
 
@@ -468,8 +470,14 @@ export default function Home() {
                 if (repeatModeRef.current === "one") {
                   playerRef.current.seekTo(0);
                   playerRef.current.playVideo();
+                } else if (isShuffleRef.current && likedSongsRef.current.length > 1) {
+                  let nextIdx = Math.floor(Math.random() * likedSongsRef.current.length);
+                  while (nextIdx === currentPlayingIndexRef.current && likedSongsRef.current.length > 1) {
+                    nextIdx = Math.floor(Math.random() * likedSongsRef.current.length);
+                  }
+                  setCurrentPlayingIndex(nextIdx);
                 } else {
-                  setCurrentPlayingIndex((prev) => (prev !== null && prev < likedSongs.length - 1 ? prev + 1 : 0));
+                  setCurrentPlayingIndex((prev) => (prev !== null && prev < likedSongsRef.current.length - 1 ? prev + 1 : 0));
                 }
               }
             }
@@ -535,14 +543,30 @@ export default function Home() {
 
   const handlePrevSong = () => {
     if (likedSongs.length === 0) return;
-    setCurrentPlayingIndex((prev) => (prev === null || prev === 0 ? likedSongs.length - 1 : prev - 1));
+    if (isShuffle && likedSongs.length > 1) {
+      let randIdx = Math.floor(Math.random() * likedSongs.length);
+      while (randIdx === currentPlayingIndex && likedSongs.length > 1) {
+        randIdx = Math.floor(Math.random() * likedSongs.length);
+      }
+      setCurrentPlayingIndex(randIdx);
+    } else {
+      setCurrentPlayingIndex((prev) => (prev === null || prev === 0 ? likedSongs.length - 1 : prev - 1));
+    }
     setIsPlayingAudio(true);
     setCurrentTimeSec(0);
   };
 
   const handleNextSong = () => {
     if (likedSongs.length === 0) return;
-    setCurrentPlayingIndex((prev) => (prev === null || prev >= likedSongs.length - 1 ? 0 : prev + 1));
+    if (isShuffle && likedSongs.length > 1) {
+      let randIdx = Math.floor(Math.random() * likedSongs.length);
+      while (randIdx === currentPlayingIndex && likedSongs.length > 1) {
+        randIdx = Math.floor(Math.random() * likedSongs.length);
+      }
+      setCurrentPlayingIndex(randIdx);
+    } else {
+      setCurrentPlayingIndex((prev) => (prev === null || prev >= likedSongs.length - 1 ? 0 : prev + 1));
+    }
     setIsPlayingAudio(true);
     setCurrentTimeSec(0);
   };
@@ -920,7 +944,7 @@ export default function Home() {
           )}
         </aside>
 
-        {/* [2] 중앙 내용 영역 (key에 storageSyncTrigger를 전달하여 실시간 업데이트 시 자동으로 새 내용 반영) */}
+        {/* [2] 중앙 내용 영역 */}
         <section className="flex-1 w-full h-[760px] min-w-0 flex flex-col" key={`content-sync-${storageSyncTrigger}`}>
           {currentTab === "schedule" && <ScheduleTab themeClasses={themeClasses} />}
           {currentTab === "ledger" && <LedgerTab themeClasses={themeClasses} />}
@@ -1027,9 +1051,24 @@ export default function Home() {
                   </button>
                   <button onClick={handleNextSong} disabled={likedSongs.length === 0} className="p-1 rounded text-neutral-600"><SkipForward className="w-3.5 h-3.5" /></button>
                 </div>
-                <button onClick={() => setRepeatMode(repeatMode === "all" ? "one" : repeatMode === "one" ? "none" : "all")} className={`p-1 rounded text-[10px] font-bold ${repeatMode !== "none" ? themeClasses.accentActive + " px-1.5" : "text-neutral-400"}`}>
-                  <Repeat className="w-3.5 h-3.5" />
-                </button>
+                
+                {/* 반복재생 & 셔플 버튼 */}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setRepeatMode(repeatMode === "all" ? "one" : repeatMode === "one" ? "none" : "all")}
+                    title={`반복 모드: ${repeatMode === "all" ? "전체 반복" : repeatMode === "one" ? "한곡 반복" : "반복 안함"}`}
+                    className={`p-1 rounded text-[10px] font-bold transition ${repeatMode !== "none" ? themeClasses.accentActive + " px-1.5" : "text-neutral-400 hover:text-neutral-600"}`}
+                  >
+                    <Repeat className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setIsShuffle((prev) => !prev)}
+                    title={isShuffle ? "셔플(랜덤 재생) 끄기" : "셔플(랜덤 재생) 켜기"}
+                    className={`p-1 rounded text-[10px] font-bold transition ${isShuffle ? themeClasses.accentActive + " px-1.5" : "text-neutral-400 hover:text-neutral-600"}`}
+                  >
+                    <Shuffle className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
               <div className={`flex items-center gap-1.5 pt-1 border-t ${themeClasses.borderSubtle} px-0.5`}>
