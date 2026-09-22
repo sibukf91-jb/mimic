@@ -152,7 +152,7 @@ export default function SongsTab({
     setNewSongType("none");
   };
 
-  // 하트 토글
+  // 하트 단일 토글
   const toggleLike = (id: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     setSongList((prev) =>
@@ -160,7 +160,7 @@ export default function SongsTab({
     );
   };
 
-  // 삭제 시 확인창(Confirm) 추가
+  // 삭제 시 확인창(Confirm)
   const handleDeleteSong = (id: number) => {
     if (window.confirm("정말 삭제하시겠습니까?")) {
       setSongList((prev) => prev.filter((s) => s.id !== id));
@@ -184,6 +184,21 @@ export default function SongsTab({
       });
   }, [songList, selectedGenre, searchQuery]);
 
+  // 관리 헤더: 전체선택 / 전체해제 계산 및 핸들러
+  const isAllFilteredLiked = useMemo(() => {
+    if (filteredSongs.length === 0) return false;
+    return filteredSongs.every((s) => s.liked);
+  }, [filteredSongs]);
+
+  const toggleAllLikes = () => {
+    if (filteredSongs.length === 0) return;
+    const targetStatus = !isAllFilteredLiked;
+    const filteredIds = new Set(filteredSongs.map((s) => s.id));
+    setSongList((prev) =>
+      prev.map((s) => (filteredIds.has(s.id) ? { ...s, liked: targetStatus } : s))
+    );
+  };
+
   return (
     <div className="h-full overflow-y-auto flex flex-col gap-2.5 pr-1">
       {/* 등록 바 */}
@@ -197,7 +212,6 @@ export default function SongsTab({
             placeholder="장르 입력"
             className="w-24 border border-emerald-200 bg-white/80 rounded-lg px-2.5 py-1.5 text-xs font-medium text-emerald-900 focus:outline-none focus:border-emerald-500 placeholder-neutral-400"
           />
-          {/* 중복 없이 단 한 번만 생성되는 datalist */}
           <datalist id="genre-suggestions">
             {existingGenres.map((g) => (
               <option key={g} value={g} />
@@ -299,18 +313,32 @@ export default function SongsTab({
         </div>
       </div>
 
-      {/* 헤더 박스 */}
+      {/* 헤더 박스: 가수를 왼쪽(배경 5칸 정도)으로 당기고, 곡명을 중앙에 배치, 관리 영역에 하트 전체선택/해제 배치 */}
       <div className="border-2 border-emerald-400/90 rounded-xl px-4 py-2.5 bg-emerald-100/60 backdrop-blur-[2px] shadow-sm shrink-0">
         <div className="grid grid-cols-12 gap-2 text-xs font-extrabold text-emerald-900 items-center">
           <span className="col-span-2 flex items-center justify-center gap-1 text-center">🏷️ 장르</span>
-          <span className="col-span-4 flex items-center justify-center gap-1 text-center">🎤 가수 / 아티스트</span>
-          <span className="col-span-3 flex items-center justify-center gap-1 text-center">🎵 곡명</span>
+          <span className="col-span-3 flex items-center justify-center gap-1 text-center -ml-8">🎤 가수 / 아티스트</span>
+          <span className="col-span-4 flex items-center justify-center gap-1 text-center">🎵 곡명</span>
           <span className="col-span-1 flex items-center justify-center gap-1 text-center">🎬 영상</span>
-          <span className="col-span-2 flex items-center justify-center text-center">관리</span>
+          <div className="col-span-2 flex items-center justify-center gap-1.5 text-center">
+            <span>관리</span>
+            <button
+              type="button"
+              onClick={toggleAllLikes}
+              title={isAllFilteredLiked ? "플레이리스트 전체 해제" : "현재 목록 전체 하트 담기"}
+              className={`p-1 rounded-md transition active:scale-95 flex items-center gap-0.5 border ${
+                isAllFilteredLiked
+                  ? "bg-rose-100 border-rose-300 text-rose-600 shadow-2xs"
+                  : "bg-white/80 border-emerald-300 text-neutral-500 hover:text-rose-500 hover:bg-white"
+              }`}
+            >
+              <Heart className={`w-3.5 h-3.5 ${isAllFilteredLiked ? "fill-rose-500" : ""}`} />
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* 리스트 */}
+      {/* 노래 리스트 */}
       <div className="flex flex-col gap-2">
         {filteredSongs.map((song) => {
           const isPlayingThis = isPlayingAudio && currentSong?.id === song.id;
@@ -393,6 +421,7 @@ export default function SongsTab({
                   : "bg-emerald-50/40 border-emerald-400/90 hover:border-emerald-500 hover:bg-emerald-50/70"
               }`}
             >
+              {/* 장르 */}
               <div className="col-span-2 flex justify-center">
                 <span className="px-2.5 py-1 rounded-lg bg-emerald-100/90 border border-emerald-200 text-emerald-900 text-[11px] font-bold text-center flex items-center gap-1 shadow-2xs">
                   <span>{genreIcon}</span>
@@ -400,13 +429,20 @@ export default function SongsTab({
                 </span>
               </div>
 
-              <div className="col-span-4 text-neutral-800 truncate font-bold text-[13px] text-center px-1">
+              {/* 가수 / 아티스트: 배경 5칸(약 32px) 왼쪽으로 이동 */}
+              <div className="col-span-3 text-neutral-800 truncate font-bold text-[13px] text-center px-1 -ml-8">
                 {song.artist}
               </div>
 
-              <div className="col-span-3 flex items-center justify-center gap-2 font-bold text-neutral-900 px-1 overflow-hidden">
+              {/* 곡명: 중앙에 위치 및 마우스 오버 시 풀제목 툴팁 노출 */}
+              <div className="col-span-4 flex items-center justify-center gap-2 font-bold text-neutral-900 px-1 overflow-hidden">
                 <Music className={`w-3.5 h-3.5 shrink-0 ${isPlayingThis ? "text-emerald-600 animate-pulse" : "text-emerald-500"}`} />
-                <span className="truncate text-sm">{song.title}</span>
+                <span
+                  title={song.title}
+                  className="truncate text-sm cursor-default"
+                >
+                  {song.title}
+                </span>
                 {isCover && (
                   <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 border border-amber-300 shadow-xs shrink-0">
                     <Mic2 className="w-2.5 h-2.5" />
@@ -421,6 +457,7 @@ export default function SongsTab({
                 )}
               </div>
 
+              {/* 영상 재생 버튼 */}
               <div className="col-span-1 flex items-center justify-center">
                 {hasUrl ? (
                   <button
@@ -436,6 +473,7 @@ export default function SongsTab({
                 )}
               </div>
 
+              {/* 관리 (수정, 하트 개별 토글, 삭제) */}
               <div className="col-span-2 flex items-center justify-center gap-1.5">
                 <button
                   onClick={() => startEditSong(song)}
